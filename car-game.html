@@ -591,13 +591,10 @@ function drawCarShape(ctx, type, color, weapons=[], angle=0) {
   
   tyres.forEach(([tx, ty]) => {
     ctx.save();
-    // Shadow for tires
     ctx.shadowBlur = 4;
-    // Tire body
     ctx.beginPath();
     ctx.roundRect(tx, ty, tyreW, tyreH, 2);
     ctx.fill();
-    // Tread lines
     ctx.strokeStyle = '#333';
     ctx.lineWidth = 1;
     for (let yOffset = 2; yOffset < tyreH; yOffset += 4) {
@@ -606,16 +603,37 @@ function drawCarShape(ctx, type, color, weapons=[], angle=0) {
       ctx.lineTo(tx + tyreW, ty + yOffset);
       ctx.stroke();
     }
-    // Alloy Rim
     ctx.fillStyle = '#e5e7eb';
     ctx.beginPath();
     ctx.roundRect(tx + 1.5, ty + 3, tyreW - 3, tyreH - 6, 1);
     ctx.fill();
-    // Center cap
     ctx.fillStyle = '#374151';
     ctx.fillRect(tx + 2.5, ty + tyreH/2 - 1, tyreW - 5, 2);
     ctx.restore();
   });
+
+  // 2.5 Rounded Retro Fenders sticking out (exactly like the GTA 2 screenshot)
+  ctx.save();
+  ctx.fillStyle = shadeColor(color, -8);
+  ctx.strokeStyle = shadeColor(color, -25);
+  ctx.lineWidth = 1.2;
+  // Front-Left Fender
+  ctx.beginPath();
+  ctx.arc(1.5, t.roofY + tyreH/2 + 2, tyreH/2 + 2.5, -Math.PI*0.6, Math.PI*0.6, true);
+  ctx.fill(); ctx.stroke();
+  // Front-Right Fender
+  ctx.beginPath();
+  ctx.arc(w - 1.5, t.roofY + tyreH/2 + 2, tyreH/2 + 2.5, -Math.PI*0.4, Math.PI*0.4, false);
+  ctx.fill(); ctx.stroke();
+  // Rear-Left Fender
+  ctx.beginPath();
+  ctx.arc(1.5, h - tyreH/2 - 6, tyreH/2 + 2.5, -Math.PI*0.6, Math.PI*0.6, true);
+  ctx.fill(); ctx.stroke();
+  // Rear-Right Fender
+  ctx.beginPath();
+  ctx.arc(w - 1.5, h - tyreH/2 - 6, tyreH/2 + 2.5, -Math.PI*0.4, Math.PI*0.4, false);
+  ctx.fill(); ctx.stroke();
+  ctx.restore();
 
   // 3. Main Car Body (Smoothly tapered with rounded corners)
   const bodyGrad = ctx.createLinearGradient(0, 0, 0, h);
@@ -629,36 +647,45 @@ function drawCarShape(ctx, type, color, weapons=[], angle=0) {
   ctx.lineWidth = 1.5;
 
   ctx.beginPath();
-  // Front-left bumper
   ctx.moveTo(3, 4);
-  // Front hood curve
   ctx.quadraticCurveTo(w/2, 0, w - 3, 4);
-  // Front-right wheel arch
   ctx.lineTo(w - 2, t.roofY);
   ctx.lineTo(w, t.roofY + 4);
   ctx.lineTo(w, t.roofY + tyreH);
   ctx.lineTo(w - 2, t.roofY + tyreH + 4);
-  // Right side body panel (slight curve out)
   ctx.quadraticCurveTo(w + 1, h/2, w - 2, h - tyreH - 10);
-  // Rear-right wheel arch
   ctx.lineTo(w, h - tyreH - 6);
   ctx.lineTo(w, h - 6);
   ctx.lineTo(w - 3, h - 2);
-  // Rear bumper curve
   ctx.quadraticCurveTo(w/2, h + 1, 3, h - 2);
-  // Rear-left wheel arch
   ctx.lineTo(0, h - 6);
   ctx.lineTo(0, h - tyreH - 6);
   ctx.lineTo(2, h - tyreH - 10);
-  // Left side body panel
   ctx.quadraticCurveTo(-1, h/2, 2, t.roofY + tyreH + 4);
-  // Front-left wheel arch
   ctx.lineTo(0, t.roofY + tyreH);
   ctx.lineTo(0, t.roofY + 4);
   ctx.lineTo(2, t.roofY);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
+
+  // 3.5 Two-Tone Police / Special Paint Job decal
+  // If the color is police blue, overlay white hood and white trunk decals
+  if (color === '#1144ff') {
+    ctx.save();
+    ctx.fillStyle = '#f3f4f6';
+    ctx.strokeStyle = '#d1d5db';
+    ctx.lineWidth = 0.5;
+    // Hood white decal
+    ctx.beginPath();
+    ctx.roundRect(w * 0.18, 5, w * 0.64, t.roofY - 8, 2);
+    ctx.fill(); ctx.stroke();
+    // Trunk white decal
+    ctx.beginPath();
+    ctx.roundRect(w * 0.18, t.roofY + t.roofH + 4, w * 0.64, h - (t.roofY + t.roofH) - 9, 2);
+    ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
 
   // Chrome bumpers (silver guards curving around the front/back)
   ctx.save();
@@ -736,11 +763,8 @@ function drawCarShape(ctx, type, color, weapons=[], angle=0) {
   ctx.fillStyle = color;
   ctx.strokeStyle = shadeColor(color, -30);
   ctx.lineWidth = 1;
-  // Left mirror
   ctx.beginPath(); ctx.roundRect(-4, t.roofY + 1, 4, 3, 1); ctx.fill(); ctx.stroke();
-  // Right mirror
   ctx.beginPath(); ctx.roundRect(w, t.roofY + 1, 4, 3, 1); ctx.fill(); ctx.stroke();
-  // Mirror glass reflectivity
   ctx.fillStyle = '#e0f2fe';
   ctx.fillRect(-3, t.roofY + 1.5, 1.5, 2);
   ctx.fillRect(w + 1.5, t.roofY + 1.5, 1.5, 2);
@@ -753,9 +777,9 @@ function drawCarShape(ctx, type, color, weapons=[], angle=0) {
 
   // Windshield & Windows
   const glassGrad = ctx.createLinearGradient(0, t.roofY, 0, t.roofY + t.roofH);
-  glassGrad.addColorStop(0, '#7dd3fc'); // sky blue
-  glassGrad.addColorStop(0.5, '#0284c7'); // deep blue
-  glassGrad.addColorStop(1, '#0c4a6e'); // dark shadow blue
+  glassGrad.addColorStop(0, '#bae6fd'); // light sky blue
+  glassGrad.addColorStop(0.4, '#38bdf8'); // sky blue
+  glassGrad.addColorStop(1, '#0284c7'); // deep blue shadow
 
   // Front curved windshield
   ctx.fillStyle = glassGrad;
@@ -785,12 +809,12 @@ function drawCarShape(ctx, type, color, weapons=[], angle=0) {
   ctx.fillRect(t.roofX + t.roofW - 2.5, t.roofY + 10, 1.5, t.roofH - 20);
 
   // Glass reflection highlights (diagonal shine lines)
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
-  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+  ctx.lineWidth = 1.8;
   ctx.beginPath();
   ctx.moveTo(t.roofX + 4, t.roofY + 1);
-  ctx.lineTo(t.roofX + 10, t.roofY + 7);
-  ctx.moveTo(t.roofX + t.roofW - 10, t.roofY + t.roofH - 8);
+  ctx.lineTo(t.roofX + 12, t.roofY + 8);
+  ctx.moveTo(t.roofX + t.roofW - 12, t.roofY + t.roofH - 8);
   ctx.lineTo(t.roofX + t.roofW - 4, t.roofY + t.roofH - 1);
   ctx.stroke();
 
@@ -807,7 +831,7 @@ function drawCarShape(ctx, type, color, weapons=[], angle=0) {
 
   // 6. Lights
   // Front Headlights
-  ctx.fillStyle = '#fef08a'; // bright yellow LED
+  ctx.fillStyle = '#fef08a';
   ctx.beginPath();
   ctx.moveTo(2, 2);
   ctx.lineTo(8, 2);
@@ -830,7 +854,7 @@ function drawCarShape(ctx, type, color, weapons=[], angle=0) {
   ctx.fillRect(w - 6, 2, 3, 1.5);
 
   // Rear Taillights
-  ctx.fillStyle = '#ef4444'; // Red
+  ctx.fillStyle = '#ef4444';
   ctx.fillRect(2, h - 3, 6, 2);
   ctx.fillRect(w - 8, h - 3, 6, 2);
   
