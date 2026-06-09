@@ -1830,20 +1830,27 @@ function update(dt) {
   const anyFire   = fireKeys.some(f=>f) || keys['Space'];
 
   // Steer
-  const steerSpeed = 2.5;
+  const steerSpeed = 3.0;
   const steerMul = 0.4 + Math.abs(p.speed)/200;
-  if (turnLeft)       p.angle -= steerSpeed * dt * steerMul;
-  else if (turnRight) p.angle += steerSpeed * dt * steerMul;
-  else if (Math.abs(jx) > jDead) p.angle += steerSpeed * dt * steerMul * jx * 0.7;
+  const joystickActive = Math.sqrt(jx*jx + jy*jy) > jDead;
+  if (joystickActive) {
+    const targetAngle = Math.atan2(jx, -jy);
+    let da = targetAngle - p.angle;
+    while(da > Math.PI) da -= Math.PI*2;
+    while(da < -Math.PI) da += Math.PI*2;
+    p.angle += da * steerSpeed * dt;
+  } else {
+    if (turnLeft)  p.angle -= steerSpeed * dt * steerMul;
+    if (turnRight) p.angle += steerSpeed * dt * steerMul;
+  }
 
   // Acceleration
   const maxSpeed = (340 * p.size) * (p.nitroTime > 0 ? 1.7 : 1) * timeSpeedMultiplier;
   const accelForce = 400 * (p.nitroTime > 0 ? 2.0 : 1) * timeSpeedMultiplier;
   const brakeForce = 400;
   const friction = 140;
-  const joystickActive = Math.sqrt(jx*jx + jy*jy) > jDead;
   if (accel) p.speed = Math.min(p.speed + accelForce*dt, maxSpeed);
-  else if (joystickActive) p.speed = Math.min(p.speed + accelForce * 0.6 * dt, maxSpeed);
+  else if (joystickActive) p.speed = Math.min(p.speed + accelForce * 0.7 * dt, maxSpeed);
   else if (brake) p.speed = Math.max(p.speed - brakeForce*dt, -80);
   else p.speed *= (1 - friction/1000 * dt * 60);
   if (Math.abs(p.speed)<1) p.speed=0;
