@@ -236,45 +236,66 @@
     position: absolute; bottom: 0; left: 0; right: 0;
     z-index: 50;
     display: flex; justify-content: space-between; align-items: flex-end;
-    padding: 10px 16px 20px;
+    padding: 8px 10px 14px;
     pointer-events: none;
     direction: ltr;
   }
-  .ctrl-group { display: flex; flex-direction: column; gap: 6px; pointer-events: all; }
-  .ctrl-row { display: flex; gap: 6px; justify-content: center; }
+  .ctrl-group { display: flex; flex-direction: column; gap: 5px; pointer-events: all; }
+  .ctrl-row { display: flex; gap: 5px; justify-content: center; align-items: center; }
   .ctrl-btn {
-    width: 68px; height: 68px;
-    background: rgba(0,0,0,0.75);
-    border: 2px solid rgba(255,255,255,0.2);
-    border-radius: 14px;
+    width: 58px; height: 58px;
+    background: rgba(0,0,0,0.7);
+    border: 2px solid rgba(255,255,255,0.15);
+    border-radius: 50%;
     color: white;
-    font-size: 1.5rem;
+    font-size: 1.6rem;
     display: flex; align-items: center; justify-content: center;
     cursor: pointer;
     user-select: none;
     -webkit-user-select: none;
-    transition: background 0.1s, transform 0.1s;
+    transition: background 0.1s, transform 0.1s, box-shadow 0.1s;
     touch-action: none;
+    padding: 0;
+    line-height: 1;
   }
   .ctrl-btn:active, .ctrl-btn.pressed {
-    background: rgba(245,197,24,0.4);
-    transform: scale(0.93);
+    background: rgba(245,197,24,0.35);
+    transform: scale(0.9);
     border-color: var(--color-primary);
+    box-shadow: 0 0 12px rgba(245,197,24,0.4);
   }
-  .ctrl-btn.speed-btn { background: rgba(0,180,80,0.35); border-color: rgba(0,220,100,0.5); width: 62px; height: 62px; font-size: 1.2rem; }
-  .ctrl-btn.speed-btn.pressed { background: rgba(0,220,100,0.6); }
+  .ctrl-btn.speed-btn {
+    width: 52px; height: 52px;
+    background: rgba(0,180,80,0.3);
+    border-color: rgba(0,220,100,0.4);
+    font-size: 1.3rem;
+  }
+  .ctrl-btn.speed-btn.pressed { background: rgba(0,220,100,0.5); }
   .ctrl-btn.weapon-fire {
-    width: 78px; height: 78px; border-radius: 50%;
-    background: rgba(200,40,40,0.5);
-    border-color: rgba(255,80,80,0.7);
-    font-size: 1.6rem;
+    width: 56px; height: 56px;
+    background: rgba(200,40,40,0.4);
+    border-color: rgba(255,80,80,0.5);
+    font-size: 1.5rem;
   }
-  .ctrl-btn.weapon-fire.pressed { background: rgba(255,80,80,0.8); }
-  .ctrl-btn.cannon-fire {
-    background: rgba(180,80,0,0.5);
-    border-color: rgba(255,140,0,0.7);
+  .ctrl-btn.weapon-fire.pressed { background: rgba(255,80,80,0.7); }
+  .ctrl-btn.weapon-fire.cannon-fire {
+    background: rgba(180,80,0,0.4);
+    border-color: rgba(255,140,0,0.5);
   }
-  .ctrl-btn.cannon-fire.pressed { background: rgba(255,140,0,0.8); }
+  .ctrl-btn.weapon-fire.cannon-fire.pressed { background: rgba(255,140,0,0.7); }
+  .ctrl-btn.bomb-btn {
+    width: 52px; height: 52px;
+    background: rgba(255,80,0,0.35);
+    border-color: rgba(255,120,0,0.5);
+    font-size: 1.4rem;
+  }
+  .ctrl-btn.bomb-btn.pressed { background: rgba(255,100,0,0.6); }
+  .ctrl-btn.switch-btn {
+    width: 40px; height: 40px;
+    background: rgba(100,100,255,0.3);
+    border-color: rgba(130,130,255,0.4);
+    font-size: 1.1rem;
+  }
 
   /* ====== GAMEOVER / WIN ====== */
   #gameover-screen {
@@ -383,31 +404,25 @@
 
 <!-- TOUCH CONTROLS -->
 <div id="touch-controls" class="hidden">
-  <!-- LEFT: speed + weapons -->
+  <!-- LEFT: weapons + bomb -->
   <div class="ctrl-group" id="left-controls">
-    <div class="ctrl-row">
-      <button class="ctrl-btn speed-btn" id="btn-accel" data-action="accel">⬆️</button>
-      <button class="ctrl-btn speed-btn" id="btn-brake" data-action="brake">⬇️</button>
-    </div>
-    <div class="ctrl-row" id="weapon-fire-row">
+    <div class="ctrl-row" id="weapon-fire-row" style="flex-direction:column">
       <!-- weapon buttons injected dynamically -->
     </div>
     <div class="ctrl-row">
-      <button class="ctrl-btn" id="btn-bomb" style="background:rgba(255,80,0,0.5); color:#fff; font-size:1rem">💣</button>
+      <button class="ctrl-btn bomb-btn" id="btn-bomb">💣</button>
     </div>
   </div>
 
-  <!-- RIGHT: direction -->
+  <!-- RIGHT: direction + speed -->
   <div class="ctrl-group" id="right-controls">
-    <div class="ctrl-row">
-      <div style="width:56px"></div>
-      <button class="ctrl-btn" id="btn-up" data-action="up">⬆️</button>
-      <div style="width:56px"></div>
-    </div>
-    <div class="ctrl-row">
-      <button class="ctrl-btn" id="btn-left" data-action="left">⬅️</button>
-      <button class="ctrl-btn" id="btn-down" data-action="down">⬇️</button>
-      <button class="ctrl-btn" id="btn-right" data-action="right">➡️</button>
+    <div class="ctrl-row" style="gap:3px">
+      <button class="ctrl-btn" id="btn-left" data-action="left" style="width:50px;height:50px;font-size:1.3rem">⬅️</button>
+      <div style="display:flex;flex-direction:column;gap:3px">
+        <button class="ctrl-btn speed-btn" id="btn-accel" data-action="accel" style="width:50px;height:50px;font-size:1.3rem">⬆️</button>
+        <button class="ctrl-btn speed-btn" id="btn-brake" data-action="brake" style="width:50px;height:50px;font-size:1.3rem">⬇️</button>
+      </div>
+      <button class="ctrl-btn" id="btn-right" data-action="right" style="width:50px;height:50px;font-size:1.3rem">➡️</button>
     </div>
   </div>
 </div>
@@ -1585,21 +1600,22 @@ function buildWeaponFireBtns() {
   const row = document.getElementById('weapon-fire-row');
   row.innerHTML = '';
   const weapons = playerCar.weapons.length>0 ? playerCar.weapons : ['pistol'];
-  const icons = {pistol:'🔫', machine:'💥', cannon:'💣'};
-  const wnames = {pistol:'مسدس', machine:'رشاش', cannon:'مدفع'};
+  const icons = {pistol:'🔫', machine:'💥', cannon:'💣', electro:'⚡', flame:'🔥'};
+  const wnames = {pistol:'مسدس', machine:'رشاش', cannon:'مدفع', electro:'كهرباء', flame:'نار'};
   weapons.forEach((w,i) => {
     const btn = document.createElement('button');
     btn.className = 'ctrl-btn weapon-fire' + (w==='cannon'?' cannon-fire':'');
-    btn.innerHTML = icons[w];
-    btn.title = wnames[w];
+    btn.innerHTML = icons[w] || '🔫';
+    btn.title = wnames[w] || w;
     btn.dataset.weapon = w;
     setupTouchBtn(btn, 'fire_'+w);
     row.appendChild(btn);
   });
-  // weapon switch
   if (weapons.length>1) {
     const sw = document.createElement('button');
-    sw.className = 'ctrl-btn'; sw.innerHTML = '🔄'; sw.title = 'تغيير السلاح';
+    sw.className = 'ctrl-btn switch-btn';
+    sw.innerHTML = '🔄';
+    sw.title = 'تغيير السلاح';
     sw.onclick = () => {
       if (!gameState) return;
       gameState.player.activeWeapon = (gameState.player.activeWeapon+1)%weapons.length;
