@@ -558,172 +558,288 @@ function drawCarOnCanvas(cv, type, color, scale, weapons=[]) {
 
 function drawCarShape(ctx, type, color, weapons=[], angle=0) {
   const t = type;
+  const w = t.w;
+  const h = t.h;
   
-  // 1. Shadow (subtle and realistic)
-  ctx.shadowColor = 'rgba(0,0,0,0.35)'; 
-  ctx.shadowBlur = 8; 
-  ctx.shadowOffsetY = 3;
-  
-  // 2. Wheels (drawn first so they are under the body)
-  ctx.fillStyle = '#151515'; // dark tyre rubber
-  const wheelOffsets = [
-    [2, t.roofY + 2],
-    [t.w - 10, t.roofY + 2],
-    [2, t.h - 14],
-    [t.w - 10, t.h - 14]
+  ctx.save();
+
+  // 1. Shadow (subtle and realistic offset shadow)
+  ctx.shadowColor = 'rgba(0,0,0,0.4)';
+  ctx.shadowBlur = 8;
+  ctx.shadowOffsetY = 4;
+  ctx.shadowOffsetX = 2;
+
+  // 2. Wheels (Tyres + Silver Alloys sticking out slightly at the sides)
+  ctx.fillStyle = '#1e1e1e'; // tire rubber
+  const tyreW = 6;
+  const tyreH = 14;
+  const tyres = [
+    [-tyreW + 2, t.roofY + 2],             // front-left
+    [w - 2, t.roofY + 2],                  // front-right
+    [-tyreW + 1, h - tyreH - 6],           // rear-left
+    [w - 1, h - tyreH - 6]                 // rear-right
   ];
-  wheelOffsets.forEach(([x, y]) => {
-    // Tyre
-    ctx.fillRect(x, y, 8, 12);
-    // Rim
-    ctx.fillStyle = '#d1d5db'; // metallic silver
-    ctx.fillRect(x + 2, y + 2, 4, 8);
-    ctx.fillStyle = '#4b5563'; // rim inner hub
-    ctx.fillRect(x + 3, y + 4, 2, 4);
-    ctx.fillStyle = '#151515';
+  
+  tyres.forEach(([tx, ty]) => {
+    ctx.save();
+    // Shadow for tires
+    ctx.shadowBlur = 4;
+    // Tire body
+    ctx.beginPath();
+    ctx.roundRect(tx, ty, tyreW, tyreH, 2);
+    ctx.fill();
+    // Tread lines
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    for (let yOffset = 2; yOffset < tyreH; yOffset += 4) {
+      ctx.beginPath();
+      ctx.moveTo(tx, ty + yOffset);
+      ctx.lineTo(tx + tyreW, ty + yOffset);
+      ctx.stroke();
+    }
+    // Alloy Rim
+    ctx.fillStyle = '#e5e7eb';
+    ctx.beginPath();
+    ctx.roundRect(tx + 1.5, ty + 3, tyreW - 3, tyreH - 6, 1);
+    ctx.fill();
+    // Center cap
+    ctx.fillStyle = '#374151';
+    ctx.fillRect(tx + 2.5, ty + tyreH/2 - 1, tyreW - 5, 2);
+    ctx.restore();
   });
 
-  // 3. Body (Gradient for 3D depth)
-  const bodyGrad = ctx.createLinearGradient(0, 0, 0, t.h);
-  bodyGrad.addColorStop(0, shadeColor(color, 25)); // bright hood
+  // 3. Main Car Body (Smoothly tapered with rounded corners)
+  const bodyGrad = ctx.createLinearGradient(0, 0, 0, h);
+  bodyGrad.addColorStop(0, shadeColor(color, 35));   // shiny hood
   bodyGrad.addColorStop(0.3, color);
-  bodyGrad.addColorStop(0.8, shadeColor(color, -10));
-  bodyGrad.addColorStop(1, shadeColor(color, -25)); // shaded rear
+  bodyGrad.addColorStop(0.7, shadeColor(color, -10)); // base body
+  bodyGrad.addColorStop(1, shadeColor(color, -25));   // dark rear bumper shadow
+  
   ctx.fillStyle = bodyGrad;
-  
-  ctx.beginPath();
-  ctx.moveTo(t.bodyPoints[0][0], t.bodyPoints[0][1]);
-  t.bodyPoints.forEach(([x,y]) => ctx.lineTo(x,y));
-  ctx.closePath(); 
-  ctx.fill();
-  
-  // Clear shadow for interior details
-  ctx.shadowBlur = 0; 
-  ctx.shadowOffsetY = 0;
-  
-  // Hood detail lines
-  ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+  ctx.strokeStyle = shadeColor(color, -40);
   ctx.lineWidth = 1.5;
+
   ctx.beginPath();
-  ctx.moveTo(t.w * 0.3, 2);
-  ctx.lineTo(t.w * 0.35, t.roofY - 2);
-  ctx.moveTo(t.w * 0.7, 2);
-  ctx.lineTo(t.w * 0.65, t.roofY - 2);
+  // Front-left bumper
+  ctx.moveTo(3, 4);
+  // Front hood curve
+  ctx.quadraticCurveTo(w/2, 0, w - 3, 4);
+  // Front-right wheel arch
+  ctx.lineTo(w - 2, t.roofY);
+  ctx.lineTo(w, t.roofY + 4);
+  ctx.lineTo(w, t.roofY + tyreH);
+  ctx.lineTo(w - 2, t.roofY + tyreH + 4);
+  // Right side body panel (slight curve out)
+  ctx.quadraticCurveTo(w + 1, h/2, w - 2, h - tyreH - 10);
+  // Rear-right wheel arch
+  ctx.lineTo(w, h - tyreH - 6);
+  ctx.lineTo(w, h - 6);
+  ctx.lineTo(w - 3, h - 2);
+  // Rear bumper curve
+  ctx.quadraticCurveTo(w/2, h + 1, 3, h - 2);
+  // Rear-left wheel arch
+  ctx.lineTo(0, h - 6);
+  ctx.lineTo(0, h - tyreH - 6);
+  ctx.lineTo(2, h - tyreH - 10);
+  // Left side body panel
+  ctx.quadraticCurveTo(-1, h/2, 2, t.roofY + tyreH + 4);
+  // Front-left wheel arch
+  ctx.lineTo(0, t.roofY + tyreH);
+  ctx.lineTo(0, t.roofY + 4);
+  ctx.lineTo(2, t.roofY);
+  ctx.closePath();
+  ctx.fill();
   ctx.stroke();
 
-  // Front Grill and Bumper
-  ctx.fillStyle = '#111'; // front grill
-  ctx.fillRect(t.w * 0.25, 0, t.w * 0.5, 2);
-  ctx.fillStyle = '#4b5563'; // metal bumper
-  ctx.fillRect(2, -1, t.w - 4, 1.5);
+  // Disable shadow for interior details to keep them crisp
+  ctx.shadowColor = 'transparent';
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
+  ctx.shadowOffsetX = 0;
+
+  // 4. Panel Details (Hood lines, Door seams, Trunk seams)
+  ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+  ctx.lineWidth = 1;
   
-  // Rear Bumper
-  ctx.fillStyle = '#4b5563';
-  ctx.fillRect(2, t.h - 1, t.w - 4, 2);
+  // Hood lines
+  ctx.beginPath();
+  ctx.moveTo(w*0.28, 4); ctx.lineTo(w*0.32, t.roofY - 1);
+  ctx.moveTo(w*0.72, 4); ctx.lineTo(w*0.68, t.roofY - 1);
+  ctx.stroke();
+  
+  // Grill detailing
+  ctx.fillStyle = '#111827';
+  ctx.beginPath();
+  ctx.roundRect(w*0.3, 0, w*0.4, 2, 1);
+  ctx.fill();
+
+  // Chrome grill bars
+  ctx.strokeStyle = '#d1d5db';
+  ctx.lineWidth = 0.8;
+  ctx.beginPath();
+  ctx.moveTo(w*0.35, 1); ctx.lineTo(w*0.65, 1);
+  ctx.stroke();
+
+  // Front bumper lip
+  ctx.fillStyle = '#374151';
+  ctx.fillRect(4, -1, w - 8, 1);
 
   // Side Mirrors
   ctx.fillStyle = color;
+  ctx.strokeStyle = shadeColor(color, -30);
+  ctx.lineWidth = 1;
   // Left mirror
-  ctx.fillRect(-2, t.roofY + 2, 3, 2);
-  ctx.fillRect(-4, t.roofY + 1, 2, 3);
+  ctx.beginPath(); ctx.roundRect(-4, t.roofY + 1, 4, 3, 1); ctx.fill(); ctx.stroke();
   // Right mirror
-  ctx.fillRect(t.w - 1, t.roofY + 2, 3, 2);
-  ctx.fillRect(t.w + 2, t.roofY + 1, 2, 3);
+  ctx.beginPath(); ctx.roundRect(w, t.roofY + 1, 4, 3, 1); ctx.fill(); ctx.stroke();
+  // Mirror glass reflectivity
+  ctx.fillStyle = '#e0f2fe';
+  ctx.fillRect(-3, t.roofY + 1.5, 1.5, 2);
+  ctx.fillRect(w + 1.5, t.roofY + 1.5, 1.5, 2);
 
-  // 4. Roof & Pillars
-  const roofColor = shadeColor(color, -25);
-  ctx.fillStyle = roofColor;
-  ctx.fillRect(t.roofX, t.roofY, t.roofW, t.roofH);
-  
-  // 5. Windows (High-gloss glass look)
-  const glassColor = 'rgba(56, 189, 248, 0.75)'; // cyan glass
-  const glareColor = 'rgba(255, 255, 255, 0.4)'; // white shine
-  
-  // Front Windshield
-  ctx.fillStyle = glassColor;
-  ctx.fillRect(t.roofX + 2, t.roofY + 2, t.roofW - 4, 6);
-  // Windshield Glare reflection
-  ctx.fillStyle = glareColor;
+  // 5. Cabin Glass & Roof Structure (Sleek, rounded windshield and pillars)
+  ctx.fillStyle = shadeColor(color, -25);
   ctx.beginPath();
-  ctx.moveTo(t.roofX + 4, t.roofY + 2);
-  ctx.lineTo(t.roofX + 12, t.roofY + 2);
-  ctx.lineTo(t.roofX + 6, t.roofY + 8);
-  ctx.lineTo(t.roofX + 2, t.roofY + 8);
-  ctx.closePath(); ctx.fill();
+  ctx.roundRect(t.roofX, t.roofY, t.roofW, t.roofH, 4);
+  ctx.fill();
 
-  // Rear Window
-  ctx.fillStyle = glassColor;
-  ctx.fillRect(t.roofX + 2, t.roofY + t.roofH - 8, t.roofW - 4, 6);
+  // Windshield & Windows
+  const glassGrad = ctx.createLinearGradient(0, t.roofY, 0, t.roofY + t.roofH);
+  glassGrad.addColorStop(0, '#7dd3fc'); // sky blue
+  glassGrad.addColorStop(0.5, '#0284c7'); // deep blue
+  glassGrad.addColorStop(1, '#0c4a6e'); // dark shadow blue
+
+  // Front curved windshield
+  ctx.fillStyle = glassGrad;
+  ctx.beginPath();
+  ctx.moveTo(t.roofX + 2, t.roofY + 1);
+  ctx.lineTo(t.roofX + t.roofW - 2, t.roofY + 1);
+  ctx.quadraticCurveTo(t.roofX + t.roofW - 1, t.roofY + 7, t.roofX + t.roofW - 3, t.roofY + 8);
+  ctx.lineTo(t.roofX + 3, t.roofY + 8);
+  ctx.quadraticCurveTo(t.roofX + 1, t.roofY + 7, t.roofX + 2, t.roofY + 1);
+  ctx.closePath();
+  ctx.fill();
+
+  // Rear windshield
+  ctx.fillStyle = glassGrad;
+  ctx.beginPath();
+  ctx.moveTo(t.roofX + 3, t.roofY + t.roofH - 8);
+  ctx.lineTo(t.roofX + t.roofW - 3, t.roofY + t.roofH - 8);
+  ctx.quadraticCurveTo(t.roofX + t.roofW - 1, t.roofY + t.roofH - 7, t.roofX + t.roofW - 2, t.roofY + t.roofH - 1);
+  ctx.lineTo(t.roofX + 2, t.roofY + t.roofH - 1);
+  ctx.quadraticCurveTo(t.roofX + 1, t.roofY + t.roofH - 7, t.roofX + 3, t.roofY + t.roofH - 8);
+  ctx.closePath();
+  ctx.fill();
+
+  // Side Windows (Left & Right)
+  ctx.fillStyle = 'rgba(125, 211, 252, 0.7)';
+  ctx.fillRect(t.roofX + 1, t.roofY + 10, 1.5, t.roofH - 20);
+  ctx.fillRect(t.roofX + t.roofW - 2.5, t.roofY + 10, 1.5, t.roofH - 20);
+
+  // Glass reflection highlights (diagonal shine lines)
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(t.roofX + 4, t.roofY + 1);
+  ctx.lineTo(t.roofX + 10, t.roofY + 7);
+  ctx.moveTo(t.roofX + t.roofW - 10, t.roofY + t.roofH - 8);
+  ctx.lineTo(t.roofX + t.roofW - 4, t.roofY + t.roofH - 1);
+  ctx.stroke();
+
+  // Roof plate
+  ctx.fillStyle = shadeColor(color, -10);
+  ctx.beginPath();
+  ctx.roundRect(t.roofX + 2.5, t.roofY + 8.5, t.roofW - 5, t.roofH - 17, 2);
+  ctx.fill();
   
-  // Side Windows
-  ctx.fillStyle = 'rgba(56, 189, 248, 0.5)';
-  ctx.fillRect(t.roofX + 1, t.roofY + 10, 1.5, t.roofH - 20); // Left side window
-  ctx.fillRect(t.roofX + t.roofW - 2.5, t.roofY + 10, 1.5, t.roofH - 20); // Right side window
+  // Sunroof line
+  ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(t.roofX + t.roofW * 0.25, t.roofY + 11, t.roofW * 0.5, t.roofH - 22);
 
   // 6. Lights
-  // Headlights
-  ctx.fillStyle = '#fffae0';
-  ctx.fillRect(3, 1, 6, 3);
-  ctx.fillRect(t.w - 9, 1, 6, 3);
+  // Front Headlights
+  ctx.fillStyle = '#fef08a'; // bright yellow LED
+  ctx.beginPath();
+  ctx.moveTo(2, 2);
+  ctx.lineTo(8, 2);
+  ctx.lineTo(6, 6);
+  ctx.lineTo(2, 4);
+  ctx.closePath();
+  ctx.fill();
+  
+  ctx.beginPath();
+  ctx.moveTo(w - 2, 2);
+  ctx.lineTo(w - 8, 2);
+  ctx.lineTo(w - 6, 6);
+  ctx.lineTo(w - 2, 4);
+  ctx.closePath();
+  ctx.fill();
+
+  // Headlight lens core
   ctx.fillStyle = '#ffffff';
-  ctx.fillRect(4, 1, 3, 1.5);
-  ctx.fillRect(t.w - 7, 1, 3, 1.5);
+  ctx.fillRect(3, 2, 3, 1.5);
+  ctx.fillRect(w - 6, 2, 3, 1.5);
 
-  // Taillights
-  ctx.fillStyle = '#ef4444'; // bright red LED look
-  ctx.fillRect(3, t.h - 3, 5, 2);
-  ctx.fillRect(t.w - 8, t.h - 3, 5, 2);
-  // Amber indicators
+  // Rear Taillights
+  ctx.fillStyle = '#ef4444'; // Red
+  ctx.fillRect(2, h - 3, 6, 2);
+  ctx.fillRect(w - 8, h - 3, 6, 2);
+  
+  // Amber side turn signals
   ctx.fillStyle = '#f59e0b';
-  ctx.fillRect(1, t.h - 3, 2, 2);
-  ctx.fillRect(t.w - 3, t.h - 3, 2, 2);
+  ctx.fillRect(0.5, h - 3, 1.5, 2);
+  ctx.fillRect(w - 2, h - 3, 1.5, 2);
 
-  // Sport car specific spoiler
+  // 7. Spoiler & Cargo Customizations
   if (t.id === 'sport') {
-    ctx.fillStyle = '#111'; // spoiler wing
-    ctx.fillRect(-2, t.h - 2, t.w + 4, 3);
-    ctx.fillStyle = '#333'; // mounts
-    ctx.fillRect(4, t.h - 4, 2, 2);
-    ctx.fillRect(t.w - 6, t.h - 4, 2, 2);
+    ctx.fillStyle = '#111827';
+    ctx.beginPath();
+    ctx.roundRect(-3, h - 3, w + 6, 4, 1);
+    ctx.fill();
+    ctx.fillStyle = '#4b5563';
+    ctx.fillRect(5, h - 5, 2, 2);
+    ctx.fillRect(w - 7, h - 5, 2, 2);
   }
   
-  // Truck bed detail
   if (t.id === 'truck') {
-    ctx.fillStyle = '#222'; // truck bed cavity
-    ctx.fillRect(t.roofX + 2, t.roofY + t.roofH + 4, t.roofW - 4, t.h - (t.roofY + t.roofH) - 8);
-    ctx.strokeStyle = '#333';
-    ctx.lineWidth = 1;
-    for (let x = t.roofX + 6; x < t.roofX + t.roofW - 4; x += 4) {
+    ctx.fillStyle = '#1f2937';
+    ctx.fillRect(t.roofX + 2, t.roofY + t.roofH + 3, t.roofW - 4, h - (t.roofY + t.roofH) - 7);
+    ctx.strokeStyle = '#111827';
+    ctx.lineWidth = 1.2;
+    for (let lx = t.roofX + 6; lx < t.roofX + t.roofW - 4; lx += 4) {
       ctx.beginPath();
-      ctx.moveTo(x, t.roofY + t.roofH + 6);
-      ctx.lineTo(x, t.h - 6);
+      ctx.moveTo(lx, t.roofY + t.roofH + 5);
+      ctx.lineTo(lx, h - 6);
       ctx.stroke();
     }
   }
 
-  // 7. Weapons visual
+  // 8. Active Weapon Visuals
   if (weapons.includes('cannon')) {
-    ctx.fillStyle = '#374151'; // dark metallic grey
-    ctx.fillRect(t.w/2-3, -16, 6, 18);
+    ctx.fillStyle = '#374151';
+    ctx.fillRect(w/2-3, -16, 6, 18);
     ctx.fillStyle = '#1f2937';
-    ctx.fillRect(t.w/2-5, -20, 10, 5);
+    ctx.fillRect(w/2-5, -20, 10, 5);
     ctx.fillStyle = '#f5c518';
-    ctx.fillRect(t.w/2-2, -21, 4, 1.5);
+    ctx.fillRect(w/2-2, -21, 4, 1.5);
   }
   if (weapons.includes('machine')) {
     ctx.fillStyle = '#4b5563';
-    ctx.fillRect(t.w-4, t.roofY+8, 12, 3);
+    ctx.fillRect(w-4, t.roofY+8, 12, 3);
     ctx.fillRect(-8, t.roofY+8, 12, 3);
     ctx.fillStyle = '#1f2937';
-    ctx.fillRect(t.w+8, t.roofY+7, 2, 5);
+    ctx.fillRect(w+8, t.roofY+7, 2, 5);
     ctx.fillRect(-10, t.roofY+7, 2, 5);
   }
   if (weapons.includes('pistol')) {
     ctx.fillStyle = '#4b5563';
-    ctx.fillRect(t.w/2-2, -6, 4, 8);
+    ctx.fillRect(w/2-2, -6, 4, 8);
     ctx.fillStyle = '#1f2937';
-    ctx.fillRect(t.w/2-3, -9, 6, 3);
+    ctx.fillRect(w/2-3, -9, 6, 3);
   }
+
+  ctx.restore();
 }
 
 function shadeColor(hex, pct) {
@@ -1461,12 +1577,26 @@ function drawPolice(pol) {
   ctx.scale(s,s);
   ctx.translate(-t.w/2,-t.h/2);
   drawCarShape(ctx, t, pol.color, []);
-  // Siren lights
-  const si = Math.floor(Date.now()/200)%2;
-  ctx.fillStyle = si?'#ff0000':'#0088ff';
-  ctx.fillRect(t.roofX+2, t.roofY-6, 10, 6);
-  ctx.fillStyle = si?'#0088ff':'#ff0000';
-  ctx.fillRect(t.roofX+t.roofW-12, t.roofY-6, 10, 6);
+  
+  // High-quality modern lightbar on the roof
+  const barY = t.roofY + t.roofH/2 - 2;
+  // Black base bar mount
+  ctx.fillStyle = '#111827';
+  ctx.fillRect(t.roofX - 2, barY, t.roofW + 4, 4);
+  
+  // Flashing strobe lights
+  const si = Math.floor(Date.now()/120)%2;
+  // Left light (Red/Blue strobe)
+  ctx.fillStyle = si ? '#ef4444' : '#3b82f6';
+  ctx.fillRect(t.roofX + 2, barY - 1, t.roofW/2 - 3, 3);
+  // Right light (Blue/Red strobe)
+  ctx.fillStyle = si ? '#3b82f6' : '#ef4444';
+  ctx.fillRect(t.roofX + t.roofW/2 + 1, barY - 1, t.roofW/2 - 3, 3);
+  
+  // Middle siren speaker horn
+  ctx.fillStyle = '#9ca3af';
+  ctx.fillRect(t.roofX + t.roofW/2 - 2, barY - 2, 4, 3);
+  
   ctx.restore();
 }
 
