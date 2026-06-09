@@ -1750,7 +1750,7 @@ function spawnPowerUp() {
     
     const dist = Math.hypot(px - p.x, py - p.y);
     if (dist > 150) {
-      const types = ['health', 'shield', 'nitro', 'score'];
+      const types = ['health', 'shield', 'nitro', 'score', 'electro', 'flame'];
       const type = types[Math.floor(Math.random() * types.length)];
       gameState.powerUps.push({
         id: Math.random(),
@@ -1777,6 +1777,14 @@ function applyPowerUp(pu) {
     p.nitroTime = 6;
   } else if (pu.type === 'score') {
     p.score += 500;
+  } else if (pu.type === 'electro') {
+    if (!p.weapons.includes('electro')) p.weapons.push('electro');
+    p.ammo.electro = (p.ammo.electro || 0) + 40;
+    p.activeWeapon = p.weapons.indexOf('electro');
+  } else if (pu.type === 'flame') {
+    if (!p.weapons.includes('flame')) p.weapons.push('flame');
+    p.ammo.flame = (p.ammo.flame || 0) + 80;
+    p.activeWeapon = p.weapons.indexOf('flame');
   }
 }
 
@@ -1806,6 +1814,13 @@ function playPowerUpSound(type) {
   } else if (type === 'score') {
     playTone(987, 0.08, 'sine', 0.12);
     setTimeout(() => playTone(1318, 0.2, 'sine', 0.12), 80);
+  } else if (type === 'electro') {
+    playTone(600, 0.1, 'sawtooth', 0.15);
+    setTimeout(() => playTone(800, 0.1, 'sawtooth', 0.15), 100);
+    setTimeout(() => playTone(1000, 0.15, 'sawtooth', 0.15), 200);
+  } else if (type === 'flame') {
+    playTone(200, 0.15, 'sawtooth', 0.18);
+    setTimeout(() => playTone(300, 0.15, 'sawtooth', 0.18), 100);
   }
 }
 
@@ -1831,6 +1846,8 @@ function drawPowerUps() {
     else if (pu.type === 'shield') { color = '#3b82f6'; icon = '🛡️'; }
     else if (pu.type === 'nitro') { color = '#f97316'; icon = '⚡'; }
     else if (pu.type === 'score') { color = '#eab308'; icon = '💰'; }
+    else if (pu.type === 'electro') { color = '#a855f7'; icon = '🔌'; }
+    else if (pu.type === 'flame') { color = '#ef4444'; icon = '🔥'; }
 
     ctx.shadowColor = color;
     ctx.shadowBlur = 10 + Math.sin(Date.now() * 0.01) * 3;
