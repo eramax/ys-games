@@ -311,7 +311,7 @@
     <header>
       <div class="logo">YS GAMES</div>
       <div class="tagline">جميع ألعابك المفضلة في مكان واحد بدون تعقيد</div>
-      <a href="ys-games-app.apk" class="download-apk-btn" download>
+      <a href="ys-games-app.apk" id="apk-download-btn" class="download-apk-btn" download>
         <span>تحميل تطبيق الأندرويد</span>
         <span>🤖</span>
       </a>
@@ -412,6 +412,13 @@
           portal.style.opacity = '1';
         }, 50);
       }, 300);
+    }
+
+    // Hide download button if running inside the Android WebView app
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('app') === 'true') {
+      const btn = document.getElementById('apk-download-btn');
+      if (btn) btn.style.display = 'none';
     }
 
     // Start fetching games

@@ -42,7 +42,7 @@ public class MainActivity extends Activity {
         });
 
         // Load your hosted game portal on Vercel
-        mWebView.loadUrl("https://ys-games.vercel.app");
+        mWebView.loadUrl("https://ys-games.vercel.app/?app=true");
         setContentView(mWebView);
     }
 
