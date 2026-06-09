@@ -395,6 +395,10 @@ function playShoot(weapon) {
   } else if (weapon === 'cannon') {
     playTone(80, 0.5, 'sawtooth', 0.4); playTone(60, 0.6, 'sine', 0.35);
     setTimeout(()=>playTone(120, 0.3, 'square', 0.3), 80);
+  } else if (weapon === 'electro') {
+    playTone(800 + Math.random()*200, 0.08, 'sawtooth', 0.16);
+  } else if (weapon === 'flame') {
+    playTone(90 + Math.random()*40, 0.06, 'sawtooth', 0.18);
   }
 }
 function playExplosion() {
@@ -1388,14 +1392,32 @@ function update(dt) {
     b.life -= dt;
     if (b.life<=0) return false;
     if (isWall(b.x,b.y,4,4)) { spawnParticles(b.x,b.y,4,'#ffaa00'); return false; }
+    
+    // Check pedestrian hits
+    for (let i = gameState.pedestrians.length - 1; i >= 0; i--) {
+      const ped = gameState.pedestrians[i];
+      if (ped.state === 'dead' || ped.state === 'splatted') continue;
+      if (Math.hypot(b.x - ped.x, b.y - ped.y) < 14) {
+        ped.state = 'splatted';
+        ped.deathTime = Date.now();
+        playSquishSound();
+        spawnParticles(ped.x, ped.y, 8, b.weapon === 'flame' ? '#f97316' : '#ef4444');
+        p.score += 50;
+        if (Math.random() < 0.25) {
+          p.wantedLevel = Math.min(5, p.wantedLevel + 1);
+        }
+        return false;
+      }
+    }
+
     // check traffic hits
     for (let i=gameState.traffic.length-1; i>=0; i--) {
       const car = gameState.traffic[i];
       if (car.state==='destroyed') continue;
       if (rectHit(b.x,b.y,car.x,car.y,car.type.w*car.size,car.type.h*car.size)) {
         hitCar(car, b.weapon);
-        spawnParticles(b.x,b.y,8,b.weapon==='cannon'?'#ff6600':'#ffcc00');
-        p.score += b.weapon==='cannon'?30:b.weapon==='machine'?10:5;
+        spawnParticles(b.x,b.y,8,b.weapon==='cannon'?'#ff6600':b.weapon==='flame'?'#f97316':'#ffcc00');
+        p.score += b.weapon==='cannon'?30:b.weapon==='flame'?3:b.weapon==='machine'?10:5;
         p.wantedLevel = Math.min(5, p.wantedLevel+1);
         if (p.wantedLevel>=2 && gameState.police.length < p.wantedLevel*2) spawnPolice();
         return false;
@@ -1406,8 +1428,8 @@ function update(dt) {
       const car = gameState.police[i];
       if (rectHit(b.x,b.y,car.x,car.y,car.type.w*car.size,car.type.h*car.size)) {
         hitCar(car, b.weapon);
-        spawnParticles(b.x,b.y,8,'#ff4455');
-        p.score += b.weapon==='cannon'?50:20;
+        spawnParticles(b.x,b.y,8,b.weapon==='flame'?'#f97316':'#ff4455');
+        p.score += b.weapon==='cannon'?50:b.weapon==='flame'?5:20;
         return false;
       }
     }
@@ -1616,6 +1638,86 @@ function update(dt) {
       gameState.powerUps.splice(idx, 1);
     }
   });
+
+  // Update lightning arcs life
+  gameState.lightningArcs = gameState.lightningArcs.filter(arc => {
+    arc.life -= dt;
+    return arc.life > 0;
+  });
+
+  // Update pedestrians
+  if (gameState.pedestrians.length < 40 && Math.random() < 0.15) {
+    spawnPedestrian();
+  }
+  gameState.pedestrians.forEach(ped => {
+    if (ped.state === 'dead' || ped.state === 'splatted') return;
+    
+    // Leg swing walking animation
+    ped.legSwing += 8 * dt;
+    
+    // Direction vector
+    const vx = Math.sin(ped.angle) * ped.speed;
+    const vy = -Math.cos(ped.angle) * ped.speed;
+    
+    const nx = ped.x + vx * dt;
+    const ny = ped.y + vy * dt;
+    
+    // Collide with buildings
+    if (!isWall(nx, ny, 8, 8)) {
+      ped.x = nx;
+      ped.y = ny;
+      if (Math.random() < 0.005) {
+        ped.angle += (Math.random() - 0.5) * Math.PI;
+      }
+    } else {
+      // Turn around
+      ped.angle += Math.PI + (Math.random() - 0.5) * Math.PI / 2;
+    }
+    
+    // Run away if player or police or traffic approaches fast
+    let panic = false;
+    const carsToCheck = [gameState.player, ...gameState.traffic, ...gameState.police];
+    for (const car of carsToCheck) {
+      if (car.state === 'destroyed') continue;
+      const spd = car.speed !== undefined ? Math.abs(car.speed) : 0;
+      if (spd > 40) {
+        const dist = Math.hypot(ped.x - car.x, ped.y - car.y);
+        if (dist < 120) {
+          panic = true;
+          // run away
+          ped.angle = Math.atan2(ped.x - car.x, ped.y - car.y);
+          ped.speed = 95;
+          break;
+        }
+      }
+    }
+    if (!panic) {
+      ped.speed = 30 + Math.random() * 20;
+    }
+  });
+
+  // Check pedestrian vs car collisions (run over)
+  const cars = [gameState.player, ...gameState.traffic, ...gameState.police];
+  gameState.pedestrians.forEach(ped => {
+    if (ped.state === 'dead' || ped.state === 'splatted') return;
+    for (const car of cars) {
+      if (car.state === 'destroyed') continue;
+      const carRadius = car === gameState.player ? 20 : 16;
+      if (Math.hypot(ped.x - car.x, ped.y - car.y) < carRadius) {
+        ped.state = 'splatted';
+        ped.deathTime = Date.now();
+        playSquishSound();
+        spawnParticles(ped.x, ped.y, 15, '#ef4444');
+        if (car === gameState.player) {
+          p.score += 50;
+          if (Math.random() < 0.35) {
+            p.wantedLevel = Math.min(5, p.wantedLevel + 1);
+          }
+        }
+        break;
+      }
+    }
+  });
 }
 
 function spawnPowerUp() {
@@ -1757,11 +1859,93 @@ function fireBullet(weapon) {
   if (!p.weapons.length) return;
   const w = weapon || p.weapons[p.activeWeapon] || p.weapons[0];
   const now = performance.now();
-  const cooldowns = {pistol:400, machine:100, cannon:1200};
+  const cooldowns = {pistol:400, machine:100, cannon:1200, electro:180, flame:50};
   const cd = cooldowns[w]||400;
   if ((now-(lastFireTime[w]||0)) < cd) return;
   lastFireTime[w] = now;
   playShoot(w);
+
+  // Decrement limited ammo
+  if (p.ammo && p.ammo[w] !== undefined && p.ammo[w] !== Infinity) {
+    p.ammo[w] = Math.max(0, p.ammo[w] - 1);
+    if (p.ammo[w] <= 0) {
+      // Remove weapon from list and switch back
+      const idx = p.weapons.indexOf(w);
+      if (idx !== -1) {
+        p.weapons.splice(idx, 1);
+        p.activeWeapon = Math.max(0, p.activeWeapon - 1);
+      }
+    }
+  }
+
+  const spawnDist = p.type.h * p.size * 0.5;
+  const startX = p.x + Math.sin(p.angle) * spawnDist;
+  const startY = p.y - Math.cos(p.angle) * spawnDist;
+
+  if (w === 'electro') {
+    // Target nearest 3 enemies (police, traffic, pedestrians) in 220px range
+    const targets = [];
+    const maxZapDist = 220;
+    
+    gameState.police.forEach(pol => {
+      if (pol.state !== 'destroyed' && Math.hypot(p.x - pol.x, p.y - pol.y) < maxZapDist) {
+        targets.push({ type: 'car', obj: pol, dist: Math.hypot(p.x - pol.x, p.y - pol.y) });
+      }
+    });
+    gameState.traffic.forEach(car => {
+      if (car.state !== 'destroyed' && Math.hypot(p.x - car.x, p.y - car.y) < maxZapDist) {
+        targets.push({ type: 'car', obj: car, dist: Math.hypot(p.x - car.x, p.y - car.y) });
+      }
+    });
+    gameState.pedestrians.forEach(ped => {
+      if (ped.state !== 'dead' && ped.state !== 'splatted' && Math.hypot(p.x - ped.x, p.y - ped.y) < maxZapDist) {
+        targets.push({ type: 'ped', obj: ped, dist: Math.hypot(p.x - ped.x, p.y - ped.y) });
+      }
+    });
+    
+    targets.sort((a, b) => a.dist - b.dist);
+    const zaps = targets.slice(0, 3);
+    
+    zaps.forEach(target => {
+      gameState.lightningArcs.push({
+        fromX: startX, fromY: startY,
+        toX: target.obj.x, toY: target.obj.y,
+        life: 0.15
+      });
+      
+      if (target.type === 'car') {
+        hitCar(target.obj, 'electro');
+        spawnParticles(target.obj.x, target.obj.y, 4, '#c084fc');
+      } else {
+        target.obj.state = 'splatted';
+        target.obj.deathTime = Date.now();
+        playSquishSound();
+        spawnParticles(target.obj.x, target.obj.y, 6, '#c084fc');
+        p.score += 50;
+        if (Math.random() < 0.25) {
+          p.wantedLevel = Math.min(5, p.wantedLevel + 1);
+        }
+      }
+    });
+    return;
+  }
+
+  if (w === 'flame') {
+    const a = p.angle + (Math.random() - 0.5) * 0.25;
+    const spd = 320 + Math.random() * 80;
+    const wx = Math.sin(a) * spd, wy = -Math.cos(a) * spd;
+    
+    gameState.bullets.push({
+      x: startX, y: startY,
+      vx: wx + p.vx * 0.3, vy: wy + p.vy * 0.3,
+      weapon: 'flame',
+      life: 0.45,
+      size: 6 + Math.random() * 8,
+      color: Math.random() > 0.4 ? '#f97316' : '#ef4444'
+    });
+    return;
+  }
+
   const speeds = {pistol:500, machine:600, cannon:400};
   const count = w==='machine'?3:1;
   const spread = w==='machine'?0.12:0;
@@ -1769,9 +1953,6 @@ function fireBullet(weapon) {
     const a = p.angle + (Math.random()-0.5)*spread;
     const spd = speeds[w]+(Math.random()-0.5)*50;
     const wx = Math.sin(a)*spd, wy=-Math.cos(a)*spd;
-    const spawnDist = p.type.h * p.size * 0.5;
-    const startX = p.x + Math.sin(p.angle) * spawnDist;
-    const startY = p.y - Math.cos(p.angle) * spawnDist;
     gameState.bullets.push({
       x:startX, y:startY,
       vx:wx+p.vx*0.3, vy:wy+p.vy*0.3,
@@ -1784,17 +1965,19 @@ function fireBullet(weapon) {
 }
 
 function hitCar(car, weapon) {
-  const dmg = {pistol:15, machine:25, cannon:100}[weapon]||15;
+  const dmg = {pistol:15, machine:25, cannon:100, electro:30, flame:6}[weapon]||15;
   car.hp = Math.max(0, car.hp - dmg);
   if (car.hp<=0) {
     playExplosion();
     spawnParticles(car.x, car.y, 20, '#ff4400');
     if (weapon==='cannon') { car.state='destroyed'; }
     else if (weapon==='machine') { car.state='burning'; car.burnTimer=3; }
+    else if (weapon==='flame') { car.state='burning'; car.burnTimer=4; }
     else { car.state='slow'; }
   } else {
     if (weapon==='cannon') { car.state='burning'; car.burnTimer=2; playCrash(); }
-    else if (weapon==='machine') { car.state='slow'; }
+    else if (weapon==='flame') { car.state='burning'; car.burnTimer=3; }
+    else if (weapon==='electro') { car.state='slow'; }
     else { car.state='slow'; }
   }
 }
