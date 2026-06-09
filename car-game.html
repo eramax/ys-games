@@ -1218,6 +1218,9 @@ function update(dt) {
   if (p.shieldTime > 0) p.shieldTime = Math.max(0, p.shieldTime - dt);
   if (p.nitroTime > 0) p.nitroTime = Math.max(0, p.nitroTime - dt);
 
+  const elapsedMinutes = (Date.now() - (gameState.startTime || Date.now())) / 60000;
+  const timeSpeedMultiplier = Math.min(1.5, 1.0 + elapsedMinutes * 0.08);
+
   // Input
   const keys = gameState.keys, tk = gameState.touchKeys;
   const turnLeft  = keys['ArrowLeft']  || keys['KeyA'] || tk['left'];
@@ -1233,8 +1236,8 @@ function update(dt) {
   if (turnRight) p.angle += steerSpeed * dt * (0.4 + Math.abs(p.speed)/200);
 
   // Acceleration
-  const maxSpeed = (220 * p.size) * (p.nitroTime > 0 ? 1.6 : 1);
-  const accelForce = 260 * (p.nitroTime > 0 ? 1.8 : 1);
+  const maxSpeed = (220 * p.size) * (p.nitroTime > 0 ? 1.6 : 1) * timeSpeedMultiplier;
+  const accelForce = 260 * (p.nitroTime > 0 ? 1.8 : 1) * timeSpeedMultiplier;
   const brakeForce = 400;
   const friction = 140;
   if (accel) p.speed = Math.min(p.speed + accelForce*dt, maxSpeed);
@@ -1431,8 +1434,9 @@ function update(dt) {
     while(da<-Math.PI) da+=Math.PI*2;
     pol.angle += Math.sign(da)*Math.min(Math.abs(da),2.5*dt);
     
-    const pvx = Math.sin(pol.angle)*pol.speed;
-    const pvy = -Math.cos(pol.angle)*pol.speed;
+    const currentSpeed = pol.speed * timeSpeedMultiplier;
+    const pvx = Math.sin(pol.angle)*currentSpeed;
+    const pvy = -Math.cos(pol.angle)*currentSpeed;
     const pnx = pol.x + pvx*dt;
     const pny = pol.y + pvy*dt;
     let hitX = false, hitY = false;
@@ -1451,8 +1455,6 @@ function update(dt) {
     if (hitX || hitY) {
       pol.angle += Math.PI/4 * (Math.random() > 0.5 ? 1 : -1);
     }
-    pol.x=Math.max(10,Math.min(WORLD_W-10,pol.x));
-    pol.y=Math.max(10,Math.min(WORLD_H-10,pol.y));
 
     // catch player?
     const dist = Math.sqrt(dx*dx+dy*dy);
