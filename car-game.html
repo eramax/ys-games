@@ -558,49 +558,171 @@ function drawCarOnCanvas(cv, type, color, scale, weapons=[]) {
 
 function drawCarShape(ctx, type, color, weapons=[], angle=0) {
   const t = type;
-  // Shadow
-  ctx.shadowColor='rgba(0,0,0,0.4)'; ctx.shadowBlur=10; ctx.shadowOffsetY=4;
-  // Body
-  ctx.fillStyle = color;
+  
+  // 1. Shadow (subtle and realistic)
+  ctx.shadowColor = 'rgba(0,0,0,0.35)'; 
+  ctx.shadowBlur = 8; 
+  ctx.shadowOffsetY = 3;
+  
+  // 2. Wheels (drawn first so they are under the body)
+  ctx.fillStyle = '#151515'; // dark tyre rubber
+  const wheelOffsets = [
+    [2, t.roofY + 2],
+    [t.w - 10, t.roofY + 2],
+    [2, t.h - 14],
+    [t.w - 10, t.h - 14]
+  ];
+  wheelOffsets.forEach(([x, y]) => {
+    // Tyre
+    ctx.fillRect(x, y, 8, 12);
+    // Rim
+    ctx.fillStyle = '#d1d5db'; // metallic silver
+    ctx.fillRect(x + 2, y + 2, 4, 8);
+    ctx.fillStyle = '#4b5563'; // rim inner hub
+    ctx.fillRect(x + 3, y + 4, 2, 4);
+    ctx.fillStyle = '#151515';
+  });
+
+  // 3. Body (Gradient for 3D depth)
+  const bodyGrad = ctx.createLinearGradient(0, 0, 0, t.h);
+  bodyGrad.addColorStop(0, shadeColor(color, 25)); // bright hood
+  bodyGrad.addColorStop(0.3, color);
+  bodyGrad.addColorStop(0.8, shadeColor(color, -10));
+  bodyGrad.addColorStop(1, shadeColor(color, -25)); // shaded rear
+  ctx.fillStyle = bodyGrad;
+  
   ctx.beginPath();
   ctx.moveTo(t.bodyPoints[0][0], t.bodyPoints[0][1]);
   t.bodyPoints.forEach(([x,y]) => ctx.lineTo(x,y));
-  ctx.closePath(); ctx.fill();
-  ctx.shadowBlur=0; ctx.shadowOffsetY=0;
-  // Roof
-  ctx.fillStyle = shadeColor(color, -30);
+  ctx.closePath(); 
+  ctx.fill();
+  
+  // Clear shadow for interior details
+  ctx.shadowBlur = 0; 
+  ctx.shadowOffsetY = 0;
+  
+  // Hood detail lines
+  ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(t.w * 0.3, 2);
+  ctx.lineTo(t.w * 0.35, t.roofY - 2);
+  ctx.moveTo(t.w * 0.7, 2);
+  ctx.lineTo(t.w * 0.65, t.roofY - 2);
+  ctx.stroke();
+
+  // Front Grill and Bumper
+  ctx.fillStyle = '#111'; // front grill
+  ctx.fillRect(t.w * 0.25, 0, t.w * 0.5, 2);
+  ctx.fillStyle = '#4b5563'; // metal bumper
+  ctx.fillRect(2, -1, t.w - 4, 1.5);
+  
+  // Rear Bumper
+  ctx.fillStyle = '#4b5563';
+  ctx.fillRect(2, t.h - 1, t.w - 4, 2);
+
+  // Side Mirrors
+  ctx.fillStyle = color;
+  // Left mirror
+  ctx.fillRect(-2, t.roofY + 2, 3, 2);
+  ctx.fillRect(-4, t.roofY + 1, 2, 3);
+  // Right mirror
+  ctx.fillRect(t.w - 1, t.roofY + 2, 3, 2);
+  ctx.fillRect(t.w + 2, t.roofY + 1, 2, 3);
+
+  // 4. Roof & Pillars
+  const roofColor = shadeColor(color, -25);
+  ctx.fillStyle = roofColor;
   ctx.fillRect(t.roofX, t.roofY, t.roofW, t.roofH);
-  // Windows
-  ctx.fillStyle = 'rgba(100,180,255,0.5)';
-  ctx.fillRect(t.roofX+3, t.roofY+3, t.roofW-6, 12);
-  ctx.fillRect(t.roofX+3, t.roofY+18, t.roofW-6, 10);
-  // Wheels
-  ctx.fillStyle = '#222';
-  [[2,-4],[t.w-10,-4],[2,t.h-10],[t.w-10,t.h-10]].forEach(([x,y])=>{
-    ctx.beginPath(); ctx.arc(x+4, y+4, 5, 0, Math.PI*2); ctx.fill();
-  });
-  // Headlights (at the front top)
-  ctx.fillStyle = '#ffffaa';
-  ctx.fillRect(4, 2, 8, 5);
-  ctx.fillRect(t.w-12, 2, 8, 5);
-  // Taillights (at the rear bottom)
-  ctx.fillStyle = '#ff3333';
-  ctx.fillRect(4, t.h-5, 6, 3);
-  ctx.fillRect(t.w-10, t.h-5, 6, 3);
-  // Weapons visual
+  
+  // 5. Windows (High-gloss glass look)
+  const glassColor = 'rgba(56, 189, 248, 0.75)'; // cyan glass
+  const glareColor = 'rgba(255, 255, 255, 0.4)'; // white shine
+  
+  // Front Windshield
+  ctx.fillStyle = glassColor;
+  ctx.fillRect(t.roofX + 2, t.roofY + 2, t.roofW - 4, 6);
+  // Windshield Glare reflection
+  ctx.fillStyle = glareColor;
+  ctx.beginPath();
+  ctx.moveTo(t.roofX + 4, t.roofY + 2);
+  ctx.lineTo(t.roofX + 12, t.roofY + 2);
+  ctx.lineTo(t.roofX + 6, t.roofY + 8);
+  ctx.lineTo(t.roofX + 2, t.roofY + 8);
+  ctx.closePath(); ctx.fill();
+
+  // Rear Window
+  ctx.fillStyle = glassColor;
+  ctx.fillRect(t.roofX + 2, t.roofY + t.roofH - 8, t.roofW - 4, 6);
+  
+  // Side Windows
+  ctx.fillStyle = 'rgba(56, 189, 248, 0.5)';
+  ctx.fillRect(t.roofX + 1, t.roofY + 10, 1.5, t.roofH - 20); // Left side window
+  ctx.fillRect(t.roofX + t.roofW - 2.5, t.roofY + 10, 1.5, t.roofH - 20); // Right side window
+
+  // 6. Lights
+  // Headlights
+  ctx.fillStyle = '#fffae0';
+  ctx.fillRect(3, 1, 6, 3);
+  ctx.fillRect(t.w - 9, 1, 6, 3);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(4, 1, 3, 1.5);
+  ctx.fillRect(t.w - 7, 1, 3, 1.5);
+
+  // Taillights
+  ctx.fillStyle = '#ef4444'; // bright red LED look
+  ctx.fillRect(3, t.h - 3, 5, 2);
+  ctx.fillRect(t.w - 8, t.h - 3, 5, 2);
+  // Amber indicators
+  ctx.fillStyle = '#f59e0b';
+  ctx.fillRect(1, t.h - 3, 2, 2);
+  ctx.fillRect(t.w - 3, t.h - 3, 2, 2);
+
+  // Sport car specific spoiler
+  if (t.id === 'sport') {
+    ctx.fillStyle = '#111'; // spoiler wing
+    ctx.fillRect(-2, t.h - 2, t.w + 4, 3);
+    ctx.fillStyle = '#333'; // mounts
+    ctx.fillRect(4, t.h - 4, 2, 2);
+    ctx.fillRect(t.w - 6, t.h - 4, 2, 2);
+  }
+  
+  // Truck bed detail
+  if (t.id === 'truck') {
+    ctx.fillStyle = '#222'; // truck bed cavity
+    ctx.fillRect(t.roofX + 2, t.roofY + t.roofH + 4, t.roofW - 4, t.h - (t.roofY + t.roofH) - 8);
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    for (let x = t.roofX + 6; x < t.roofX + t.roofW - 4; x += 4) {
+      ctx.beginPath();
+      ctx.moveTo(x, t.roofY + t.roofH + 6);
+      ctx.lineTo(x, t.h - 6);
+      ctx.stroke();
+    }
+  }
+
+  // 7. Weapons visual
   if (weapons.includes('cannon')) {
-    ctx.fillStyle = '#666';
-    ctx.fillRect(t.w/2-3, -18, 6, 20);
-    ctx.fillRect(t.w/2-5, -22, 10, 6);
+    ctx.fillStyle = '#374151'; // dark metallic grey
+    ctx.fillRect(t.w/2-3, -16, 6, 18);
+    ctx.fillStyle = '#1f2937';
+    ctx.fillRect(t.w/2-5, -20, 10, 5);
+    ctx.fillStyle = '#f5c518';
+    ctx.fillRect(t.w/2-2, -21, 4, 1.5);
   }
   if (weapons.includes('machine')) {
-    ctx.fillStyle = '#888';
-    ctx.fillRect(t.w-4, t.roofY+5, 14, 4);
-    ctx.fillRect(-10, t.roofY+5, 14, 4);
+    ctx.fillStyle = '#4b5563';
+    ctx.fillRect(t.w-4, t.roofY+8, 12, 3);
+    ctx.fillRect(-8, t.roofY+8, 12, 3);
+    ctx.fillStyle = '#1f2937';
+    ctx.fillRect(t.w+8, t.roofY+7, 2, 5);
+    ctx.fillRect(-10, t.roofY+7, 2, 5);
   }
   if (weapons.includes('pistol')) {
-    ctx.fillStyle = '#555';
-    ctx.fillRect(t.w/2-2, -8, 4, 10);
+    ctx.fillStyle = '#4b5563';
+    ctx.fillRect(t.w/2-2, -6, 4, 8);
+    ctx.fillStyle = '#1f2937';
+    ctx.fillRect(t.w/2-3, -9, 6, 3);
   }
 }
 
