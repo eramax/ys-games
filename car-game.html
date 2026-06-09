@@ -1,0 +1,1259 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>لعبة العربيات</title>
+<style>
+  :root {
+    --color-bg: #0d1117;
+    --color-surface: rgba(255,255,255,0.06);
+    --color-border: rgba(255,255,255,0.12);
+    --color-text: #e6e6e6;
+    --color-muted: #888;
+    --color-primary: #f5c518;
+    --color-danger: #ff4455;
+    --color-success: #22cc66;
+    --color-blue: #3399ff;
+    --radius: 12px;
+    --font-ar: 'Cairo', 'Tajawal', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; touch-action: none; }
+  body {
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-ar);
+    overflow: hidden;
+    width: 100vw; height: 100vh;
+    direction: rtl;
+  }
+  canvas {
+    display: block;
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%;
+  }
+  /* ====== SCREENS ====== */
+  .screen {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: linear-gradient(160deg, #0d1117 0%, #1a2035 100%);
+    z-index: 100;
+  }
+  .screen.hidden { display: none; }
+
+  /* ====== TITLE ====== */
+  #title-screen { gap: 20px; }
+  .title-logo {
+    font-size: clamp(2.5rem, 7vw, 5rem);
+    font-weight: 900;
+    color: var(--color-primary);
+    text-shadow: 0 0 40px rgba(245,197,24,0.5);
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+  }
+  .title-sub { color: var(--color-muted); font-size: 1rem; margin-bottom: 20px; }
+  .btn-main {
+    background: var(--color-primary);
+    color: #0d1117;
+    border: none;
+    padding: 14px 48px;
+    border-radius: 50px;
+    font-size: 1.2rem;
+    font-weight: 700;
+    font-family: var(--font-ar);
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 4px 24px rgba(245,197,24,0.3);
+  }
+  .btn-main:hover { transform: scale(1.05); box-shadow: 0 8px 32px rgba(245,197,24,0.5); }
+  .btn-main:active { transform: scale(0.97); }
+
+  /* ====== GARAGE (car selection) ====== */
+  #garage-screen {
+    padding: 20px;
+    gap: 16px;
+    overflow-y: auto;
+    justify-content: flex-start;
+    padding-top: 30px;
+  }
+  .garage-title {
+    font-size: clamp(1.4rem, 4vw, 2rem);
+    font-weight: 800;
+    color: var(--color-primary);
+    text-align: center;
+  }
+  .garage-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 14px;
+    width: 100%;
+    max-width: 700px;
+  }
+  .car-card {
+    background: var(--color-surface);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 12px;
+    cursor: pointer;
+    text-align: center;
+    transition: border-color 0.2s, transform 0.15s;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+  }
+  .car-card:hover { transform: translateY(-3px); border-color: rgba(245,197,24,0.4); }
+  .car-card.selected { border-color: var(--color-primary); background: rgba(245,197,24,0.08); }
+  .car-card canvas { border-radius: 6px; }
+  .car-card-name { font-size: 0.85rem; font-weight: 600; color: var(--color-text); }
+
+  /* ====== CUSTOMIZATION ====== */
+  .customize-panel {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 16px;
+    width: 100%;
+    max-width: 700px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .customize-row {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  }
+  .customize-label {
+    font-size: 0.85rem; color: var(--color-muted); min-width: 60px;
+  }
+  .color-swatches { display: flex; gap: 8px; flex-wrap: wrap; }
+  .color-swatch {
+    width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
+    border: 2px solid transparent;
+    transition: transform 0.15s, border-color 0.15s;
+  }
+  .color-swatch:hover { transform: scale(1.2); }
+  .color-swatch.active { border-color: white; }
+  .size-slider {
+    -webkit-appearance: none;
+    width: 150px; height: 6px;
+    border-radius: 3px;
+    background: rgba(255,255,255,0.15);
+    outline: none;
+    cursor: pointer;
+  }
+  .size-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    cursor: pointer;
+  }
+  .weapon-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  .weapon-btn {
+    background: rgba(255,255,255,0.08);
+    border: 2px solid var(--color-border);
+    color: var(--color-text);
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-family: var(--font-ar);
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .weapon-btn:hover { background: rgba(255,255,255,0.15); }
+  .weapon-btn.active { border-color: var(--color-primary); color: var(--color-primary); background: rgba(245,197,24,0.1); }
+
+  /* preview canvas in customize */
+  #preview-canvas { border-radius: 10px; border: 1px solid var(--color-border); }
+
+  /* ====== HUD ====== */
+  #hud {
+    position: absolute; top: 0; left: 0; right: 0;
+    z-index: 50;
+    pointer-events: none;
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 10px 14px;
+  }
+  .hud-panel {
+    background: rgba(0,0,0,0.6);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    line-height: 1.6;
+  }
+  .hud-value { color: var(--color-primary); font-weight: 700; font-size: 1rem; }
+  .wanted-stars { color: #ff4455; font-size: 1.1rem; letter-spacing: 2px; }
+
+  /* ====== TOUCH CONTROLS ====== */
+  #touch-controls {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    z-index: 50;
+    display: flex; justify-content: space-between; align-items: flex-end;
+    padding: 10px 16px 20px;
+    pointer-events: none;
+  }
+  .ctrl-group { display: flex; flex-direction: column; gap: 6px; pointer-events: all; }
+  .ctrl-row { display: flex; gap: 6px; justify-content: center; }
+  .ctrl-btn {
+    width: 56px; height: 56px;
+    background: rgba(0,0,0,0.7);
+    border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 12px;
+    color: white;
+    font-size: 1.3rem;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: background 0.1s, transform 0.1s;
+    touch-action: none;
+  }
+  .ctrl-btn:active, .ctrl-btn.pressed {
+    background: rgba(245,197,24,0.4);
+    transform: scale(0.93);
+    border-color: var(--color-primary);
+  }
+  .ctrl-btn.speed-btn { background: rgba(0,180,80,0.35); border-color: rgba(0,220,100,0.5); width: 52px; height: 52px; font-size: 1.1rem; }
+  .ctrl-btn.speed-btn.pressed { background: rgba(0,220,100,0.6); }
+  .ctrl-btn.weapon-fire {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: rgba(200,40,40,0.5);
+    border-color: rgba(255,80,80,0.7);
+    font-size: 1.4rem;
+  }
+  .ctrl-btn.weapon-fire.pressed { background: rgba(255,80,80,0.8); }
+  .ctrl-btn.cannon-fire {
+    background: rgba(180,80,0,0.5);
+    border-color: rgba(255,140,0,0.7);
+  }
+  .ctrl-btn.cannon-fire.pressed { background: rgba(255,140,0,0.8); }
+
+  /* ====== GAMEOVER / WIN ====== */
+  #gameover-screen {
+    gap: 20px; text-align: center;
+    background: linear-gradient(160deg, #1a0008 0%, #0d1117 100%);
+  }
+  .go-title { font-size: clamp(2rem,6vw,4rem); font-weight: 900; color: var(--color-danger); text-shadow: 0 0 30px rgba(255,68,85,0.5); }
+  .go-sub { color: var(--color-muted); font-size: 1rem; }
+  .go-score { font-size: 1.5rem; font-weight: 700; color: var(--color-primary); }
+  #fps-debug {
+    position:fixed; top:0; left:0; background:rgba(0,0,0,.7);
+    color:#0f0; font:11px/1.5 monospace; padding:4px 8px;
+    z-index:9999; pointer-events:none;
+  }
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- FPS Debug -->
+<div id="fps-debug">FPS: --</div>
+
+<!-- TITLE SCREEN -->
+<div id="title-screen" class="screen">
+  <div class="title-logo">🚗 لعبة العربيات 🚗</div>
+  <div class="title-sub">أصنع عربيتك وانطلق في الشوارع!</div>
+  <button class="btn-main" onclick="showGarage()">ابدأ اللعبة</button>
+</div>
+
+<!-- GARAGE SCREEN -->
+<div id="garage-screen" class="screen hidden">
+  <div class="garage-title">🏎️ اختر عربيتك</div>
+  <div class="garage-grid" id="garage-grid"></div>
+
+  <div class="customize-panel">
+    <div style="font-weight:700; font-size:1rem; color:var(--color-primary)">🎨 خصص عربيتك</div>
+
+    <div class="customize-row">
+      <span class="customize-label">اللون:</span>
+      <div class="color-swatches" id="color-swatches"></div>
+    </div>
+
+    <div class="customize-row">
+      <span class="customize-label">الحجم:</span>
+      <input type="range" id="size-slider" class="size-slider" min="0.6" max="1.7" step="0.05" value="1.0">
+      <span id="size-label" style="font-size:0.85rem; color:var(--color-muted)">عادي</span>
+    </div>
+
+    <div class="customize-row">
+      <span class="customize-label">الأسلحة:</span>
+      <div class="weapon-btns" id="weapon-btns">
+        <button class="weapon-btn" data-weapon="pistol">🔫 مسدس</button>
+        <button class="weapon-btn" data-weapon="machine">💥 رشاش</button>
+        <button class="weapon-btn" data-weapon="cannon">💣 مدفع</button>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:12px; align-items:center; justify-content:center; flex-wrap:wrap;">
+      <canvas id="preview-canvas" width="160" height="100"></canvas>
+      <button class="btn-main" onclick="startGame()" style="font-size:1rem; padding:12px 32px;">
+        🚀 ادخل اللعبة
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- GAME CANVAS -->
+<canvas id="gameCanvas"></canvas>
+
+<!-- HUD -->
+<div id="hud" class="hidden">
+  <div class="hud-panel">
+    <div>النقاط: <span class="hud-value" id="hud-score">0</span></div>
+    <div>السرعة: <span class="hud-value" id="hud-speed">0</span></div>
+  </div>
+  <div class="hud-panel" style="text-align:center">
+    <div style="font-size:0.7rem; color:var(--color-muted)">مطلوب من الشرطة</div>
+    <div class="wanted-stars" id="hud-wanted">☆☆☆☆☆</div>
+  </div>
+  <div class="hud-panel">
+    <div>السلاح: <span class="hud-value" id="hud-weapon">--</span></div>
+    <div style="font-size:0.75rem; color:var(--color-muted)" id="hud-ammo">∞ طلقات</div>
+  </div>
+</div>
+
+<!-- TOUCH CONTROLS -->
+<div id="touch-controls" class="hidden">
+  <!-- LEFT: speed + weapons -->
+  <div class="ctrl-group" id="left-controls">
+    <div class="ctrl-row">
+      <button class="ctrl-btn speed-btn" id="btn-accel" data-action="accel">⬆️</button>
+      <button class="ctrl-btn speed-btn" id="btn-brake" data-action="brake">⬇️</button>
+    </div>
+    <div class="ctrl-row" id="weapon-fire-row">
+      <!-- weapon buttons injected dynamically -->
+    </div>
+  </div>
+
+  <!-- RIGHT: direction -->
+  <div class="ctrl-group">
+    <div class="ctrl-row">
+      <div style="width:56px"></div>
+      <button class="ctrl-btn" id="btn-up" data-action="up">⬆️</button>
+      <div style="width:56px"></div>
+    </div>
+    <div class="ctrl-row">
+      <button class="ctrl-btn" id="btn-left" data-action="left">⬅️</button>
+      <button class="ctrl-btn" id="btn-down" data-action="down">⬇️</button>
+      <button class="ctrl-btn" id="btn-right" data-action="right">➡️</button>
+    </div>
+  </div>
+</div>
+
+<!-- GAME OVER -->
+<div id="gameover-screen" class="screen hidden">
+  <div class="go-title">😱 تم القبض عليك!</div>
+  <div class="go-sub">الشرطة لحقت بك</div>
+  <div class="go-score">النقاط: <span id="final-score">0</span></div>
+  <button class="btn-main" onclick="restartGame()" style="margin-top:10px">🔄 العب مرة أخرى</button>
+  <button class="btn-main" onclick="showGarage()" style="background:#333; color:#fff; margin-top:6px">🏎️ غيّر العربية</button>
+</div>
+
+<script>
+// ==================== AUDIO ====================
+let audioCtx = null;
+function initAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+function playTone(freq, dur, type='square', vol=0.18, detune=0) {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.value = freq;
+  osc.detune.value = detune;
+  g.gain.setValueAtTime(vol, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+  osc.connect(g); g.connect(audioCtx.destination);
+  osc.start(); osc.stop(audioCtx.currentTime + dur);
+}
+function playEngine(speed) {
+  if (!audioCtx || Math.random() > 0.06) return;
+  const freq = 80 + speed * 1.8;
+  playTone(freq, 0.12, 'sawtooth', 0.04, (Math.random()-0.5)*20);
+}
+function playShoot(weapon) {
+  if (!audioCtx) return;
+  if (weapon === 'pistol') { playTone(320, 0.12, 'square', 0.25); playTone(180, 0.08, 'sawtooth', 0.2, -50); }
+  else if (weapon === 'machine') {
+    for (let i=0;i<3;i++) setTimeout(()=>{ playTone(400+Math.random()*100, 0.06, 'square', 0.2); }, i*60);
+  } else if (weapon === 'cannon') {
+    playTone(80, 0.5, 'sawtooth', 0.4); playTone(60, 0.6, 'sine', 0.35);
+    setTimeout(()=>playTone(120, 0.3, 'square', 0.3), 80);
+  }
+}
+function playExplosion() {
+  if (!audioCtx) return;
+  for(let i=0;i<5;i++) setTimeout(()=>{
+    playTone(40+Math.random()*80, 0.3+Math.random()*0.3, 'sawtooth', 0.35);
+  }, i*50);
+}
+function playSiren() {
+  if (!audioCtx || Math.random() > 0.02) return;
+  const t = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(700, t);
+  osc.frequency.linearRampToValueAtTime(900, t+0.2);
+  osc.frequency.linearRampToValueAtTime(700, t+0.4);
+  g.gain.setValueAtTime(0.1, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t+0.5);
+  osc.connect(g); g.connect(audioCtx.destination);
+  osc.start(t); osc.stop(t+0.5);
+}
+function playCrash() {
+  if (!audioCtx) return;
+  playTone(150, 0.4, 'sawtooth', 0.4); playTone(200, 0.3, 'square', 0.3);
+  setTimeout(()=>playTone(100, 0.4, 'sawtooth', 0.3), 100);
+}
+
+// ==================== CAR TYPES ====================
+const CAR_TYPES = [
+  { id:'sedan',   name:'سيدان',   w:34, h:54, bodyPoints:[[0,0],[34,0],[34,54],[0,54]], roofY:10, roofH:30, roofW:26, roofX:4 },
+  { id:'suv',     name:'دفع رباعي', w:40, h:58, bodyPoints:[[0,0],[40,0],[40,58],[0,58]], roofY:8, roofH:32, roofW:32, roofX:4 },
+  { id:'sport',   name:'سيارة سباق', w:32, h:50, bodyPoints:[[4,0],[28,0],[32,36],[32,50],[0,50],[0,36]], roofY:6, roofH:28, roofW:24, roofX:4 },
+  { id:'truck',   name:'شاحنة',   w:42, h:68, bodyPoints:[[0,0],[42,0],[42,68],[0,68]], roofY:6, roofH:28, roofW:34, roofX:4 },
+  { id:'classic', name:'كلاسيكي', w:36, h:56, bodyPoints:[[2,0],[34,0],[36,50],[36,56],[0,56],[0,50]], roofY:8, roofH:30, roofW:28, roofX:4 },
+  { id:'mini',    name:'صغيرة',   w:28, h:42, bodyPoints:[[0,0],[28,0],[28,42],[0,42]], roofY:6, roofH:24, roofW:22, roofX:3 },
+];
+
+const COLORS = ['#e63946','#2196F3','#4CAF50','#FF9800','#9C27B0','#00BCD4','#FFEB3B','#ffffff','#607D8B','#FF5722'];
+const COLOR_NAMES = ['أحمر','أزرق','أخضر','برتقالي','بنفسجي','سماوي','أصفر','أبيض','رمادي','برتقالي غامق'];
+
+// ==================== GAME STATE ====================
+let playerCar = { type: CAR_TYPES[0], color: COLORS[0], size: 1.0, weapons: [], activeWeapon: 0 };
+let gameState = null;
+let animId = null;
+let lastTime = 0;
+let gameRunning = false;
+let fpsFrames=0, fpsLast=0, fpsVal=0;
+
+// ==================== GARAGE SETUP ====================
+function showTitle() {
+  hideAll();
+  document.getElementById('title-screen').classList.remove('hidden');
+}
+function hideAll() {
+  ['title-screen','garage-screen','hud','touch-controls','gameover-screen'].forEach(id=>{
+    document.getElementById(id).classList.add('hidden');
+  });
+  gameRunning = false;
+  if (animId) { cancelAnimationFrame(animId); animId = null; }
+}
+
+function showGarage() {
+  initAudio();
+  hideAll();
+  document.getElementById('garage-screen').classList.remove('hidden');
+  buildGarageGrid();
+  buildWeaponBtns();
+  buildColorSwatches();
+  updatePreview();
+  document.getElementById('size-slider').addEventListener('input', onSizeChange);
+}
+
+function buildGarageGrid() {
+  const grid = document.getElementById('garage-grid');
+  grid.innerHTML = '';
+  CAR_TYPES.forEach((ct, i) => {
+    const card = document.createElement('div');
+    card.className = 'car-card' + (i===0?' selected':'');
+    const cv = document.createElement('canvas');
+    cv.width = 100; cv.height = 80;
+    drawCarOnCanvas(cv, ct, playerCar.color, 1.0);
+    card.appendChild(cv);
+    const nm = document.createElement('div');
+    nm.className = 'car-card-name'; nm.textContent = ct.name;
+    card.appendChild(nm);
+    card.onclick = () => {
+      document.querySelectorAll('.car-card').forEach(c=>c.classList.remove('selected'));
+      card.classList.add('selected');
+      playerCar.type = ct;
+      updatePreview();
+    };
+    grid.appendChild(card);
+  });
+}
+
+function buildColorSwatches() {
+  const div = document.getElementById('color-swatches');
+  div.innerHTML = '';
+  COLORS.forEach((c,i) => {
+    const sw = document.createElement('div');
+    sw.className = 'color-swatch' + (i===0?' active':'');
+    sw.style.background = c;
+    sw.title = COLOR_NAMES[i];
+    sw.onclick = () => {
+      document.querySelectorAll('.color-swatch').forEach(s=>s.classList.remove('active'));
+      sw.classList.add('active');
+      playerCar.color = c;
+      document.querySelectorAll('.car-card canvas').forEach((cv,idx) => drawCarOnCanvas(cv, CAR_TYPES[idx], c, 1.0));
+      updatePreview();
+    };
+    div.appendChild(sw);
+  });
+}
+
+function buildWeaponBtns() {
+  const div = document.getElementById('weapon-btns');
+  div.querySelectorAll('.weapon-btn').forEach(btn => {
+    btn.onclick = () => {
+      btn.classList.toggle('active');
+      const w = btn.dataset.weapon;
+      const idx = playerCar.weapons.indexOf(w);
+      if (idx>=0) playerCar.weapons.splice(idx,1); else playerCar.weapons.push(w);
+    };
+  });
+}
+
+function onSizeChange() {
+  const v = parseFloat(document.getElementById('size-slider').value);
+  playerCar.size = v;
+  const labels = ['صغيرة جداً','صغيرة','عادي','كبيرة','كبيرة جداً'];
+  const idx = Math.round((v-0.6)/((1.7-0.6)/4));
+  document.getElementById('size-label').textContent = labels[Math.min(idx,4)];
+  updatePreview();
+}
+
+function updatePreview() {
+  const cv = document.getElementById('preview-canvas');
+  drawCarOnCanvas(cv, playerCar.type, playerCar.color, playerCar.size, playerCar.weapons);
+}
+
+function drawCarOnCanvas(cv, type, color, scale, weapons=[]) {
+  const ctx = cv.getContext('2d');
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.fillStyle='#1a2035';
+  ctx.fillRect(0,0,cv.width,cv.height);
+  const s = scale * Math.min(cv.width/(type.w+20), cv.height/(type.h+20));
+  const ox = (cv.width - type.w*s)/2;
+  const oy = (cv.height - type.h*s)/2;
+  ctx.save();
+  ctx.translate(ox, oy);
+  ctx.scale(s,s);
+  drawCarShape(ctx, type, color, weapons);
+  ctx.restore();
+}
+
+function drawCarShape(ctx, type, color, weapons=[], angle=0) {
+  const t = type;
+  // Shadow
+  ctx.shadowColor='rgba(0,0,0,0.4)'; ctx.shadowBlur=10; ctx.shadowOffsetY=4;
+  // Body
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(t.bodyPoints[0][0], t.bodyPoints[0][1]);
+  t.bodyPoints.forEach(([x,y]) => ctx.lineTo(x,y));
+  ctx.closePath(); ctx.fill();
+  ctx.shadowBlur=0; ctx.shadowOffsetY=0;
+  // Roof
+  ctx.fillStyle = shadeColor(color, -30);
+  ctx.fillRect(t.roofX, t.roofY, t.roofW, t.roofH);
+  // Windows
+  ctx.fillStyle = 'rgba(100,180,255,0.5)';
+  ctx.fillRect(t.roofX+3, t.roofY+3, t.roofW-6, 12);
+  ctx.fillRect(t.roofX+3, t.roofY+18, t.roofW-6, 10);
+  // Wheels
+  ctx.fillStyle = '#222';
+  [[2,-4],[t.w-10,-4],[2,t.h-10],[t.w-10,t.h-10]].forEach(([x,y])=>{
+    ctx.beginPath(); ctx.arc(x+4, y+4, 5, 0, Math.PI*2); ctx.fill();
+  });
+  // Headlights
+  ctx.fillStyle = '#ffffaa';
+  ctx.fillRect(4, t.h-8, 8, 5);
+  ctx.fillRect(t.w-12, t.h-8, 8, 5);
+  // Weapons visual
+  if (weapons.includes('cannon')) {
+    ctx.fillStyle = '#666';
+    ctx.fillRect(t.w/2-3, -18, 6, 20);
+    ctx.fillRect(t.w/2-5, -22, 10, 6);
+  }
+  if (weapons.includes('machine')) {
+    ctx.fillStyle = '#888';
+    ctx.fillRect(t.w-4, t.roofY+5, 14, 4);
+    ctx.fillRect(-10, t.roofY+5, 14, 4);
+  }
+}
+
+function shadeColor(hex, pct) {
+  const n = parseInt(hex.replace('#',''), 16);
+  let r=((n>>16)&255)+pct, g=((n>>8)&255)+pct, b=(n&255)+pct;
+  r=Math.max(0,Math.min(255,r)); g=Math.max(0,Math.min(255,g)); b=Math.max(0,Math.min(255,b));
+  return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
+}
+
+// ==================== GAME ====================
+const WORLD_W = 2400, WORLD_H = 2400;
+const TILE = 80;
+const ROAD_COLOR = '#2a2a2a', SIDEWALK_COLOR = '#3a3530', BUILDING_COLOR = '#1e2535', LINE_COLOR = 'rgba(255,255,200,0.4)';
+
+// World map: 0=building, 1=road, 2=sidewalk
+let worldMap = [];
+let buildings = [];
+
+function generateWorld() {
+  const cols = WORLD_W/TILE, rows = WORLD_H/TILE;
+  worldMap = Array.from({length:rows}, (_,r) => Array.from({length:cols}, (_,c) => {
+    if (r===0||r===rows-1||c===0||c===cols-1) return 1;
+    // road grid every 8 tiles
+    if (r%8===0 || c%8===0) return 1;
+    if (r%8===1 || c%8===1) return 2;
+    return 0;
+  }));
+  // generate buildings
+  buildings = [];
+  for (let r=2; r<rows-2; r+=8) {
+    for (let c=2; c<cols-2; c+=8) {
+      const bw = 3+Math.floor(Math.random()*3);
+      const bh = 3+Math.floor(Math.random()*3);
+      const colors = ['#1e2535','#252535','#2a2040','#1c2020','#20251c'];
+      buildings.push({
+        x: c*TILE+TILE*0.3, y: r*TILE+TILE*0.3,
+        w: bw*TILE*0.8, h: bh*TILE*0.8,
+        color: colors[Math.floor(Math.random()*colors.length)],
+        floors: 2+Math.floor(Math.random()*6)
+      });
+    }
+  }
+}
+
+function initGameState() {
+  generateWorld();
+  const weapons = playerCar.weapons.length > 0 ? [...playerCar.weapons] : ['pistol'];
+  gameState = {
+    player: {
+      x: WORLD_W/2, y: WORLD_H/2,
+      vx: 0, vy: 0,
+      angle: 0,
+      speed: 0,
+      color: playerCar.color,
+      type: playerCar.type,
+      size: playerCar.size,
+      weapons: weapons,
+      activeWeapon: 0,
+      score: 0,
+      wantedLevel: 0,
+      alive: true,
+    },
+    bullets: [],
+    traffic: [],
+    police: [],
+    particles: [],
+    keys: {},
+    touchKeys: {},
+    phase: 'playing',
+  };
+  // spawn traffic
+  for (let i=0; i<20; i++) spawnTraffic();
+  return gameState;
+}
+
+function spawnTraffic() {
+  const roadTiles = [];
+  const rows = WORLD_H/TILE, cols = WORLD_W/TILE;
+  for(let r=0;r<rows;r++) for(let c=0;c<cols;c++) if(worldMap[r]&&worldMap[r][c]===1) roadTiles.push({r,c});
+  if (!roadTiles.length) return;
+  const t = roadTiles[Math.floor(Math.random()*roadTiles.length)];
+  const typeIdx = Math.floor(Math.random()*CAR_TYPES.length);
+  const tcolor = COLORS[Math.floor(Math.random()*COLORS.length)];
+  gameState.traffic.push({
+    x: t.c*TILE+TILE/2, y: t.r*TILE+TILE/2,
+    angle: (Math.floor(Math.random()*4))*Math.PI/2,
+    speed: 40+Math.random()*60,
+    type: CAR_TYPES[typeIdx],
+    color: tcolor,
+    hp: 100,
+    state: 'driving', // driving, slow, stopped, burning, destroyed
+    size: 0.7+Math.random()*0.4,
+    burnTimer: 0,
+    id: Math.random(),
+  });
+}
+function spawnPolice() {
+  const p = gameState.player;
+  const angle = Math.random()*Math.PI*2;
+  const dist = 600+Math.random()*400;
+  const px = p.x + Math.cos(angle)*dist;
+  const py = p.y + Math.sin(angle)*dist;
+  gameState.police.push({
+    x: Math.max(50,Math.min(WORLD_W-50,px)),
+    y: Math.max(50,Math.min(WORLD_H-50,py)),
+    angle: 0,
+    speed: 90+Math.random()*40,
+    type: CAR_TYPES[0],
+    color: '#1144ff',
+    hp: 100,
+    state: 'chasing',
+    size: 0.85,
+    sirenTimer: 0,
+    id: Math.random(),
+  });
+}
+
+// ==================== GAME LOOP ====================
+function startGame() {
+  hideAll();
+  document.getElementById('hud').classList.remove('hidden');
+  document.getElementById('touch-controls').classList.remove('hidden');
+  buildWeaponFireBtns();
+  initGameState();
+  setupInput();
+  gameRunning = true;
+  lastTime = performance.now();
+  animId = requestAnimationFrame(gameLoop);
+}
+
+function buildWeaponFireBtns() {
+  const row = document.getElementById('weapon-fire-row');
+  row.innerHTML = '';
+  const weapons = playerCar.weapons.length>0 ? playerCar.weapons : ['pistol'];
+  const icons = {pistol:'🔫', machine:'💥', cannon:'💣'};
+  const wnames = {pistol:'مسدس', machine:'رشاش', cannon:'مدفع'};
+  weapons.forEach((w,i) => {
+    const btn = document.createElement('button');
+    btn.className = 'ctrl-btn weapon-fire' + (w==='cannon'?' cannon-fire':'');
+    btn.innerHTML = icons[w];
+    btn.title = wnames[w];
+    btn.dataset.weapon = w;
+    setupTouchBtn(btn, 'fire_'+w);
+    row.appendChild(btn);
+  });
+  // weapon switch
+  if (weapons.length>1) {
+    const sw = document.createElement('button');
+    sw.className = 'ctrl-btn'; sw.innerHTML = '🔄'; sw.title = 'تغيير السلاح';
+    sw.onclick = () => {
+      if (!gameState) return;
+      gameState.player.activeWeapon = (gameState.player.activeWeapon+1)%weapons.length;
+      updateHUD();
+    };
+    row.appendChild(sw);
+  }
+}
+
+function setupTouchBtn(btn, action) {
+  btn.addEventListener('touchstart', e=>{e.preventDefault(); gameState&&(gameState.touchKeys[action]=true); btn.classList.add('pressed');}, {passive:false});
+  btn.addEventListener('touchend', e=>{e.preventDefault(); gameState&&(gameState.touchKeys[action]=false); btn.classList.remove('pressed');}, {passive:false});
+  btn.addEventListener('mousedown', ()=>{ gameState&&(gameState.touchKeys[action]=true); btn.classList.add('pressed'); });
+  btn.addEventListener('mouseup', ()=>{ gameState&&(gameState.touchKeys[action]=false); btn.classList.remove('pressed'); });
+}
+
+function setupInput() {
+  // Direction + accel/brake touch buttons
+  ['up','down','left','right','accel','brake'].forEach(action => {
+    const btn = document.getElementById('btn-'+action);
+    if (btn) setupTouchBtn(btn, action);
+  });
+
+  document.addEventListener('keydown', e => {
+    if (!gameState) return;
+    gameState.keys[e.code] = true;
+    // weapon select 1,2,3
+    if (e.code==='Digit1') gameState.player.activeWeapon=0;
+    if (e.code==='Digit2') gameState.player.activeWeapon=1;
+    if (e.code==='Digit3') gameState.player.activeWeapon=2;
+    if (e.code==='Space') fireBullet();
+    e.preventDefault && (e.key===' ' || e.key==='ArrowUp' || e.key==='ArrowDown') && e.preventDefault();
+  });
+  document.addEventListener('keyup', e => { if(gameState) gameState.keys[e.code]=false; });
+}
+
+function gameLoop(ts) {
+  if (!gameRunning) return;
+  const dt = Math.min((ts-lastTime)/1000, 0.05);
+  lastTime = ts;
+  fpsFrames++;
+  if (ts-fpsLast>=1000) {
+    fpsVal = Math.round(fpsFrames*1000/(ts-fpsLast));
+    fpsFrames=0; fpsLast=ts;
+    document.getElementById('fps-debug').textContent = `FPS: ${fpsVal}`;
+  }
+  update(dt);
+  render();
+  updateHUD();
+  animId = requestAnimationFrame(gameLoop);
+}
+
+function update(dt) {
+  if (!gameState || gameState.phase!=='playing') return;
+  const p = gameState.player;
+  if (!p.alive) return;
+
+  // Input
+  const keys = gameState.keys, tk = gameState.touchKeys;
+  const turnLeft  = keys['ArrowLeft']  || keys['KeyA'] || tk['left'];
+  const turnRight = keys['ArrowRight'] || keys['KeyD'] || tk['right'];
+  const accel     = keys['ArrowUp']    || keys['KeyW'] || tk['up'] || tk['accel'];
+  const brake     = keys['ArrowDown']  || keys['KeyS'] || tk['down'] || tk['brake'];
+  const fireKeys  = p.weapons.map((_,i)=> tk['fire_'+p.weapons[i]] || false);
+  const anyFire   = fireKeys.some(f=>f) || keys['Space'];
+
+  // Steer
+  const steerSpeed = 2.5;
+  if (turnLeft)  p.angle -= steerSpeed * dt * (0.4 + Math.abs(p.speed)/200);
+  if (turnRight) p.angle += steerSpeed * dt * (0.4 + Math.abs(p.speed)/200);
+
+  // Acceleration
+  const maxSpeed = 220 * p.size;
+  const accelForce = 260;
+  const brakeForce = 400;
+  const friction = 140;
+  if (accel) p.speed = Math.min(p.speed + accelForce*dt, maxSpeed);
+  else if (brake) p.speed = Math.max(p.speed - brakeForce*dt, -80);
+  else p.speed *= (1 - friction/1000 * dt * 60);
+  if (Math.abs(p.speed)<1) p.speed=0;
+
+  p.vx = Math.sin(p.angle) * p.speed;
+  p.vy = -Math.cos(p.angle) * p.speed;
+
+  const newX = p.x + p.vx*dt;
+  const newY = p.y + p.vy*dt;
+
+  if (!isWall(newX, p.y, p.type.w*p.size, p.type.h*p.size)) p.x = newX;
+  else { p.vx=0; p.speed*=-0.3; }
+  if (!isWall(p.x, newY, p.type.w*p.size, p.type.h*p.size)) p.y = newY;
+  else { p.vy=0; p.speed*=-0.3; }
+
+  p.x = Math.max(10, Math.min(WORLD_W-10, p.x));
+  p.y = Math.max(10, Math.min(WORLD_H-10, p.y));
+
+  playEngine(Math.abs(p.speed));
+
+  // Fire
+  if (anyFire) {
+    // find which weapon is being fired from touchkeys
+    let wToFire = p.weapons[p.activeWeapon] || p.weapons[0];
+    for(let i=0;i<p.weapons.length;i++) if(tk['fire_'+p.weapons[i]]) { wToFire=p.weapons[i]; break; }
+    fireBullet(wToFire);
+  }
+
+  // Update bullets
+  gameState.bullets = gameState.bullets.filter(b => {
+    b.x += b.vx*dt; b.y += b.vy*dt;
+    b.life -= dt;
+    if (b.life<=0) return false;
+    if (isWall(b.x,b.y,4,4)) { spawnParticles(b.x,b.y,4,'#ffaa00'); return false; }
+    // check traffic hits
+    for (let i=gameState.traffic.length-1; i>=0; i--) {
+      const car = gameState.traffic[i];
+      if (car.state==='destroyed') continue;
+      if (rectHit(b.x,b.y,car.x,car.y,car.type.w*car.size,car.type.h*car.size)) {
+        hitCar(car, b.weapon);
+        spawnParticles(b.x,b.y,8,b.weapon==='cannon'?'#ff6600':'#ffcc00');
+        p.score += b.weapon==='cannon'?30:b.weapon==='machine'?10:5;
+        p.wantedLevel = Math.min(5, p.wantedLevel+1);
+        if (p.wantedLevel>=2 && gameState.police.length < p.wantedLevel*2) spawnPolice();
+        return false;
+      }
+    }
+    // check police hits
+    for (let i=gameState.police.length-1; i>=0; i--) {
+      const car = gameState.police[i];
+      if (rectHit(b.x,b.y,car.x,car.y,car.type.w*car.size,car.type.h*car.size)) {
+        hitCar(car, b.weapon);
+        spawnParticles(b.x,b.y,8,'#ff4455');
+        p.score += b.weapon==='cannon'?50:20;
+        return false;
+      }
+    }
+    return true;
+  });
+
+  // Update traffic
+  gameState.traffic.forEach(car => {
+    if (car.state==='destroyed') return;
+    if (car.state==='burning') {
+      car.burnTimer -= dt;
+      spawnParticles(car.x+Math.random()*car.type.w*car.size-car.type.w*car.size/2,
+        car.y-10, 2, '#ff4400');
+      if (car.burnTimer<=0) car.state='destroyed';
+      return;
+    }
+    if (car.state==='stopped') return;
+    const spd = car.state==='slow'?car.speed*0.25:car.speed;
+    const nx = car.x + Math.sin(car.angle)*spd*dt;
+    const ny = car.y - Math.cos(car.angle)*spd*dt;
+    if (!isWall(nx, ny, car.type.w*car.size*0.8, car.type.h*car.size*0.8)) {
+      car.x=nx; car.y=ny;
+    } else {
+      car.angle += Math.PI/2 + (Math.random()-0.5)*0.5;
+    }
+    car.x=Math.max(10,Math.min(WORLD_W-10,car.x));
+    car.y=Math.max(10,Math.min(WORLD_H-10,car.y));
+  });
+
+  // Police AI
+  gameState.police.forEach(pol => {
+    if (pol.state==='destroyed') return;
+    playSiren();
+    // chase player
+    const dx = p.x-pol.x, dy = p.y-pol.y;
+    const targetAngle = Math.atan2(dx, -dy);
+    let da = targetAngle - pol.angle;
+    while(da>Math.PI) da-=Math.PI*2;
+    while(da<-Math.PI) da+=Math.PI*2;
+    pol.angle += Math.sign(da)*Math.min(Math.abs(da),2.5*dt);
+    const nx = pol.x + Math.sin(pol.angle)*pol.speed*dt;
+    const ny = pol.y - Math.cos(pol.angle)*pol.speed*dt;
+    if (!isWall(nx,ny,pol.type.w*pol.size*0.8,pol.type.h*pol.size*0.8)) {
+      pol.x=nx; pol.y=ny;
+    } else {
+      pol.angle += Math.PI/2;
+    }
+    pol.x=Math.max(10,Math.min(WORLD_W-10,pol.x));
+    pol.y=Math.max(10,Math.min(WORLD_H-10,pol.y));
+
+    // catch player?
+    const dist = Math.sqrt(dx*dx+dy*dy);
+    if (dist < (p.type.w*p.size + pol.type.w*pol.size)*0.8) {
+      // caught!
+      gameOver();
+      return;
+    }
+  });
+
+  // Remove destroyed vehicles after delay
+  if (Math.random()<0.005) {
+    gameState.traffic = gameState.traffic.filter(c=>c.state!=='destroyed');
+    gameState.police = gameState.police.filter(c=>c.state!=='destroyed');
+    while(gameState.traffic.length < 15) spawnTraffic();
+  }
+
+  // Particles
+  gameState.particles.forEach(p => {
+    p.x += p.vx*dt; p.y += p.vy*dt;
+    p.vy += 50*dt;
+    p.life -= dt; p.alpha = p.life/p.maxLife;
+  });
+  gameState.particles = gameState.particles.filter(p=>p.life>0);
+}
+
+let lastFireTime = {};
+function fireBullet(weapon) {
+  if (!gameState) return;
+  const p = gameState.player;
+  if (!p.weapons.length) return;
+  const w = weapon || p.weapons[p.activeWeapon] || p.weapons[0];
+  const now = performance.now();
+  const cooldowns = {pistol:400, machine:100, cannon:1200};
+  const cd = cooldowns[w]||400;
+  if ((now-(lastFireTime[w]||0)) < cd) return;
+  lastFireTime[w] = now;
+  playShoot(w);
+  const speeds = {pistol:500, machine:600, cannon:400};
+  const count = w==='machine'?3:1;
+  const spread = w==='machine'?0.12:0;
+  for(let i=0;i<count;i++) {
+    const a = p.angle + (Math.random()-0.5)*spread;
+    const spd = speeds[w]+(Math.random()-0.5)*50;
+    const wx = Math.sin(a)*spd, wy=-Math.cos(a)*spd;
+    gameState.bullets.push({
+      x:p.x, y:p.y-p.type.h*p.size*0.5,
+      vx:wx+p.vx*0.3, vy:wy+p.vy*0.3,
+      weapon:w,
+      life: w==='cannon'?2.5:1.5,
+      size: w==='cannon'?8:w==='machine'?3:4,
+      color: w==='cannon'?'#ff6600':w==='machine'?'#ffff00':'#ffdd00',
+    });
+  }
+}
+
+function hitCar(car, weapon) {
+  const dmg = {pistol:15, machine:25, cannon:100}[weapon]||15;
+  car.hp = Math.max(0, car.hp - dmg);
+  if (car.hp<=0) {
+    playExplosion();
+    spawnParticles(car.x, car.y, 20, '#ff4400');
+    if (weapon==='cannon') { car.state='destroyed'; }
+    else if (weapon==='machine') { car.state='burning'; car.burnTimer=3; }
+    else { car.state='slow'; }
+  } else {
+    if (weapon==='cannon') { car.state='burning'; car.burnTimer=2; playCrash(); }
+    else if (weapon==='machine') { car.state='slow'; }
+    else { car.state='slow'; }
+  }
+}
+
+function spawnParticles(x, y, n, color) {
+  for(let i=0;i<n;i++) {
+    const angle = Math.random()*Math.PI*2;
+    const spd = 30+Math.random()*120;
+    gameState.particles.push({
+      x, y,
+      vx: Math.cos(angle)*spd, vy: Math.sin(angle)*spd,
+      life: 0.3+Math.random()*0.7, maxLife:1,
+      alpha:1, color,
+      size: 2+Math.random()*5,
+    });
+  }
+}
+
+function isWall(x, y, w, h) {
+  // check corners
+  const corners = [[x-w/2,y-h/2],[x+w/2,y-h/2],[x-w/2,y+h/2],[x+w/2,y+h/2]];
+  for(const [cx,cy] of corners) {
+    const col = Math.floor(cx/TILE), row = Math.floor(cy/TILE);
+    if (row<0||row>=WORLD_H/TILE||col<0||col>=WORLD_W/TILE) return true;
+    if (worldMap[row]&&worldMap[row][col]===0) return true;
+  }
+  return false;
+}
+
+function rectHit(bx, by, cx, cy, cw, ch) {
+  return bx>cx-cw/2 && bx<cx+cw/2 && by>cy-ch/2 && by<cy+ch/2;
+}
+
+function gameOver() {
+  if (!gameState) return;
+  gameState.player.alive = false;
+  gameState.phase = 'gameover';
+  gameRunning = false;
+  playExplosion();
+  document.getElementById('final-score').textContent = gameState.player.score;
+  document.getElementById('hud').classList.add('hidden');
+  document.getElementById('touch-controls').classList.add('hidden');
+  document.getElementById('gameover-screen').classList.remove('hidden');
+}
+
+function restartGame() {
+  hideAll();
+  startGame();
+}
+
+// ==================== RENDER ====================
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+function render() {
+  if (!gameState) return;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const p = gameState.player;
+  // Camera: center on player
+  const camX = p.x - canvas.width/2;
+  const camY = p.y - canvas.height/2;
+
+  ctx.save();
+  ctx.translate(-camX, -camY);
+
+  // Draw world
+  drawWorld(camX, camY);
+
+  // Traffic
+  gameState.traffic.forEach(car => drawCar(car, false));
+  // Police
+  gameState.police.forEach(pol => drawPolice(pol));
+  // Player
+  if (p.alive) drawPlayer(p);
+  // Bullets
+  drawBullets();
+  // Particles
+  drawParticles();
+
+  ctx.restore();
+}
+
+function drawWorld(camX, camY) {
+  const startCol = Math.max(0, Math.floor(camX/TILE)-1);
+  const endCol   = Math.min(WORLD_W/TILE, Math.ceil((camX+canvas.width)/TILE)+1);
+  const startRow = Math.max(0, Math.floor(camY/TILE)-1);
+  const endRow   = Math.min(WORLD_H/TILE, Math.ceil((camY+canvas.height)/TILE)+1);
+
+  for(let r=startRow; r<endRow; r++) {
+    for(let c=startCol; c<endCol; c++) {
+      const tile = worldMap[r]&&worldMap[r][c];
+      const tx = c*TILE, ty = r*TILE;
+      if (tile===0) {
+        ctx.fillStyle = '#1c1e2a';
+        ctx.fillRect(tx, ty, TILE, TILE);
+      } else if (tile===1) {
+        ctx.fillStyle = ROAD_COLOR;
+        ctx.fillRect(tx, ty, TILE, TILE);
+        // Road markings
+        if (c%8===0) { // vertical road markings
+          ctx.fillStyle = LINE_COLOR;
+          ctx.fillRect(tx+TILE/2-1, ty+TILE*0.1, 2, TILE*0.35);
+          ctx.fillRect(tx+TILE/2-1, ty+TILE*0.6, 2, TILE*0.35);
+        }
+        if (r%8===0) { // horizontal
+          ctx.fillStyle = LINE_COLOR;
+          ctx.fillRect(tx+TILE*0.1, ty+TILE/2-1, TILE*0.35, 2);
+          ctx.fillRect(tx+TILE*0.6, ty+TILE/2-1, TILE*0.35, 2);
+        }
+      } else {
+        ctx.fillStyle = SIDEWALK_COLOR;
+        ctx.fillRect(tx, ty, TILE, TILE);
+        // Sidewalk texture
+        ctx.fillStyle='rgba(255,255,255,0.03)';
+        for(let i=0;i<4;i++) for(let j=0;j<4;j++) {
+          ctx.fillRect(tx+i*(TILE/4), ty+j*(TILE/4), TILE/4-1, TILE/4-1);
+        }
+      }
+    }
+  }
+  // Buildings
+  buildings.forEach(b => {
+    if (b.x+b.w<camX || b.x>camX+canvas.width || b.y+b.h<camY || b.y>camY+canvas.height) return;
+    // Building shadow
+    ctx.fillStyle='rgba(0,0,0,0.35)';
+    ctx.fillRect(b.x+8, b.y+8, b.w, b.h);
+    // Building body
+    ctx.fillStyle = b.color;
+    ctx.fillRect(b.x, b.y, b.w, b.h);
+    // Windows
+    ctx.fillStyle='rgba(255,255,180,0.18)';
+    const cols = Math.floor(b.w/22), rows2 = Math.floor(b.h/18);
+    for(let i=0;i<cols;i++) for(let j=0;j<rows2;j++) {
+      if (Math.random()>0.3||!windowsInit) ctx.fillRect(b.x+6+i*22, b.y+8+j*18, 12, 10);
+    }
+    // Roof
+    ctx.fillStyle = shadeColor(b.color, 15);
+    ctx.fillRect(b.x, b.y, b.w, 6);
+  });
+}
+let windowsInit = false;
+setTimeout(()=>windowsInit=true, 500);
+
+function drawCar(car, isPolice) {
+  if (car.state==='destroyed') return;
+  ctx.save();
+  ctx.translate(car.x, car.y);
+  ctx.rotate(car.angle);
+  const s = car.size;
+  const t = car.type;
+  ctx.scale(s,s);
+  ctx.translate(-t.w/2, -t.h/2);
+  if (car.state==='burning') {
+    ctx.globalAlpha = 0.7+Math.sin(Date.now()*0.01)*0.3;
+  }
+  drawCarShape(ctx, t, car.color, []);
+  ctx.restore();
+  // Burn effect
+  if (car.state==='burning') {
+    ctx.save();
+    ctx.globalAlpha=0.6;
+    const grad = ctx.createRadialGradient(car.x,car.y,2,car.x,car.y,25*s);
+    grad.addColorStop(0,'rgba(255,150,0,0.9)'); grad.addColorStop(1,'rgba(255,0,0,0)');
+    ctx.fillStyle=grad;
+    ctx.beginPath(); ctx.arc(car.x,car.y,25*s,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+  // HP bar
+  if (car.hp<100 && car.state!=='destroyed') {
+    ctx.save();
+    ctx.fillStyle='#333';
+    ctx.fillRect(car.x-20, car.y-t.h*s/2-12, 40, 5);
+    ctx.fillStyle = car.hp>50?'#22cc66':car.hp>25?'#ffaa00':'#ff4455';
+    ctx.fillRect(car.x-20, car.y-t.h*s/2-12, car.hp*0.4, 5);
+    ctx.restore();
+  }
+}
+
+function drawPolice(pol) {
+  if (pol.state==='destroyed') return;
+  ctx.save();
+  ctx.translate(pol.x, pol.y);
+  ctx.rotate(pol.angle);
+  const s = pol.size, t = pol.type;
+  ctx.scale(s,s);
+  ctx.translate(-t.w/2,-t.h/2);
+  drawCarShape(ctx, t, pol.color, []);
+  // Siren lights
+  const si = Math.floor(Date.now()/200)%2;
+  ctx.fillStyle = si?'#ff0000':'#0088ff';
+  ctx.fillRect(t.roofX+2, t.roofY-6, 10, 6);
+  ctx.fillStyle = si?'#0088ff':'#ff0000';
+  ctx.fillRect(t.roofX+t.roofW-12, t.roofY-6, 10, 6);
+  ctx.restore();
+}
+
+function drawPlayer(p) {
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  ctx.rotate(p.angle);
+  const s = p.size, t = p.type;
+  ctx.scale(s,s);
+  ctx.translate(-t.w/2,-t.h/2);
+  drawCarShape(ctx, t, p.color, p.weapons);
+  ctx.restore();
+  // Direction indicator
+  ctx.save();
+  ctx.strokeStyle='rgba(255,255,255,0.15)';
+  ctx.lineWidth=1;
+  ctx.setLineDash([4,4]);
+  ctx.beginPath();
+  ctx.moveTo(p.x, p.y);
+  ctx.lineTo(p.x+Math.sin(p.angle)*60, p.y-Math.cos(p.angle)*60);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawBullets() {
+  gameState.bullets.forEach(b => {
+    ctx.save();
+    if (b.weapon==='cannon') {
+      const grad = ctx.createRadialGradient(b.x,b.y,0,b.x,b.y,b.size);
+      grad.addColorStop(0,'#ffff00'); grad.addColorStop(1,'#ff4400');
+      ctx.fillStyle=grad;
+      ctx.beginPath(); ctx.arc(b.x,b.y,b.size,0,Math.PI*2); ctx.fill();
+    } else {
+      ctx.fillStyle = b.color;
+      ctx.beginPath(); ctx.arc(b.x,b.y,b.size/2,0,Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+  });
+}
+
+function drawParticles() {
+  gameState.particles.forEach(pt => {
+    ctx.save();
+    ctx.globalAlpha = pt.alpha;
+    ctx.fillStyle = pt.color;
+    ctx.beginPath(); ctx.arc(pt.x,pt.y,pt.size*pt.alpha,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  });
+}
+
+// ==================== HUD ====================
+const WEAPON_NAMES = {pistol:'🔫 مسدس', machine:'💥 رشاش', cannon:'💣 مدفع'};
+const STAR_ON='★', STAR_OFF='☆';
+function updateHUD() {
+  if (!gameState) return;
+  const p = gameState.player;
+  document.getElementById('hud-score').textContent = p.score;
+  document.getElementById('hud-speed').textContent = Math.round(Math.abs(p.speed));
+  const wanted = '★'.repeat(p.wantedLevel) + '☆'.repeat(5-p.wantedLevel);
+  document.getElementById('hud-wanted').textContent = wanted;
+  const w = p.weapons[p.activeWeapon]||p.weapons[0]||'--';
+  document.getElementById('hud-weapon').textContent = WEAPON_NAMES[w]||w;
+}
+
+// ==================== EXPOSE TEST HOOKS ====================
+window.render_game_to_text = () => {
+  if (!gameState) return JSON.stringify({phase:'garage'});
+  const p = gameState.player;
+  return JSON.stringify({
+    phase: gameState.phase,
+    player: {x:Math.round(p.x),y:Math.round(p.y),speed:Math.round(p.speed),angle:p.angle.toFixed(2),alive:p.alive},
+    score: p.score, wanted: p.wantedLevel,
+    bullets: gameState.bullets.length,
+    traffic: gameState.traffic.filter(c=>c.state!=='destroyed').length,
+    police: gameState.police.filter(c=>c.state!=='destroyed').length,
+  });
+};
+window.advanceTime = (ms) => {
+  const steps = Math.max(1, Math.round(ms/(1000/60)));
+  for(let i=0;i<steps;i++) update(1/60);
+  render();
+};
+
+// ==================== INIT ====================
+showTitle();
+</script>
+</body>
+</html>
