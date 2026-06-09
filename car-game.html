@@ -1823,64 +1823,225 @@ function drawWorld(camX, camY) {
   const dpr = window.devicePixelRatio || 1;
   const cssW = canvas.width / dpr;
   const cssH = canvas.height / dpr;
-  const startCol = Math.max(0, Math.floor(camX/TILE)-1);
-  const endCol   = Math.min(WORLD_W/TILE, Math.ceil((camX+cssW)/TILE)+1);
-  const startRow = Math.max(0, Math.floor(camY/TILE)-1);
-  const endRow   = Math.min(WORLD_H/TILE, Math.ceil((camY+cssH)/TILE)+1);
+  
+  // Identify visible chunks
+  const startChunkX = Math.floor(camX / 1280);
+  const endChunkX   = Math.floor((camX + cssW) / 1280);
+  const startChunkY = Math.floor(camY / 1280);
+  const endChunkY   = Math.floor((camY + cssH) / 1280);
 
-  for(let r=startRow; r<endRow; r++) {
-    for(let c=startCol; c<endCol; c++) {
-      const tile = worldMap[r]&&worldMap[r][c];
-      const tx = c*TILE, ty = r*TILE;
-      if (tile===0) {
-        ctx.fillStyle = '#1c1e2a';
-        ctx.fillRect(tx, ty, TILE, TILE);
-      } else if (tile===1) {
-        ctx.fillStyle = ROAD_COLOR;
-        ctx.fillRect(tx, ty, TILE, TILE);
-        // Road markings
-        if (c%8===0) { // vertical road markings
-          ctx.fillStyle = LINE_COLOR;
-          ctx.fillRect(tx+TILE/2-1, ty+TILE*0.1, 2, TILE*0.35);
-          ctx.fillRect(tx+TILE/2-1, ty+TILE*0.6, 2, TILE*0.35);
-        }
-        if (r%8===0) { // horizontal
-          ctx.fillStyle = LINE_COLOR;
-          ctx.fillRect(tx+TILE*0.1, ty+TILE/2-1, TILE*0.35, 2);
-          ctx.fillRect(tx+TILE*0.6, ty+TILE/2-1, TILE*0.35, 2);
-        }
-      } else {
-        ctx.fillStyle = SIDEWALK_COLOR;
-        ctx.fillRect(tx, ty, TILE, TILE);
-        // Sidewalk texture
-        ctx.fillStyle='rgba(255,255,255,0.03)';
-        for(let i=0;i<4;i++) for(let j=0;j<4;j++) {
-          ctx.fillRect(tx+i*(TILE/4), ty+j*(TILE/4), TILE/4-1, TILE/4-1);
+  // 1. Draw visible ground tiles (roads, sidewalks, grass)
+  for (let cy = startChunkY; cy <= endChunkY; cy++) {
+    for (let cx = startChunkX; cx <= endChunkX; cx++) {
+      const key = `${cx},${cy}`;
+      if (!gameState.chunks[key]) {
+        generateChunk(cx, cy);
+      }
+      const chunk = gameState.chunks[key];
+      const chunkX = cx * 1280;
+      const chunkY = cy * 1280;
+      
+      for (let r = 0; r < 16; r++) {
+        for (let c = 0; c < 16; c++) {
+          const tile = chunk.map[r][c];
+          const tx = chunkX + c * 80;
+          const ty = chunkY + r * 80;
+          
+          if (tile === 0) {
+            ctx.fillStyle = '#064e3b'; // grass
+            ctx.fillRect(tx, ty, 80, 80);
+          } else if (tile === 1) {
+            ctx.fillStyle = ROAD_COLOR;
+            ctx.fillRect(tx, ty, 80, 80);
+            
+            // Vertical road lanes
+            if (c === 7 || c === 8) {
+              ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+              ctx.lineWidth = 2;
+              ctx.setLineDash([15, 15]);
+              ctx.beginPath();
+              ctx.moveTo(tx + 40, ty);
+              ctx.lineTo(tx + 40, ty + 80);
+              ctx.stroke();
+              ctx.setLineDash([]);
+            }
+            // Horizontal road lanes
+            if (r === 7 || r === 8) {
+              ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+              ctx.lineWidth = 2;
+              ctx.setLineDash([15, 15]);
+              ctx.beginPath();
+              ctx.moveTo(tx, ty + 40);
+              ctx.lineTo(tx + 80, ty + 40);
+              ctx.stroke();
+              ctx.setLineDash([]);
+            }
+          } else if (tile === 2) {
+            ctx.fillStyle = SIDEWALK_COLOR;
+            ctx.fillRect(tx, ty, 80, 80);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+            for (let i = 0; i < 2; i++) {
+              for (let j = 0; j < 2; j++) {
+                ctx.fillRect(tx + i * 40, ty + j * 40, 39, 39);
+              }
+            }
+          }
         }
       }
     }
   }
-  // Buildings
-  buildings.forEach(b => {
-    if (b.x+b.w<camX || b.x>camX+cssW || b.y+b.h<camY || b.y>camY+cssH) return;
-    // Building shadow
-    ctx.fillStyle='rgba(0,0,0,0.35)';
-    ctx.fillRect(b.x+8, b.y+8, b.w, b.h);
-    // Building body
-    ctx.fillStyle = b.color;
-    ctx.fillRect(b.x, b.y, b.w, b.h);
-    // Windows
-    ctx.fillStyle='rgba(255,255,180,0.18)';
-    const cols = Math.floor(b.w/22), rows2 = Math.floor(b.h/18);
-    for(let i=0;i<cols;i++) for(let j=0;j<rows2;j++) {
-      if (b.windowStates && b.windowStates[i] && b.windowStates[i][j]) {
-        ctx.fillRect(b.x+6+i*22, b.y+8+j*18, 12, 10);
-      }
+
+  // 2. Draw visible park layouts (ponds, trees)
+  for (let cy = startChunkY; cy <= endChunkY; cy++) {
+    for (let cx = startChunkX; cx <= endChunkX; cx++) {
+      const key = `${cx},${cy}`;
+      const chunk = gameState.chunks[key];
+      if (!chunk) continue;
+      
+      chunk.parks.forEach(park => {
+        // Draw Pond
+        const pGrad = ctx.createRadialGradient(park.pond.x, park.pond.y, 0, park.pond.x, park.pond.y, park.pond.r);
+        pGrad.addColorStop(0, '#38bdf8');
+        pGrad.addColorStop(1, '#0284c7');
+        ctx.fillStyle = pGrad;
+        ctx.beginPath();
+        ctx.arc(park.pond.x, park.pond.y, park.pond.r, 0, Math.PI*2);
+        ctx.fill();
+        ctx.strokeStyle = '#0369a1';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        
+        // Draw Trees
+        park.trees.forEach(t => {
+          ctx.save();
+          ctx.shadowColor = 'rgba(0,0,0,0.3)';
+          ctx.shadowBlur = 4;
+          ctx.shadowOffsetY = 4;
+          
+          ctx.fillStyle = '#78350f';
+          ctx.beginPath();
+          ctx.arc(t.x, t.y, 6, 0, Math.PI*2);
+          ctx.fill();
+          
+          ctx.shadowColor = 'transparent';
+          ctx.fillStyle = '#15803d';
+          ctx.beginPath();
+          ctx.arc(t.x, t.y, 16, 0, Math.PI*2);
+          ctx.fill();
+          ctx.fillStyle = '#22c55e';
+          ctx.beginPath();
+          ctx.arc(t.x - 3, t.y - 3, 10, 0, Math.PI*2);
+          ctx.fill();
+          ctx.restore();
+        });
+      });
     }
-    // Roof
-    ctx.fillStyle = shadeColor(b.color, 15);
-    ctx.fillRect(b.x, b.y, b.w, 6);
-  });
+  }
+
+  // 3. Draw visible building gardens, stairs, and 3D extruded bodies
+  for (let cy = startChunkY; cy <= endChunkY; cy++) {
+    for (let cx = startChunkX; cx <= endChunkX; cx++) {
+      const key = `${cx},${cy}`;
+      const chunk = gameState.chunks[key];
+      if (!chunk) continue;
+
+      chunk.buildings.forEach(b => {
+        // Garden lawn
+        ctx.fillStyle = '#166534';
+        ctx.fillRect(b.garden.x, b.garden.y, b.garden.w, b.garden.h);
+        
+        // Hedges outline
+        ctx.fillStyle = '#15803d';
+        for (let gx = b.garden.x; gx < b.garden.x + b.garden.w; gx += 16) {
+          ctx.beginPath(); ctx.arc(gx, b.garden.y, 5, 0, Math.PI*2); ctx.fill();
+          ctx.beginPath(); ctx.arc(gx, b.garden.y + b.garden.h, 5, 0, Math.PI*2); ctx.fill();
+        }
+        for (let gy = b.garden.y; gy < b.garden.y + b.garden.h; gy += 16) {
+          ctx.beginPath(); ctx.arc(b.garden.x, gy, 5, 0, Math.PI*2); ctx.fill();
+          ctx.beginPath(); ctx.arc(b.garden.x + b.garden.w, gy, 5, 0, Math.PI*2); ctx.fill();
+        }
+
+        // Stairs
+        ctx.fillStyle = '#9ca3af';
+        ctx.strokeStyle = '#4b5563';
+        ctx.lineWidth = 1;
+        const stairCount = 3;
+        const sx = b.door.x - b.door.w/2 - 4;
+        const sy = b.door.y + (b.stairsDir === 'down' ? b.door.h : -4);
+        for (let i = 0; i < stairCount; i++) {
+          const stepOffset = i * 3;
+          const stepW = b.door.w + 8 - i * 4;
+          const stepH = 3;
+          ctx.fillRect(sx + i*2, sy + (b.stairsDir === 'down' ? stepOffset : -stepOffset), stepW, stepH);
+          ctx.strokeRect(sx + i*2, sy + (b.stairsDir === 'down' ? stepOffset : -stepOffset), stepW, stepH);
+        }
+
+        // Door
+        ctx.fillStyle = '#78350f';
+        ctx.fillRect(b.door.x - b.door.w/2, b.door.y, b.door.w, b.door.h);
+        ctx.strokeStyle = '#451a03';
+        ctx.strokeRect(b.door.x - b.door.w/2, b.door.y, b.door.w, b.door.h);
+        ctx.beginPath();
+        ctx.moveTo(b.door.x, b.door.y);
+        ctx.lineTo(b.door.x, b.door.y + b.door.h);
+        ctx.stroke();
+
+        // 3D Wall Extrusion
+        const offset = b.floors * 4.5;
+        
+        ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        ctx.shadowBlur = 12;
+        ctx.shadowOffsetX = 6;
+        ctx.shadowOffsetY = 10;
+
+        // Dark side walls
+        ctx.fillStyle = shadeColor(b.color, -20);
+        ctx.beginPath();
+        ctx.moveTo(b.x, b.y);
+        ctx.lineTo(b.x - offset, b.y - offset);
+        ctx.lineTo(b.x - offset, b.y + b.h - offset);
+        ctx.lineTo(b.x, b.y + b.h);
+        ctx.closePath(); ctx.fill();
+
+        ctx.beginPath();
+        ctx.moveTo(b.x, b.y + b.h);
+        ctx.lineTo(b.x - offset, b.y + b.h - offset);
+        ctx.lineTo(b.x + b.w - offset, b.y + b.h - offset);
+        ctx.lineTo(b.x + b.w, b.y + b.h);
+        ctx.closePath(); ctx.fill();
+        ctx.restore();
+
+        // Roof Slab
+        ctx.fillStyle = shadeColor(b.color, 15);
+        ctx.fillRect(b.x - offset, b.y - offset, b.w, b.h);
+        ctx.strokeStyle = shadeColor(b.color, 35);
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(b.x - offset, b.y - offset, b.w, b.h);
+
+        // Helipad decoration
+        const rx = b.x - offset;
+        const ry = b.y - offset;
+        
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(rx + b.w/2, ry + b.h/2, 20, 0, Math.PI*2);
+        ctx.stroke();
+        
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+        ctx.font = 'bold 16px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('H', rx + b.w/2, ry + b.h/2);
+
+        // Skylight panels
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.3)';
+        ctx.fillRect(rx + 20, ry + 20, 30, 20);
+        ctx.fillRect(rx + b.w - 50, ry + 20, 30, 20);
+      });
+    }
+  }
 }
 let windowsInit = false;
 setTimeout(()=>windowsInit=true, 500);
