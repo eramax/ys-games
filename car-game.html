@@ -1485,11 +1485,11 @@ function update(dt) {
   gameState.particles = gameState.particles.filter(p=>p.life>0);
 
   // Power-ups spawn, lifetime and collision update
-  if (!gameState.powerUpSpawnTimer) gameState.powerUpSpawnTimer = 4;
+  if (!gameState.powerUpSpawnTimer) gameState.powerUpSpawnTimer = 3;
   gameState.powerUpSpawnTimer -= dt;
   if (gameState.powerUpSpawnTimer <= 0) {
     spawnPowerUp();
-    gameState.powerUpSpawnTimer = 8 + Math.random() * 8; // Spawn a power-up every 8-16 seconds
+    gameState.powerUpSpawnTimer = 3 + Math.random() * 4; // Spawn a power-up every 3-7 seconds
   }
 
   // Filter out expired power-ups
@@ -1523,32 +1523,46 @@ function update(dt) {
 }
 
 function spawnPowerUp() {
-  if (!gameState || (gameState.powerUps || []).length >= 6) return;
-  const cols = WORLD_W/TILE, rows = WORLD_H/TILE;
-  let attempts = 0;
-  while (attempts < 100) {
-    const r = Math.floor(Math.random() * rows);
-    const c = Math.floor(Math.random() * cols);
-    if (worldMap[r] && worldMap[r][c] === 1) { // road tile
-      const px = c * TILE + TILE/2 + (Math.random()-0.5)*15;
-      const py = r * TILE + TILE/2 + (Math.random()-0.5)*15;
-      
-      const dist = Math.hypot(px - gameState.player.x, py - gameState.player.y);
-      if (dist > 300) {
-        const types = ['health', 'shield', 'nitro', 'score'];
-        const type = types[Math.floor(Math.random() * types.length)];
-        gameState.powerUps.push({
-          id: Math.random(),
-          x: px, y: py,
-          type: type,
-          spawnTime: Date.now(),
-          duration: 15000 + Math.random()*5000,
-          size: 16
-        });
-        break;
-      }
+  if (!gameState || (gameState.powerUps || []).length >= 12) return;
+  const p = gameState.player;
+  const pChunkX = Math.floor(p.x / 1280);
+  const pChunkY = Math.floor(p.y / 1280);
+  
+  // Pick a random chunk near the player
+  const cx = pChunkX + Math.floor(Math.random() * 3 - 1);
+  const cy = pChunkY + Math.floor(Math.random() * 3 - 1);
+  const key = `${cx},${cy}`;
+  
+  if (!gameState.chunks[key]) {
+    generateChunk(cx, cy);
+  }
+  
+  const chunk = gameState.chunks[key];
+  const roadTiles = [];
+  for (let r = 0; r < 16; r++) {
+    for (let c = 0; c < 16; c++) {
+      if (chunk.map[r][c] === 1) roadTiles.push({ r, c });
     }
-    attempts++;
+  }
+  
+  if (roadTiles.length > 0) {
+    const tile = roadTiles[Math.floor(Math.random() * roadTiles.length)];
+    const px = cx * 1280 + tile.c * 80 + 40 + (Math.random() - 0.5) * 20;
+    const py = cy * 1280 + tile.r * 80 + 40 + (Math.random() - 0.5) * 20;
+    
+    const dist = Math.hypot(px - p.x, py - p.y);
+    if (dist > 150) {
+      const types = ['health', 'shield', 'nitro', 'score'];
+      const type = types[Math.floor(Math.random() * types.length)];
+      gameState.powerUps.push({
+        id: Math.random(),
+        x: px, y: py,
+        type: type,
+        spawnTime: Date.now(),
+        duration: 18000 + Math.random() * 7000,
+        size: 16
+      });
+    }
   }
 }
 
