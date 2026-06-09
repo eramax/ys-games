@@ -2302,17 +2302,56 @@ function drawWorld(camX, camY) {
       if (!chunk) continue;
       
       chunk.parks.forEach(park => {
-        // Draw Pond
+        // Draw stone border ring around the pond
+        ctx.save();
+        ctx.fillStyle = '#64748b'; // stone gray
+        ctx.strokeStyle = '#475569';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(park.pond.x, park.pond.y, park.pond.r + 4, 0, Math.PI * 2);
+        ctx.fill(); ctx.stroke();
+        
+        // Stone outlines
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 1;
+        for (let a = 0; a < Math.PI * 2; a += 0.4) {
+          ctx.beginPath();
+          ctx.moveTo(park.pond.x + Math.cos(a) * park.pond.r, park.pond.y + Math.sin(a) * park.pond.r);
+          ctx.lineTo(park.pond.x + Math.cos(a) * (park.pond.r + 4), park.pond.y + Math.sin(a) * (park.pond.r + 4));
+          ctx.stroke();
+        }
+        
+        // Draw Water
         const pGrad = ctx.createRadialGradient(park.pond.x, park.pond.y, 0, park.pond.x, park.pond.y, park.pond.r);
-        pGrad.addColorStop(0, '#38bdf8');
-        pGrad.addColorStop(1, '#0284c7');
+        pGrad.addColorStop(0, '#0284c7');
+        pGrad.addColorStop(0.8, '#0369a1');
+        pGrad.addColorStop(1, '#075985');
         ctx.fillStyle = pGrad;
         ctx.beginPath();
-        ctx.arc(park.pond.x, park.pond.y, park.pond.r, 0, Math.PI*2);
+        ctx.arc(park.pond.x, park.pond.y, park.pond.r, 0, Math.PI * 2);
         ctx.fill();
-        ctx.strokeStyle = '#0369a1';
-        ctx.lineWidth = 3;
+        
+        // Water ripples / shine
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(park.pond.x - 5, park.pond.y - 5, park.pond.r * 0.7, Math.PI * 1.1, Math.PI * 1.6);
         ctx.stroke();
+        
+        // Floating green lily pads
+        ctx.fillStyle = '#16a34a';
+        const lilyCount = 3;
+        for (let i = 0; i < lilyCount; i++) {
+          const la = (i * 2.1) + 0.5;
+          const lr = park.pond.r * 0.45;
+          const lx = park.pond.x + Math.cos(la) * lr;
+          const ly = park.pond.y + Math.sin(la) * lr;
+          ctx.beginPath();
+          ctx.arc(lx, ly, 6, 0, Math.PI * 1.7);
+          ctx.closePath();
+          ctx.fill();
+        }
+        ctx.restore();
         
         // Draw Trees
         park.trees.forEach(t => {
