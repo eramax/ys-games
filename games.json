@@ -3,7 +3,7 @@
     "id": "car-game",
     "title": "Retro City Racing",
     "description": "قم بقيادة سيارتك الكلاسيكية في شوارع المدينة العشوائية اللانهائية، وتجنب الشرطة والمشاة والسيارات الأخرى!",
-    "url": "https://ys-games.vercel.app/car-game.html",
-    "icon": "🏎️"
+    "url": "games/car-game.html",
+    "image": "games/images/car-game.png"
   }
 ]
