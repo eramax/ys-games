@@ -2082,6 +2082,9 @@ function render() {
   // Draw world
   drawWorld(camX, camY);
 
+  // Pedestrians (drawn on ground under cars)
+  drawPedestrians();
+
   // Traffic
   gameState.traffic.forEach(car => drawCar(car, false));
   // Police
@@ -2094,6 +2097,8 @@ function render() {
   drawBullets();
   // Particles
   drawParticles();
+  // Lightning arcs (drawn on top)
+  drawLightningArcs();
 
   ctx.restore();
 }
