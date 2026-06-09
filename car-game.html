@@ -323,7 +323,7 @@
   </div>
 
   <!-- RIGHT: direction -->
-  <div class="ctrl-group">
+  <div class="ctrl-group" id="right-controls">
     <div class="ctrl-row">
       <div style="width:56px"></div>
       <button class="ctrl-btn" id="btn-up" data-action="up">⬆️</button>
@@ -619,9 +619,25 @@ function generateWorld() {
 function initGameState() {
   generateWorld();
   const weapons = playerCar.weapons.length > 0 ? [...playerCar.weapons] : ['pistol'];
+  // Find a road tile near center for player spawn
+  let spawnX = WORLD_W/2, spawnY = WORLD_H/2;
+  const centerCol = Math.floor(spawnX/TILE);
+  const centerRow = Math.floor(spawnY/TILE);
+  let found = false;
+  for (let r = centerRow-4; r <= centerRow+4 && !found; r++) {
+    for (let c = centerCol-4; c <= centerCol+4 && !found; c++) {
+      if (r >= 0 && r < WORLD_H/TILE && c >= 0 && c < WORLD_W/TILE) {
+        if (worldMap[r] && worldMap[r][c] === 1) {
+          spawnX = c * TILE + TILE/2;
+          spawnY = r * TILE + TILE/2;
+          found = true;
+        }
+      }
+    }
+  }
   gameState = {
     player: {
-      x: WORLD_W/2, y: WORLD_H/2,
+      x: spawnX, y: spawnY,
       vx: 0, vy: 0,
       angle: 0,
       speed: 0,
@@ -1024,19 +1040,24 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
 function resizeCanvas() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = window.innerWidth * dpr;
+  canvas.height = window.innerHeight * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
 function render() {
   if (!gameState) return;
-  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = canvas.width / dpr;
+  const cssH = canvas.height / dpr;
+  ctx.clearRect(0,0,cssW,cssH);
   const p = gameState.player;
   // Camera: center on player
-  const camX = p.x - canvas.width/2;
-  const camY = p.y - canvas.height/2;
+  const camX = p.x - cssW/2;
+  const camY = p.y - cssH/2;
 
   ctx.save();
   ctx.translate(-camX, -camY);
@@ -1059,10 +1080,13 @@ function render() {
 }
 
 function drawWorld(camX, camY) {
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = canvas.width / dpr;
+  const cssH = canvas.height / dpr;
   const startCol = Math.max(0, Math.floor(camX/TILE)-1);
-  const endCol   = Math.min(WORLD_W/TILE, Math.ceil((camX+canvas.width)/TILE)+1);
+  const endCol   = Math.min(WORLD_W/TILE, Math.ceil((camX+cssW)/TILE)+1);
   const startRow = Math.max(0, Math.floor(camY/TILE)-1);
-  const endRow   = Math.min(WORLD_H/TILE, Math.ceil((camY+canvas.height)/TILE)+1);
+  const endRow   = Math.min(WORLD_H/TILE, Math.ceil((camY+cssH)/TILE)+1);
 
   for(let r=startRow; r<endRow; r++) {
     for(let c=startCol; c<endCol; c++) {
@@ -1098,7 +1122,7 @@ function drawWorld(camX, camY) {
   }
   // Buildings
   buildings.forEach(b => {
-    if (b.x+b.w<camX || b.x>camX+canvas.width || b.y+b.h<camY || b.y>camY+canvas.height) return;
+    if (b.x+b.w<camX || b.x>camX+cssW || b.y+b.h<camY || b.y>camY+cssH) return;
     // Building shadow
     ctx.fillStyle='rgba(0,0,0,0.35)';
     ctx.fillRect(b.x+8, b.y+8, b.w, b.h);
