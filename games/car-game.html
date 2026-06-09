@@ -300,6 +300,30 @@
     0%, 100% { opacity: 1; }
     50% { opacity: 0.6; }
   }
+  #joystick-container {
+    width: 130px; height: 130px;
+    position: relative;
+    pointer-events: all;
+    touch-action: none;
+  }
+  #joystick-base {
+    width: 130px; height: 130px;
+    background: rgba(0,0,0,0.45);
+    border: 2px solid rgba(255,255,255,0.15);
+    border-radius: 50%;
+    position: absolute;
+    top: 0; left: 0;
+  }
+  #joystick-thumb {
+    width: 50px; height: 50px;
+    background: rgba(245,197,24,0.5);
+    border: 2px solid rgba(245,197,24,0.7);
+    border-radius: 50%;
+    position: absolute;
+    top: 40px; left: 40px;
+    transition: background 0.1s;
+    pointer-events: none;
+  }
 
   /* ====== GAMEOVER / WIN ====== */
   #gameover-screen {
@@ -423,15 +447,11 @@
     </div>
   </div>
 
-  <!-- RIGHT: direction + speed -->
+  <!-- RIGHT: joystick -->
   <div class="ctrl-group" id="right-controls">
-    <div class="ctrl-row" style="gap:3px">
-      <button class="ctrl-btn" id="btn-left" data-action="left" style="width:50px;height:50px;font-size:1.3rem">⬅️</button>
-      <div style="display:flex;flex-direction:column;gap:3px">
-        <button class="ctrl-btn speed-btn" id="btn-accel" data-action="accel" style="width:50px;height:50px;font-size:1.3rem">⬆️</button>
-        <button class="ctrl-btn speed-btn" id="btn-brake" data-action="brake" style="width:50px;height:50px;font-size:1.3rem">⬇️</button>
-      </div>
-      <button class="ctrl-btn" id="btn-right" data-action="right" style="width:50px;height:50px;font-size:1.3rem">➡️</button>
+    <div id="joystick-container">
+      <div id="joystick-base"></div>
+      <div id="joystick-thumb"></div>
     </div>
   </div>
 </div>
@@ -1262,6 +1282,8 @@ function initGameState() {
     policeOfficers: [],
     arrestTimer: 0,
     arresting: false,
+    joystickX: 0,
+    joystickY: 0,
     particles: [],
     powerUps: [],
     powerUpSpawnTimer: 3,
@@ -1634,18 +1656,6 @@ function buildWeaponFireBtns() {
     setupTouchBtn(btn, 'fire_'+w);
     row.appendChild(btn);
   });
-  if (weapons.length>1) {
-    const sw = document.createElement('button');
-    sw.className = 'ctrl-btn switch-btn';
-    sw.innerHTML = '🔄';
-    sw.title = 'تغيير السلاح';
-    sw.onclick = () => {
-      if (!gameState) return;
-      gameState.player.activeWeapon = (gameState.player.activeWeapon+1)%weapons.length;
-      updateHUD();
-    };
-    row.appendChild(sw);
-  }
 }
 
 function setupTouchBtn(btn, action) {
@@ -1680,6 +1690,74 @@ function setupInput() {
   // Bomb button
   const bombBtn = document.getElementById('btn-bomb');
   if (bombBtn) setupTouchBtn(bombBtn, 'bomb');
+
+  // Joystick
+  const joystickContainer = document.getElementById('joystick-container');
+  const joystickThumb = document.getElementById('joystick-thumb');
+  let joystickTouchId = null;
+  const joystickRadius = 40;
+
+  if (joystickContainer && joystickThumb) {
+    const getJoystickPos = (touch) => {
+      const rect = joystickContainer.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      let dx = touch.clientX - cx;
+      let dy = touch.clientY - cy;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist > joystickRadius) {
+        dx = dx / dist * joystickRadius;
+        dy = dy / dist * joystickRadius;
+      }
+      return { dx, dy };
+    };
+
+    joystickContainer.addEventListener('touchstart', (e) => {
+      if (e.cancelable) e.preventDefault();
+      const touch = e.changedTouches[0];
+      joystickTouchId = touch.identifier;
+      const pos = getJoystickPos(touch);
+      joystickThumb.style.left = (40 + pos.dx) + 'px';
+      joystickThumb.style.top = (40 + pos.dy) + 'px';
+      joystickThumb.style.background = 'rgba(245,197,24,0.7)';
+      if (gameState) {
+        gameState.joystickX = pos.dx / joystickRadius;
+        gameState.joystickY = pos.dy / joystickRadius;
+      }
+    }, {passive: false});
+
+    joystickContainer.addEventListener('touchmove', (e) => {
+      if (e.cancelable) e.preventDefault();
+      for (const touch of e.changedTouches) {
+        if (touch.identifier === joystickTouchId) {
+          const pos = getJoystickPos(touch);
+          joystickThumb.style.left = (40 + pos.dx) + 'px';
+          joystickThumb.style.top = (40 + pos.dy) + 'px';
+          if (gameState) {
+            gameState.joystickX = pos.dx / joystickRadius;
+            gameState.joystickY = pos.dy / joystickRadius;
+          }
+        }
+      }
+    }, {passive: false});
+
+    const resetJoystick = (e) => {
+      for (const touch of e.changedTouches) {
+        if (touch.identifier === joystickTouchId) {
+          joystickTouchId = null;
+          joystickThumb.style.left = '40px';
+          joystickThumb.style.top = '40px';
+          joystickThumb.style.background = 'rgba(245,197,24,0.5)';
+          if (gameState) {
+            gameState.joystickX = 0;
+            gameState.joystickY = 0;
+          }
+        }
+      }
+    };
+    joystickContainer.addEventListener('touchend', resetJoystick, {passive: false});
+    joystickContainer.addEventListener('touchcancel', resetJoystick, {passive: false});
+  }
 
   document.addEventListener('keydown', e => {
     if (!gameState) return;
@@ -1725,10 +1803,13 @@ function update(dt) {
 
   // Input
   const keys = gameState.keys, tk = gameState.touchKeys;
-  const turnLeft  = keys['ArrowLeft']  || keys['KeyA'] || tk['left'];
-  const turnRight = keys['ArrowRight'] || keys['KeyD'] || tk['right'];
-  const accel     = keys['ArrowUp']    || keys['KeyW'] || tk['up'] || tk['accel'];
-  const brake     = keys['ArrowDown']  || keys['KeyS'] || tk['down'] || tk['brake'];
+  const jx = gameState.joystickX || 0;
+  const jy = gameState.joystickY || 0;
+  const jDead = 0.15;
+  const turnLeft  = keys['ArrowLeft']  || keys['KeyA'] || tk['left'] || jx < -jDead;
+  const turnRight = keys['ArrowRight'] || keys['KeyD'] || tk['right'] || jx > jDead;
+  const accel     = keys['ArrowUp']    || keys['KeyW'] || tk['up'] || tk['accel'] || jy < -jDead;
+  const brake     = keys['ArrowDown']  || keys['KeyS'] || tk['down'] || tk['brake'] || jy > jDead;
   const fireKeys  = p.weapons.map((_,i)=> tk['fire_'+p.weapons[i]] || false);
   const anyFire   = fireKeys.some(f=>f) || keys['Space'];
 
