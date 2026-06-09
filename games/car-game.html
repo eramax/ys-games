@@ -450,9 +450,9 @@ function playTone(freq, dur, type='square', vol=0.18, detune=0) {
   osc.start(); osc.stop(audioCtx.currentTime + dur);
 }
 function playEngine(speed) {
-  if (!audioCtx || Math.random() > 0.06) return;
+  if (!audioCtx || Math.random() > 0.04) return;
   const freq = 80 + speed * 1.8;
-  playTone(freq, 0.12, 'sawtooth', 0.04, (Math.random()-0.5)*20);
+  playTone(freq, 0.08, 'sine', 0.015, (Math.random()-0.5)*20);
 }
 function playShoot(weapon) {
   if (!audioCtx) return;
@@ -469,10 +469,6 @@ function playShoot(weapon) {
   }
 }
 function playExplosion() {
-  if (!audioCtx) return;
-  for(let i=0;i<5;i++) setTimeout(()=>{
-    playTone(40+Math.random()*80, 0.3+Math.random()*0.3, 'sawtooth', 0.35);
-  }, i*50);
 }
 let lastSirenTime = 0;
 function playSiren() {
@@ -494,9 +490,6 @@ function playSiren() {
   osc.start(t); osc.stop(t+0.6);
 }
 function playCrash() {
-  if (!audioCtx) return;
-  playTone(150, 0.4, 'sawtooth', 0.4); playTone(200, 0.3, 'square', 0.3);
-  setTimeout(()=>playTone(100, 0.4, 'sawtooth', 0.3), 100);
 }
 function playSquishSound() {
   if (!audioCtx) return;
@@ -506,23 +499,6 @@ function playSquishSound() {
 
 let lastBurnSoundTime = 0;
 function playBurningSound() {
-  if (!audioCtx || !gameState) return;
-  const now = Date.now();
-  if (now - lastBurnSoundTime < 3000) return;
-  const p = gameState.player;
-  let nearestBurning = null;
-  let minDist = 300;
-  gameState.traffic.forEach(car => {
-    if (car.state === 'burning') {
-      const d = Math.hypot(car.x - p.x, car.y - p.y);
-      if (d < minDist) { minDist = d; nearestBurning = car; }
-    }
-  });
-  if (nearestBurning) {
-    lastBurnSoundTime = now;
-    const vol = Math.max(0.03, 0.15 * (1 - minDist / 300));
-    playTone(55 + Math.random() * 20, 0.15, 'sawtooth', vol);
-  }
 }
 
 // ==================== CAR TYPES ====================
@@ -929,7 +905,6 @@ function drawCarShape(ctx, type, color, weapons=[], angle=0) {
 
   // ── 10. Taillights ───────────────────────────────────
   ctx.fillStyle = '#ef4444';
-  ctx.shadowColor = 'rgba(255,50,50,0.5)'; ctx.shadowBlur = 5;
   ctx.beginPath(); ctx.roundRect(glX1, glY2 - 1, glW * 0.28, 5, 2); ctx.fill();
   ctx.beginPath(); ctx.roundRect(glX1 + glW - glW*0.28, glY2 - 1, glW*0.28, 5, 2); ctx.fill();
   clr();
@@ -2875,6 +2850,7 @@ function drawWorld(camX, camY) {
             
             // Vertical road lanes
             if (c === 7 || c === 8) {
+              ctx.save();
               ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
               ctx.lineWidth = 2.5;
               ctx.setLineDash([12, 12]);
@@ -2882,10 +2858,11 @@ function drawWorld(camX, camY) {
               ctx.moveTo(tx + 40, ty);
               ctx.lineTo(tx + 40, ty + 80);
               ctx.stroke();
-              ctx.setLineDash([]);
+              ctx.restore();
             }
             // Horizontal road lanes
             if (r === 7 || r === 8) {
+              ctx.save();
               ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
               ctx.lineWidth = 2.5;
               ctx.setLineDash([12, 12]);
@@ -2893,7 +2870,7 @@ function drawWorld(camX, camY) {
               ctx.moveTo(tx, ty + 40);
               ctx.lineTo(tx + 80, ty + 40);
               ctx.stroke();
-              ctx.setLineDash([]);
+              ctx.restore();
             }
           } else if (tile === 2) {
             ctx.fillStyle = SIDEWALK_COLOR;
@@ -3366,15 +3343,6 @@ function drawCar(car, isPolice) {
       ctx.arc(fx, fy - fLen*s*0.3, fLen*s*0.5, 0, Math.PI*2);
       ctx.fill();
     }
-    ctx.restore();
-  }
-  // HP bar
-  if (car.hp<100 && car.state!=='destroyed') {
-    ctx.save();
-    ctx.fillStyle='#333';
-    ctx.fillRect(car.x-20, car.y-t.h*s/2-12, 40, 5);
-    ctx.fillStyle = car.hp>50?'#22cc66':car.hp>25?'#ffaa00':'#ff4455';
-    ctx.fillRect(car.x-20, car.y-t.h*s/2-12, car.hp*0.4, 5);
     ctx.restore();
   }
 }
