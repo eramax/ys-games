@@ -504,6 +504,27 @@ function playSquishSound() {
   playTone(120, 0.2, 'sine', 0.22);
 }
 
+let lastBurnSoundTime = 0;
+function playBurningSound() {
+  if (!audioCtx || !gameState) return;
+  const now = Date.now();
+  if (now - lastBurnSoundTime < 3000) return;
+  const p = gameState.player;
+  let nearestBurning = null;
+  let minDist = 300;
+  gameState.traffic.forEach(car => {
+    if (car.state === 'burning') {
+      const d = Math.hypot(car.x - p.x, car.y - p.y);
+      if (d < minDist) { minDist = d; nearestBurning = car; }
+    }
+  });
+  if (nearestBurning) {
+    lastBurnSoundTime = now;
+    const vol = Math.max(0.03, 0.15 * (1 - minDist / 300));
+    playTone(55 + Math.random() * 20, 0.15, 'sawtooth', vol);
+  }
+}
+
 // ==================== CAR TYPES ====================
 const CAR_TYPES = [
   // sedan: hood(12px) + cabin(26px) + trunk(14px) = 52px
@@ -1078,15 +1099,15 @@ function generateChunk(cx, cy) {
   // Center intersection variation (roundabout, traffic island, etc.)
   if (seed < 0.3) {
     // Roundabout with central island
-    for (let r = 7; r <= 8; r++) {
-      for (let c = 7; c <= 8; c++) {
-        map[r][c] = 3; // roundabout center
+    for (let r = 6; r <= 9; r++) {
+      for (let c = 6; c <= 9; c++) {
+        if (r >= 7 && r <= 8 && c >= 7 && c <= 8) {
+          map[r][c] = 3; // roundabout center
+        } else {
+          map[r][c] = 1; // road around the center
+        }
       }
     }
-    map[6][7] = 2; map[6][8] = 2;
-    map[9][7] = 2; map[9][8] = 2;
-    map[7][6] = 2; map[8][6] = 2;
-    map[7][9] = 2; map[8][9] = 2;
   } else if (seed < 0.55) {
     // Traffic island / median green strip
     for (let r = 0; r < 16; r++) {
@@ -1101,15 +1122,15 @@ function generateChunk(cx, cy) {
     }
   } else if (seed < 0.75) {
     // Decorative fountain roundabout
-    for (let r = 7; r <= 8; r++) {
-      for (let c = 7; c <= 8; c++) {
-        map[r][c] = 4; // fountain roundabout
+    for (let r = 6; r <= 9; r++) {
+      for (let c = 6; c <= 9; c++) {
+        if (r >= 7 && r <= 8 && c >= 7 && c <= 8) {
+          map[r][c] = 4; // fountain roundabout
+        } else {
+          map[r][c] = 1; // road around the center
+        }
       }
     }
-    map[6][7] = 2; map[6][8] = 2;
-    map[9][7] = 2; map[9][8] = 2;
-    map[7][6] = 2; map[8][6] = 2;
-    map[7][9] = 2; map[8][9] = 2;
   }
 
   const chunkBuildings = [];
@@ -1577,6 +1598,7 @@ function update(dt) {
   else { p.vy=0; p.speed*=-0.3; }
 
   playEngine(Math.abs(p.speed));
+  playBurningSound();
 
   // Fire
   if (anyFire) {
@@ -1792,8 +1814,8 @@ function update(dt) {
           playCrash();
           spawnParticles((p.x + car.x)/2, (p.y + car.y)/2, 8, '#ffaa00');
           hitCar(car, 'pistol');
+          p.speed *= 0.4;
         }
-        p.speed *= -0.3;
       }
     }
   });
@@ -2644,8 +2666,8 @@ function isWall(x, y, w, h) {
         }
       }
       if (hasRoundabout) {
-        const centerX = (chunkCol + dx) * 1280 + 7.5 * 80;
-        const centerY = (chunkRow + dy) * 1280 + 7.5 * 80;
+        const centerX = (chunkCol + dx) * 1280 + 8 * 80;
+        const centerY = (chunkRow + dy) * 1280 + 8 * 80;
         const innerR = 40;
         const distToCenter = Math.hypot(x - centerX, y - centerY);
         if (distToCenter < innerR + w/3) return true;
@@ -2832,6 +2854,8 @@ function drawWorld(camX, camY) {
             ctx.fillRect(tx, ty, 80, 80);
             
             // Curbs (dark borders separating road from sidewalks/grass)
+            ctx.save();
+            ctx.setLineDash([]);
             ctx.strokeStyle = '#253335';
             ctx.lineWidth = 6;
             
@@ -2847,6 +2871,7 @@ function drawWorld(camX, camY) {
             if (getTile(cx, cy, r, c + 1) !== 1) {
               ctx.beginPath(); ctx.moveTo(tx + 77, ty); ctx.lineTo(tx + 77, ty + 80); ctx.stroke();
             }
+            ctx.restore();
             
             // Vertical road lanes
             if (c === 7 || c === 8) {
@@ -2989,12 +3014,18 @@ function drawWorld(camX, camY) {
       }
       
       if (hasRoundabout) {
-        const centerX = cx * 1280 + 7.5 * 80;
-        const centerY = cy * 1280 + 7.5 * 80;
+        const centerX = cx * 1280 + 8 * 80;
+        const centerY = cy * 1280 + 8 * 80;
         const outerR = 75;
         const innerR = 40;
         
         ctx.save();
+        
+        // Cover the square sidewalk tiles underneath with road color
+        ctx.fillStyle = ROAD_COLOR;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, outerR + 20, 0, Math.PI * 2);
+        ctx.fill();
         
         // Outer curb ring
         ctx.fillStyle = '#64748b';
