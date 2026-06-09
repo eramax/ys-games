@@ -1841,7 +1841,9 @@ function update(dt) {
   const accelForce = 400 * (p.nitroTime > 0 ? 2.0 : 1) * timeSpeedMultiplier;
   const brakeForce = 400;
   const friction = 140;
+  const joystickActive = Math.sqrt(jx*jx + jy*jy) > jDead;
   if (accel) p.speed = Math.min(p.speed + accelForce*dt, maxSpeed);
+  else if (joystickActive) p.speed = Math.min(p.speed + accelForce * 0.6 * dt, maxSpeed);
   else if (brake) p.speed = Math.max(p.speed - brakeForce*dt, -80);
   else p.speed *= (1 - friction/1000 * dt * 60);
   if (Math.abs(p.speed)<1) p.speed=0;
