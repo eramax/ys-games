@@ -361,6 +361,7 @@
     <div>النقاط: <span class="hud-value" id="hud-score">0</span></div>
     <div>السرعة: <span class="hud-value" id="hud-speed">0</span></div>
     <div>الصحة: <span class="hud-value" id="hud-hp" style="color:#22c55e">100%</span></div>
+    <div id="hud-combo" style="color:#f5c518; font-weight:bold; display:none">كومبو x<span id="combo-count">1</span></div>
   </div>
   <div class="hud-panel" style="text-align:center">
     <div style="font-size:0.7rem; color:var(--color-muted)">مطلوب من الشرطة</div>
@@ -369,6 +370,10 @@
   <div class="hud-panel">
     <div>السلاح: <span class="hud-value" id="hud-weapon">--</span></div>
     <div style="font-size:0.75rem; color:var(--color-muted)" id="hud-ammo">∞ طلقات</div>
+  </div>
+  <div id="challenge-display" style="position:absolute; top:60px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.7); border:2px solid var(--color-primary); border-radius:12px; padding:6px 16px; font-size:0.85rem; color:var(--color-primary); display:none; z-index:50; text-align:center; min-width:200px">
+    <div id="challenge-text" style="font-weight:bold"></div>
+    <div id="challenge-progress" style="font-size:0.75rem; color:#aaa; margin-top:2px"></div>
   </div>
 </div>
 
@@ -1070,12 +1075,12 @@ function generateChunk(cx, cy) {
 
   const seed = seededRandom(cx, cy);
   
-  // Center intersection variation (roundabout, divider island, etc.)
+  // Center intersection variation (roundabout, traffic island, etc.)
   if (seed < 0.3) {
-    // Roundabout central park island
+    // Roundabout with central island
     for (let r = 7; r <= 8; r++) {
       for (let c = 7; c <= 8; c++) {
-        map[r][c] = 0; // grass
+        map[r][c] = 3; // roundabout center
       }
     }
     map[6][7] = 2; map[6][8] = 2;
@@ -1083,7 +1088,7 @@ function generateChunk(cx, cy) {
     map[7][6] = 2; map[8][6] = 2;
     map[7][9] = 2; map[8][9] = 2;
   } else if (seed < 0.55) {
-    // Median green strip on highways
+    // Traffic island / median green strip
     for (let r = 0; r < 16; r++) {
       if (r < 5 || r > 10) {
         map[r][7] = 2; map[r][8] = 2;
@@ -1094,6 +1099,17 @@ function generateChunk(cx, cy) {
         map[7][c] = 2; map[8][c] = 2;
       }
     }
+  } else if (seed < 0.75) {
+    // Decorative fountain roundabout
+    for (let r = 7; r <= 8; r++) {
+      for (let c = 7; c <= 8; c++) {
+        map[r][c] = 4; // fountain roundabout
+      }
+    }
+    map[6][7] = 2; map[6][8] = 2;
+    map[9][7] = 2; map[9][8] = 2;
+    map[7][6] = 2; map[8][6] = 2;
+    map[7][9] = 2; map[8][9] = 2;
   }
 
   const chunkBuildings = [];
@@ -1184,8 +1200,8 @@ function initGameState() {
   const weapons = playerCar.weapons.length > 0 ? [...playerCar.weapons] : ['pistol'];
   
   // Starting spawn coordinates inside chunk (0,0) road center
-  const spawnX = 600;
-  const spawnY = 600;
+  const spawnX = 520;
+  const spawnY = 520;
 
   gameState = {
     player: {
@@ -1217,7 +1233,7 @@ function initGameState() {
     police: [],
     particles: [],
     powerUps: [],
-    powerUpSpawnTimer: 3, // spawn first power-up after 3 seconds
+    powerUpSpawnTimer: 3,
     chunks: {},
     pedestrians: [],
     lightningArcs: [],
@@ -1225,16 +1241,23 @@ function initGameState() {
     keys: {},
     touchKeys: {},
     phase: 'playing',
+    combo: 0,
+    comboTimer: 0,
+    lastKillTime: 0,
+    nearMissTimer: 0,
+    challenges: [],
+    challengeTimer: 5,
+    challengeIndex: 0,
   };
 
   // Generate starting chunk
   generateChunk(0, 0);
 
   // spawn traffic
-  for (let i = 0; i < 22; i++) spawnTraffic();
+  for (let i = 0; i < 30; i++) spawnTraffic();
 
   // spawn initial pedestrians
-  for (let i = 0; i < 40; i++) spawnPedestrian();
+  for (let i = 0; i < 60; i++) spawnPedestrian();
   return gameState;
 }
 
@@ -1304,6 +1327,8 @@ function spawnTraffic() {
       state: 'driving',
       size: chosenId === 'limo' ? 0.65 : chosenId === 'firetruck' ? 0.7 : 0.7 + Math.random() * 0.4,
       burnTimer: 0,
+      isRacer: chosenId === 'f1' || chosenId === 'sport' || Math.random() < 0.15,
+      isAggressive: Math.random() < 0.2,
       id: Math.random()
     });
   }
@@ -1369,17 +1394,19 @@ function spawnPedestrian() {
     
     if (Math.hypot(px - p.x, py - p.y) < 150) return;
     
-    const isHostile = Math.random() < 0.25;
-    const clothingColors = isHostile ? ['#b91c1c', '#1e293b', '#7c2d12'] : ['#f8fafc', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
+    const isHostile = Math.random() < 0.35;
+    const clothingColors = isHostile ? ['#b91c1c', '#1e293b', '#7c2d12', '#4a1942', '#1a1a2e'] : ['#f8fafc', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
+    const skinColors = ['#ffdbac', '#f1c27d', '#e0ac69', '#c68642', '#8d5524', '#6b3e26'];
     gameState.pedestrians.push({
       x: px, y: py,
       angle: Math.random() * Math.PI * 2,
       speed: 30 + Math.random() * 20,
       color: clothingColors[Math.floor(Math.random() * clothingColors.length)],
+      skinColor: skinColors[Math.floor(Math.random() * skinColors.length)],
       state: 'walking',
       legSwing: Math.random() * 10,
       isHostile: isHostile,
-      shootCooldown: 1.0 + Math.random() * 1.5,
+      shootCooldown: 0.8 + Math.random() * 1.2,
       id: Math.random()
     });
   }
@@ -1567,11 +1594,23 @@ function update(dt) {
     if (isWall(b.x,b.y,4,4)) { spawnParticles(b.x,b.y,4,'#ffaa00'); return false; }
     
     if (b.fromPedestrian) {
-      // Pedestrian bullets hit: player, traffic, or police
+      // Pedestrian bullets hit: player, traffic, police, and other pedestrians
       if (rectHit(b.x, b.y, p.x, p.y, p.type.w * p.size, p.type.h * p.size)) {
         damagePlayer(12);
         spawnParticles(b.x, b.y, 6, '#ff4400');
         return false;
+      }
+      for (let i = gameState.pedestrians.length - 1; i >= 0; i--) {
+        const ped = gameState.pedestrians[i];
+        if (ped.state === 'dead' || ped.state === 'splatted') continue;
+        if (ped.id === b.fromPedId) continue;
+        if (Math.hypot(b.x - ped.x, b.y - ped.y) < 20) {
+          ped.state = 'splatted';
+          ped.deathTime = Date.now();
+          playSquishSound();
+          spawnParticles(ped.x, ped.y, 10, '#ef4444');
+          return false;
+        }
       }
       for (let i = gameState.traffic.length - 1; i >= 0; i--) {
         const car = gameState.traffic[i];
@@ -1603,6 +1642,7 @@ function update(dt) {
           spawnParticles(ped.x, ped.y, 8, b.weapon === 'flame' ? '#f97316' : '#ef4444');
           p.score += 50;
           p.wantedLevel = Math.min(5, p.wantedLevel + 1);
+          onPedKilled();
           return false;
         }
       }
@@ -1636,13 +1676,71 @@ function update(dt) {
     if (car.state==='destroyed') return;
     if (car.state==='burning') {
       car.burnTimer -= dt;
-      spawnParticles(car.x+Math.random()*car.type.w*car.size-car.type.w*car.size/2,
-        car.y-10, 2, '#ff4400');
+      // Enhanced fire and smoke particles
+      if (Math.random() < 0.6) {
+        const fx = car.x + (Math.random()-0.5)*car.type.w*car.size*0.8;
+        const fy = car.y + (Math.random()-0.5)*car.type.h*car.size*0.3;
+        spawnParticles(fx, fy, 1, Math.random()>0.4 ? '#ff4400' : '#ff8800');
+      }
+      if (Math.random() < 0.3) {
+        const sx = car.x + (Math.random()-0.5)*car.type.w*car.size*0.6;
+        const sy = car.y - car.type.h*car.size*0.3;
+        gameState.particles.push({
+          x: sx, y: sy,
+          vx: (Math.random()-0.5)*15,
+          vy: -40 - Math.random()*30,
+          color: '#555',
+          size: 6 + Math.random()*6,
+          life: 1.2 + Math.random()*0.8,
+          maxLife: 2,
+          alpha: 0.6
+        });
+      }
       if (car.burnTimer<=0) car.state='destroyed';
       return;
     }
     if (car.state==='stopped') return;
     const spd = car.state==='slow'?car.speed*0.25:car.speed;
+    
+    // Aggressive AI: some cars chase the player or race
+    if (car.isRacer && car.state==='driving') {
+      const dx = p.x - car.x, dy = p.y - car.y;
+      const distToPlayer = Math.hypot(dx, dy);
+      // Racers try to get power-ups
+      let nearestPU = null, puDist = 400;
+      gameState.powerUps.forEach(pu => {
+        const d = Math.hypot(pu.x - car.x, pu.y - car.y);
+        if (d < puDist) { puDist = d; nearestPU = pu; }
+      });
+      if (nearestPU && puDist < 300) {
+        const targetAngle = Math.atan2(nearestPU.x - car.x, -(nearestPU.y - car.y));
+        let da = targetAngle - car.angle;
+        while(da>Math.PI) da-=Math.PI*2;
+        while(da<-Math.PI) da+=Math.PI*2;
+        car.angle += Math.sign(da)*Math.min(Math.abs(da), 2.0*dt);
+      } else if (distToPlayer < 500) {
+        // Race alongside player
+        const targetAngle = Math.atan2(dx, -dy);
+        let da = targetAngle - car.angle;
+        while(da>Math.PI) da-=Math.PI*2;
+        while(da<-Math.PI) da+=Math.PI*2;
+        car.angle += Math.sign(da)*Math.min(Math.abs(da), 1.5*dt);
+      }
+    }
+    
+    // Aggressive cars occasionally ram nearby traffic
+    if (car.isAggressive && car.state==='driving') {
+      const dx = p.x - car.x, dy = p.y - car.y;
+      const distToPlayer = Math.hypot(dx, dy);
+      if (distToPlayer < 600) {
+        const targetAngle = Math.atan2(dx, -dy);
+        let da = targetAngle - car.angle;
+        while(da>Math.PI) da-=Math.PI*2;
+        while(da<-Math.PI) da+=Math.PI*2;
+        car.angle += Math.sign(da)*Math.min(Math.abs(da), 1.8*dt);
+      }
+    }
+    
     const nx = car.x + Math.sin(car.angle)*spd*dt;
     const ny = car.y - Math.cos(car.angle)*spd*dt;
     let hitX = false, hitY = false;
@@ -1730,6 +1828,17 @@ function update(dt) {
         
         car1.angle += (Math.random() - 0.5) * 0.5;
         car2.angle += (Math.random() - 0.5) * 0.5;
+        
+        // Aggressive collisions cause damage
+        const relSpeed = Math.abs(car1.speed - car2.speed);
+        if (relSpeed > 30) {
+          car1.hp -= 8;
+          car2.hp -= 8;
+          spawnParticles((car1.x+car2.x)/2, (car1.y+car2.y)/2, 6, '#ffaa00');
+          playCrash();
+          if (car1.hp <= 0) { car1.state = 'burning'; car1.burnTimer = 3; playExplosion(); }
+          if (car2.hp <= 0) { car2.state = 'burning'; car2.burnTimer = 3; playExplosion(); }
+        }
       }
     }
   }
@@ -1795,7 +1904,7 @@ function update(dt) {
     return dist < 2000;
   });
 
-  while (gameState.traffic.length < 15) {
+  while (gameState.traffic.length < 20) {
     spawnTraffic();
   }
 
@@ -1826,6 +1935,7 @@ function update(dt) {
     const colDist = pu.size + (p.type.w * p.size * 0.45);
     if (dist < colDist) {
       applyPowerUp(pu);
+      onPowerUpCollected();
       // Spawn pickup particle sparkles
       for (let i = 0; i < 15; i++) {
         gameState.particles.push({
@@ -1850,6 +1960,105 @@ function update(dt) {
     return arc.life > 0;
   });
 
+  // Combo system
+  if (gameState.comboTimer > 0) {
+    gameState.comboTimer -= dt;
+    if (gameState.comboTimer <= 0) {
+      gameState.combo = 0;
+    }
+  }
+
+  // Near-miss bonus (driving fast close to traffic without hitting)
+  if (Math.abs(p.speed) > 100) {
+    let nearMiss = false;
+    gameState.traffic.forEach(car => {
+      if (car.state === 'destroyed') return;
+      const dist = Math.hypot(p.x - car.x, p.y - car.y);
+      const minDist = (p.type.w * p.size + car.type.w * car.size) * 0.7;
+      if (dist < minDist * 1.5 && dist > minDist * 0.6) {
+        nearMiss = true;
+      }
+    });
+    if (nearMiss) {
+      gameState.nearMissTimer = (gameState.nearMissTimer || 0) + dt;
+      if (gameState.nearMissTimer > 0.5) {
+        p.score += 25;
+        gameState.nearMissTimer = 0;
+        spawnParticles(p.x, p.y, 5, '#eab308');
+      }
+    } else {
+      gameState.nearMissTimer = 0;
+    }
+  }
+
+  // Challenge system
+  if (!gameState.challenges) gameState.challenges = [];
+  if (!gameState.challengeTimer) gameState.challengeTimer = 5;
+  if (!gameState.challengeIndex) gameState.challengeIndex = 0;
+  
+  gameState.challengeTimer -= dt;
+  if (gameState.challengeTimer <= 0 && gameState.challenges.length === 0) {
+    const challengeTypes = [
+      { type: 'kill_peds', text: 'اقض على 5 مشاة!', target: 5, progress: 0, reward: 500, timeLimit: 30 },
+      { type: 'destroy_cars', text: 'دمّر 3 سيارات!', target: 3, progress: 0, reward: 600, timeLimit: 25 },
+      { type: 'collect_powerups', text: 'اجمع 3 جوائز!', target: 3, progress: 0, reward: 400, timeLimit: 35 },
+      { type: 'survive', text: 'ابقَ حياً 20 ثانية!', target: 20, progress: 0, reward: 700, timeLimit: 20 },
+      { type: 'reach_speed', text: 'صل لسرعة 200!', target: 200, progress: 0, reward: 300, timeLimit: 15 },
+      { type: 'kill_police', text: 'اقض على 2 شرطة!', target: 2, progress: 0, reward: 800, timeLimit: 25 },
+      { type: 'drift', text: 'انعطف بسرعة عالية 4 مرات!', target: 4, progress: 0, reward: 500, timeLimit: 20 },
+    ];
+    const idx = gameState.challengeIndex % challengeTypes.length;
+    gameState.challengeIndex++;
+    const ch = { ...challengeTypes[idx], startTime: Date.now() };
+    gameState.challenges.push(ch);
+    gameState.challengeTimer = 15 + Math.random() * 10;
+  }
+
+  // Update challenge progress
+  gameState.challenges = gameState.challenges.filter(ch => {
+    const elapsed = (Date.now() - ch.startTime) / 1000;
+    if (elapsed > ch.timeLimit) {
+      const el = document.getElementById('challenge-display');
+      if (el) { el.style.display = 'none'; }
+      return false;
+    }
+    
+    if (ch.type === 'survive') {
+      ch.progress = Math.min(ch.target, Math.floor(elapsed));
+    }
+    if (ch.type === 'reach_speed') {
+      ch.progress = Math.max(ch.progress, Math.abs(p.speed));
+    }
+    if (ch.type === 'drift') {
+      if (Math.abs(p.speed) > 120 && (keys['ArrowLeft'] || keys['ArrowRight'] || keys['KeyA'] || keys['KeyD'] || tk['left'] || tk['right'])) {
+        ch._driftAccum = (ch._driftAccum || 0) + dt;
+        if (ch._driftAccum > 1.0) {
+          ch.progress++;
+          ch._driftAccum = 0;
+        }
+      }
+    }
+    
+    if (ch.progress >= ch.target) {
+      p.score += ch.reward;
+      spawnParticles(p.x, p.y, 20, '#f5c518');
+      playPowerUpSound('score');
+      const el = document.getElementById('challenge-display');
+      if (el) { el.style.display = 'none'; }
+      return false;
+    }
+    
+    const el = document.getElementById('challenge-display');
+    if (el) {
+      el.style.display = 'block';
+      document.getElementById('challenge-text').textContent = ch.text;
+      const remaining = Math.ceil(ch.timeLimit - elapsed);
+      document.getElementById('challenge-progress').textContent = `${Math.min(ch.progress, ch.target)}/${ch.target} | ${remaining}ث | جائزة: ${ch.reward}`;
+    }
+    
+    return true;
+  });
+
   // Update and clean up pedestrians
   const now = Date.now();
   gameState.pedestrians = gameState.pedestrians.filter(ped => {
@@ -1861,7 +2070,7 @@ function update(dt) {
     return dist < 1300;
   });
 
-  if (gameState.pedestrians.length < 40 && Math.random() < 0.25) {
+  if (gameState.pedestrians.length < 60 && Math.random() < 0.35) {
     spawnPedestrian();
   }
   gameState.pedestrians.forEach(ped => {
@@ -1915,7 +2124,7 @@ function update(dt) {
       ped.shootCooldown -= dt;
       const targets = [gameState.player, ...gameState.traffic, ...gameState.police].filter(car => car && car.state !== 'destroyed');
       let closestTarget = null;
-      let minDist = 220;
+      let minDist = 250;
       targets.forEach(car => {
         const d = Math.hypot(ped.x - car.x, ped.y - car.y);
         if (d < minDist) {
@@ -1924,32 +2133,46 @@ function update(dt) {
         }
       });
       
+      // Also target other hostile pedestrians (gang warfare)
+      if (!closestTarget || minDist > 150) {
+        gameState.pedestrians.forEach(otherPed => {
+          if (otherPed === ped || otherPed.state === 'dead' || otherPed.state === 'splatted') return;
+          if (otherPed.isHostile && otherPed.color !== ped.color) {
+            const d = Math.hypot(ped.x - otherPed.x, ped.y - otherPed.y);
+            if (d < minDist) {
+              minDist = d;
+              closestTarget = otherPed;
+            }
+          }
+        });
+      }
+      
       if (closestTarget) {
-        // Aim at target
         const targetAngle = Math.atan2(closestTarget.x - ped.x, closestTarget.y - ped.y);
         ped.angle = targetAngle;
-        
-        // Stop walking to aim & fire
         ped.speed = 0;
         
         if (ped.shootCooldown <= 0) {
-          ped.shootCooldown = 1.0 + Math.random() * 1.5;
+          ped.shootCooldown = 0.8 + Math.random() * 1.0;
           
           const angle = targetAngle;
-          const spd = 340;
+          const spd = 360;
           const vx = Math.sin(angle) * spd;
           const vy = -Math.cos(angle) * spd;
           
+          const isPedTarget = closestTarget.legSwing !== undefined;
+          
           gameState.bullets.push({
-            x: ped.x + Math.sin(angle) * 10,
-            y: ped.y - Math.cos(angle) * 10,
+            x: ped.x + Math.sin(angle) * 12,
+            y: ped.y - Math.cos(angle) * 12,
             vx: vx,
             vy: vy,
             weapon: 'pistol',
             life: 1.2,
             size: 3.5,
             color: '#ffbb00',
-            fromPedestrian: true
+            fromPedestrian: true,
+            fromPedId: ped.id
           });
           
           playShoot('pistol');
@@ -1973,6 +2196,7 @@ function update(dt) {
         if (car === gameState.player) {
           p.score += 50;
           p.wantedLevel = Math.min(5, p.wantedLevel + 1);
+          onPedKilled();
         }
         break;
       }
@@ -2091,41 +2315,107 @@ function drawPowerUps() {
     const age = Date.now() - pu.spawnTime;
     const timeLeft = pu.duration - age;
     if (timeLeft < 3000 && Math.floor(timeLeft / 150) % 2 === 0) {
-      return; // Flashing warning before vanishing
+      return;
     }
     
     ctx.save();
     ctx.translate(pu.x, pu.y);
     const hover = Math.sin(Date.now() * 0.005) * 4;
     ctx.translate(0, hover);
-    const rot = (Date.now() * 0.002) % (Math.PI*2);
-    ctx.rotate(rot);
 
     let color = '#3b82f6';
     let icon = '🎁';
-    if (pu.type === 'health') { color = '#10b981'; icon = '🔧'; }
-    else if (pu.type === 'shield') { color = '#3b82f6'; icon = '🛡️'; }
-    else if (pu.type === 'nitro') { color = '#f97316'; icon = '⚡'; }
-    else if (pu.type === 'score') { color = '#eab308'; icon = '💰'; }
-    else if (pu.type === 'electro') { color = '#a855f7'; icon = '🔌'; }
-    else if (pu.type === 'flame') { color = '#ef4444'; icon = '🔥'; }
+    let label = '';
+    if (pu.type === 'health') { color = '#10b981'; icon = '🔧'; label = 'صحة'; }
+    else if (pu.type === 'shield') { color = '#3b82f6'; icon = '🛡️'; label = 'درع'; }
+    else if (pu.type === 'nitro') { color = '#f97316'; icon = '⚡'; label = 'نيترو'; }
+    else if (pu.type === 'score') { color = '#eab308'; icon = '💰'; label = 'جائزة'; }
+    else if (pu.type === 'electro') { color = '#a855f7'; icon = '🔌'; label = 'كهرباء'; }
+    else if (pu.type === 'flame') { color = '#ef4444'; icon = '🔥'; label = 'نار'; }
 
+    // Outer glow ring
     ctx.shadowColor = color;
-    ctx.shadowBlur = 10 + Math.sin(Date.now() * 0.01) * 3;
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+    ctx.shadowBlur = 15 + Math.sin(Date.now() * 0.01) * 5;
     ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(0, 0, pu.size + 4, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Spinning dashed ring
+    const rot = (Date.now() * 0.002) % (Math.PI*2);
+    ctx.save();
+    ctx.rotate(rot);
+    ctx.setLineDash([6, 6]);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(0, 0, pu.size + 8, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+
+    // Background circle
+    const bgGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, pu.size);
+    bgGrad.addColorStop(0, 'rgba(30, 41, 59, 0.95)');
+    bgGrad.addColorStop(1, 'rgba(15, 23, 42, 0.9)');
+    ctx.fillStyle = bgGrad;
     ctx.beginPath();
     ctx.arc(0, 0, pu.size, 0, Math.PI*2);
     ctx.fill();
+
+    // Colored border
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(0, 0, pu.size, 0, Math.PI*2);
     ctx.stroke();
 
-    ctx.shadowBlur = 0;
+    // Star shape behind icon for score type
+    if (pu.type === 'score') {
+      ctx.save();
+      ctx.rotate(rot * 0.5);
+      ctx.fillStyle = 'rgba(234, 179, 8, 0.3)';
+      ctx.beginPath();
+      for (let si = 0; si < 5; si++) {
+        const sa = (si * 2 * Math.PI / 5) - Math.PI/2;
+        const sr = pu.size * 0.8;
+        const ir = pu.size * 0.35;
+        ctx.lineTo(Math.cos(sa) * sr, Math.sin(sa) * sr);
+        const ma = sa + Math.PI / 5;
+        ctx.lineTo(Math.cos(ma) * ir, Math.sin(ma) * ir);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Icon
     ctx.fillStyle = '#fff';
-    ctx.font = '14px Arial';
+    ctx.font = '15px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(icon, 0, 0);
+    ctx.fillText(icon, 0, -1);
+
+    // Label below
+    ctx.fillStyle = color;
+    ctx.font = 'bold 7px Cairo, Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(label, 0, pu.size + 10);
+
+    // Arrow pointing down to power-up
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.4 + Math.sin(Date.now() * 0.008) * 0.3;
+    ctx.beginPath();
+    ctx.moveTo(0, -pu.size - 12);
+    ctx.lineTo(-5, -pu.size - 6);
+    ctx.lineTo(5, -pu.size - 6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
     ctx.restore();
   });
 }
@@ -2252,6 +2542,9 @@ function hitCar(car, weapon) {
     else if (weapon==='machine') { car.state='burning'; car.burnTimer=3; }
     else if (weapon==='flame') { car.state='burning'; car.burnTimer=4; }
     else { car.state='slow'; }
+    onCarDestroyed();
+    // Check if it's a police car
+    if (gameState.police.includes(car)) onPoliceKilled();
   } else {
     if (weapon==='cannon') { car.state='burning'; car.burnTimer=2; playCrash(); }
     else if (weapon==='flame') { car.state='burning'; car.burnTimer=3; }
@@ -2272,6 +2565,40 @@ function spawnParticles(x, y, n, color) {
       size: 2+Math.random()*5,
     });
   }
+}
+
+function onPedKilled() {
+  if (!gameState) return;
+  gameState.combo = (gameState.combo || 0) + 1;
+  gameState.comboTimer = 3;
+  const bonus = Math.floor(50 * (1 + (gameState.combo - 1) * 0.5));
+  gameState.player.score += Math.max(0, bonus - 50);
+  gameState.challenges.forEach(ch => {
+    if (ch.type === 'kill_peds') ch.progress++;
+  });
+}
+
+function onCarDestroyed() {
+  if (!gameState) return;
+  gameState.combo = (gameState.combo || 0) + 1;
+  gameState.comboTimer = 3;
+  gameState.challenges.forEach(ch => {
+    if (ch.type === 'destroy_cars') ch.progress++;
+  });
+}
+
+function onPoliceKilled() {
+  if (!gameState) return;
+  gameState.challenges.forEach(ch => {
+    if (ch.type === 'kill_police') ch.progress++;
+  });
+}
+
+function onPowerUpCollected() {
+  if (!gameState) return;
+  gameState.challenges.forEach(ch => {
+    if (ch.type === 'collect_powerups') ch.progress++;
+  });
 }
 
 function isWall(x, y, w, h) {
@@ -2305,6 +2632,23 @@ function isWall(x, y, w, h) {
           const distToTree = Math.hypot(x - t.x, y - t.y);
           if (distToTree < 16 + w/3) return true;
         }
+      }
+      
+      // 3. Check roundabout center islands
+      let hasRoundabout = false;
+      for (let r = 7; r <= 8; r++) {
+        for (let c = 7; c <= 8; c++) {
+          if (chunk.map[r][c] === 3 || chunk.map[r][c] === 4) {
+            hasRoundabout = true;
+          }
+        }
+      }
+      if (hasRoundabout) {
+        const centerX = (chunkCol + dx) * 1280 + 7.5 * 80;
+        const centerY = (chunkRow + dy) * 1280 + 7.5 * 80;
+        const innerR = 40;
+        const distToCenter = Math.hypot(x - centerX, y - centerY);
+        if (distToCenter < innerR + w/3) return true;
       }
     }
   }
@@ -2543,6 +2887,9 @@ function drawWorld(camX, camY) {
             if (getTile(cx, cy, r + 1, c) === 0) drawFence(tx, ty + 80, tx + 80, ty + 80);
             if (getTile(cx, cy, r, c - 1) === 0) drawFence(tx, ty, tx, ty + 80);
             if (getTile(cx, cy, r, c + 1) === 0) drawFence(tx + 80, ty, tx + 80, ty + 80);
+          } else if (tile === 3 || tile === 4) {
+            ctx.fillStyle = ROAD_COLOR;
+            ctx.fillRect(tx, ty, 80, 80);
           }
         }
       }
@@ -2619,6 +2966,152 @@ function drawWorld(camX, camY) {
           ctx.restore();
         });
       });
+    }
+  }
+
+  // 2.5 Draw roundabouts at intersections
+  for (let cy = startChunkY; cy <= endChunkY; cy++) {
+    for (let cx = startChunkX; cx <= endChunkX; cx++) {
+      const key = `${cx},${cy}`;
+      const chunk = gameState.chunks[key];
+      if (!chunk) continue;
+      
+      // Check if this chunk has roundabout center tiles (type 3 or 4)
+      let hasRoundabout = false;
+      let roundaboutType = 0;
+      for (let r = 7; r <= 8; r++) {
+        for (let c = 7; c <= 8; c++) {
+          if (chunk.map[r][c] === 3 || chunk.map[r][c] === 4) {
+            hasRoundabout = true;
+            roundaboutType = chunk.map[r][c];
+          }
+        }
+      }
+      
+      if (hasRoundabout) {
+        const centerX = cx * 1280 + 7.5 * 80;
+        const centerY = cy * 1280 + 7.5 * 80;
+        const outerR = 75;
+        const innerR = 40;
+        
+        ctx.save();
+        
+        // Outer curb ring
+        ctx.fillStyle = '#64748b';
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, outerR + 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // Road ring (drivable circle)
+        ctx.fillStyle = ROAD_COLOR;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, outerR, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Circular lane arrows
+        ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([8, 8]);
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, (outerR + innerR) / 2, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        
+        // Direction arrows on the ring
+        ctx.fillStyle = 'rgba(255,255,255,0.35)';
+        const arrowAngles = [0, Math.PI/2, Math.PI, Math.PI*1.5];
+        const arrowR = (outerR + innerR) / 2;
+        arrowAngles.forEach(a => {
+          ctx.save();
+          ctx.translate(centerX + Math.cos(a) * arrowR, centerY + Math.sin(a) * arrowR);
+          ctx.rotate(a + Math.PI/2);
+          ctx.beginPath();
+          ctx.moveTo(0, -5);
+          ctx.lineTo(4, 2);
+          ctx.lineTo(-4, 2);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        });
+        
+        // Inner island curb
+        ctx.fillStyle = '#475569';
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, innerR + 4, 0, Math.PI * 2);
+        ctx.fill();
+        
+        if (roundaboutType === 3) {
+          // Green island with small tree
+          ctx.fillStyle = '#1e3a24';
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, innerR, 0, Math.PI * 2);
+          ctx.fill();
+          
+          // Small decorative tree
+          ctx.fillStyle = '#78350f';
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, 5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#15803d';
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, 14, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#22c55e';
+          ctx.beginPath();
+          ctx.arc(centerX - 3, centerY - 3, 9, 0, Math.PI * 2);
+          ctx.fill();
+          
+          // Flowers around tree
+          const flowerColors = ['#f43f5e', '#eab308', '#a855f7', '#3b82f6'];
+          for (let fi = 0; fi < 6; fi++) {
+            const fa = fi * Math.PI / 3;
+            const fx = centerX + Math.cos(fa) * 28;
+            const fy = centerY + Math.sin(fa) * 28;
+            ctx.fillStyle = flowerColors[fi % flowerColors.length];
+            ctx.beginPath();
+            ctx.arc(fx, fy, 3, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        } else {
+          // Fountain roundabout (type 4)
+          ctx.fillStyle = '#94a3b8';
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, innerR, 0, Math.PI * 2);
+          ctx.fill();
+          
+          // Fountain pool
+          const fGrad = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, innerR - 4);
+          fGrad.addColorStop(0, '#38bdf8');
+          fGrad.addColorStop(0.5, '#0284c7');
+          fGrad.addColorStop(1, '#075985');
+          ctx.fillStyle = fGrad;
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, innerR - 4, 0, Math.PI * 2);
+          ctx.fill();
+          
+          // Water spray animation
+          const sprayTime = Date.now() * 0.003;
+          ctx.fillStyle = 'rgba(255,255,255,0.4)';
+          for (let si = 0; si < 4; si++) {
+            const sa = sprayTime + si * Math.PI / 2;
+            const sr = 8 + Math.sin(sprayTime * 2 + si) * 5;
+            ctx.beginPath();
+            ctx.arc(centerX + Math.cos(sa) * sr, centerY + Math.sin(sa) * sr, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          
+          // Center jet
+          ctx.fillStyle = 'rgba(255,255,255,0.5)';
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, 3 + Math.sin(sprayTime * 3) * 1.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        
+        ctx.restore();
+      }
     }
   }
 
@@ -2800,11 +3293,48 @@ function drawCar(car, isPolice) {
   // Burn effect
   if (car.state==='burning') {
     ctx.save();
-    ctx.globalAlpha=0.6;
-    const grad = ctx.createRadialGradient(car.x,car.y,2,car.x,car.y,25*s);
-    grad.addColorStop(0,'rgba(255,150,0,0.9)'); grad.addColorStop(1,'rgba(255,0,0,0)');
+    // Smoke cloud
+    const smokeAlpha = 0.3 + Math.sin(Date.now()*0.003)*0.1;
+    ctx.globalAlpha = smokeAlpha;
+    ctx.fillStyle = '#444';
+    ctx.beginPath();
+    ctx.arc(car.x, car.y - 15*s, 18*s, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = '#333';
+    ctx.beginPath();
+    ctx.arc(car.x - 8*s, car.y - 22*s, 12*s, 0, Math.PI*2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(car.x + 10*s, car.y - 18*s, 10*s, 0, Math.PI*2);
+    ctx.fill();
+    
+    // Fire glow
+    ctx.globalAlpha = 0.7 + Math.sin(Date.now()*0.01)*0.2;
+    const grad = ctx.createRadialGradient(car.x,car.y,2,car.x,car.y,30*s);
+    grad.addColorStop(0,'rgba(255,200,50,0.9)');
+    grad.addColorStop(0.3,'rgba(255,100,0,0.7)');
+    grad.addColorStop(0.7,'rgba(255,30,0,0.3)');
+    grad.addColorStop(1,'rgba(100,0,0,0)');
     ctx.fillStyle=grad;
-    ctx.beginPath(); ctx.arc(car.x,car.y,25*s,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(car.x,car.y,30*s,0,Math.PI*2); ctx.fill();
+    
+    // Flame tongues
+    ctx.globalAlpha = 0.8;
+    const flameTime = Date.now() * 0.008;
+    for (let fi = 0; fi < 5; fi++) {
+      const fAngle = (fi / 5) * Math.PI * 2 + flameTime;
+      const fLen = 12 + Math.sin(flameTime + fi*2) * 6;
+      const fx = car.x + Math.cos(fAngle) * 8 * s;
+      const fy = car.y + Math.sin(fAngle) * 5 * s - 5*s;
+      const fGrad = ctx.createRadialGradient(fx, fy, 0, fx, fy, fLen*s);
+      fGrad.addColorStop(0, 'rgba(255,220,50,0.9)');
+      fGrad.addColorStop(0.5, 'rgba(255,80,0,0.6)');
+      fGrad.addColorStop(1, 'rgba(200,0,0,0)');
+      ctx.fillStyle = fGrad;
+      ctx.beginPath();
+      ctx.arc(fx, fy - fLen*s*0.3, fLen*s*0.5, 0, Math.PI*2);
+      ctx.fill();
+    }
     ctx.restore();
   }
   // HP bar
@@ -2932,13 +3462,12 @@ function drawPedestrians() {
       ctx.save();
       ctx.fillStyle = 'rgba(180, 20, 20, 0.7)';
       ctx.beginPath();
-      ctx.arc(ped.x, ped.y, 13, 0, Math.PI * 2);
+      ctx.arc(ped.x, ped.y, 16, 0, Math.PI * 2);
       ctx.fill();
-      
       ctx.fillStyle = 'rgba(150, 10, 10, 0.6)';
       ctx.beginPath();
-      ctx.arc(ped.x - 5, ped.y + 4, 5, 0, Math.PI * 2);
-      ctx.arc(ped.x + 7, ped.y - 3, 4, 0, Math.PI * 2);
+      ctx.arc(ped.x - 6, ped.y + 5, 6, 0, Math.PI * 2);
+      ctx.arc(ped.x + 8, ped.y - 4, 5, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
       return;
@@ -2948,32 +3477,99 @@ function drawPedestrians() {
     ctx.translate(ped.x, ped.y);
     ctx.rotate(ped.angle);
     
-    const swing = Math.sin(ped.legSwing) * 4;
-    ctx.fillStyle = '#1e293b';
-    ctx.fillRect(-3.5, -2 + swing, 3, 5);
-    ctx.fillRect(0.5, -2 - swing, 3, 5);
+    const swing = Math.sin(ped.legSwing) * 5;
+    const armSwing = Math.sin(ped.legSwing) * 4;
+    
+    ctx.fillStyle = '#1a1a2e';
+    ctx.beginPath();
+    ctx.roundRect(-5, 4 + swing, 4.5, 8, 1.5);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.roundRect(0.5, 4 - swing, 4.5, 8, 1.5);
+    ctx.fill();
+    
+    ctx.fillStyle = '#2d1b00';
+    ctx.beginPath();
+    ctx.roundRect(-5.5, 10 + swing, 5.5, 4, 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.roundRect(0, 10 - swing, 5.5, 4, 2);
+    ctx.fill();
     
     ctx.fillStyle = ped.color;
     ctx.beginPath();
-    ctx.roundRect(-5, -6, 10, 8, 2);
+    ctx.roundRect(-7, -8, 14, 14, 3);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+    
+    ctx.fillStyle = ped.isHostile ? 'rgba(180,30,30,0.3)' : 'rgba(255,255,255,0.15)';
+    ctx.beginPath();
+    ctx.roundRect(-6, -7, 12, 6, 2);
+    ctx.fill();
+    
+    ctx.fillStyle = ped.skinColor || '#ffdbac';
+    ctx.beginPath();
+    ctx.roundRect(-8, -3 + armSwing, 3.5, 9, 1.5);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.roundRect(4.5, -3 - armSwing, 3.5, 9, 1.5);
     ctx.fill();
     
     if (ped.isHostile) {
-      // Draw small gun in hand
-      ctx.fillStyle = '#1e293b';
-      ctx.fillRect(4, -4, 2, 5);
-      ctx.fillRect(4, -6, 5, 2);
+      ctx.fillStyle = '#1a1a2e';
+      ctx.save();
+      ctx.translate(6, -5 - armSwing);
+      ctx.fillRect(0, 0, 2.5, 7);
+      ctx.fillRect(0, -1, 7, 2.5);
+      ctx.fillStyle = '#555';
+      ctx.fillRect(6.5, -1.5, 2, 3);
+      ctx.restore();
     }
     
-    ctx.fillStyle = '#ffdbac';
+    ctx.fillStyle = ped.skinColor || '#ffdbac';
     ctx.beginPath();
-    ctx.arc(0, -1, 3.8, 0, Math.PI * 2);
+    ctx.arc(0, -12, 6.5, 0, Math.PI * 2);
     ctx.fill();
     
     ctx.fillStyle = '#451a03';
     ctx.beginPath();
-    ctx.arc(0, -2, 3, Math.PI, 0);
+    ctx.arc(0, -14, 5.5, Math.PI, 0);
     ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(0, -12, 6.5, 2.5, 0, Math.PI * 0.85, Math.PI * 0.15, true);
+    ctx.fill();
+    
+    ctx.fillStyle = '#1a1a2e';
+    ctx.beginPath();
+    ctx.arc(-2.5, -12.5, 1.2, 0, Math.PI * 2);
+    ctx.arc(2.5, -12.5, 1.2, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(-2.2, -13, 0.5, 0, Math.PI * 2);
+    ctx.arc(2.8, -13, 0.5, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.strokeStyle = ped.isHostile ? '#8b0000' : '#c4704a';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(0, -10, 2.5, 0.1, Math.PI - 0.1);
+    ctx.stroke();
+    
+    if (ped.isHostile) {
+      ctx.fillStyle = 'rgba(255,0,0,0.6)';
+      ctx.beginPath();
+      ctx.arc(0, -20, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 5px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('!', 0, -20);
+    }
     
     ctx.restore();
   });
@@ -3047,6 +3643,18 @@ function updateHUD() {
     weaponText += ` | ⚡ نيترو (${Math.ceil(p.nitroTime)}ث)`;
   }
   document.getElementById('hud-weapon').textContent = weaponText;
+  
+  // Combo display
+  const comboEl = document.getElementById('hud-combo');
+  if (comboEl) {
+    if (gameState.combo > 1 && gameState.comboTimer > 0) {
+      comboEl.style.display = 'block';
+      document.getElementById('combo-count').textContent = gameState.combo;
+      comboEl.style.transform = `scale(${1 + Math.min(gameState.combo * 0.05, 0.5)})`;
+    } else {
+      comboEl.style.display = 'none';
+    }
+  }
 }
 
 // ==================== EXPOSE TEST HOOKS ====================
