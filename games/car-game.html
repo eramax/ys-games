@@ -340,8 +340,12 @@
         <button class="weapon-btn" data-weapon="pistol">🔫 مسدس</button>
         <button class="weapon-btn" data-weapon="machine">💥 رشاش</button>
         <button class="weapon-btn" data-weapon="cannon">💣 مدفع</button>
-      </div>
-    </div>
+  </div>
+  <div class="hud-panel">
+    <div>السلاح: <span class="hud-value" id="hud-weapon">--</span></div>
+    <div style="font-size:0.75rem; color:var(--color-muted)" id="hud-ammo">∞ طلقات</div>
+  </div>
+</div>
 
     <div style="display:flex; gap:12px; align-items:center; justify-content:center; flex-wrap:wrap;">
       <canvas id="preview-canvas" width="160" height="100"></canvas>
@@ -366,14 +370,17 @@
   <div class="hud-panel" style="text-align:center">
     <div style="font-size:0.7rem; color:var(--color-muted)">مطلوب من الشرطة</div>
     <div class="wanted-stars" id="hud-wanted">☆☆☆☆☆</div>
+    <div id="challenge-display" style="display:none; margin-top:6px; text-align:center; min-width:180px">
+      <div id="challenge-icon" style="font-size:1.4rem; line-height:1"></div>
+      <div id="challenge-progress-bar" style="width:100%; height:4px; background:rgba(255,255,255,0.15); border-radius:2px; margin-top:3px; overflow:hidden">
+        <div id="challenge-fill" style="height:100%; width:0%; background:var(--color-primary); border-radius:2px; transition:width 0.3s"></div>
+      </div>
+      <div id="challenge-progress" style="font-size:0.65rem; color:#aaa; margin-top:2px"></div>
+    </div>
   </div>
   <div class="hud-panel">
     <div>السلاح: <span class="hud-value" id="hud-weapon">--</span></div>
     <div style="font-size:0.75rem; color:var(--color-muted)" id="hud-ammo">∞ طلقات</div>
-  </div>
-  <div id="challenge-display" style="position:absolute; top:60px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.7); border:2px solid var(--color-primary); border-radius:12px; padding:6px 16px; font-size:0.85rem; color:var(--color-primary); display:none; z-index:50; text-align:center; min-width:200px">
-    <div id="challenge-text" style="font-weight:bold"></div>
-    <div id="challenge-progress" style="font-size:0.75rem; color:#aaa; margin-top:2px"></div>
   </div>
 </div>
 
@@ -2045,12 +2052,28 @@ function update(dt) {
       return false;
     }
     
+    const challengeIcons = {
+      kill_peds: '🚶',
+      destroy_cars: '🚗💥',
+      collect_powerups: '🎁',
+      survive: '⏱️',
+      reach_speed: '🏎️💨',
+      kill_police: '👮',
+      drift: '🔄'
+    };
     const el = document.getElementById('challenge-display');
     if (el) {
       el.style.display = 'block';
-      document.getElementById('challenge-text').textContent = ch.text;
+      const iconEl = document.getElementById('challenge-icon');
+      if (iconEl) {
+        const icon = challengeIcons[ch.type] || '⭐';
+        const prog = Math.min(ch.progress, ch.target);
+        iconEl.innerHTML = `<span>${icon}</span> <span style="color:var(--color-primary)">${prog}/${ch.target}</span>`;
+      }
+      const fillEl = document.getElementById('challenge-fill');
+      if (fillEl) fillEl.style.width = Math.min(100, (ch.progress / ch.target) * 100) + '%';
       const remaining = Math.ceil(ch.timeLimit - elapsed);
-      document.getElementById('challenge-progress').textContent = `${Math.min(ch.progress, ch.target)}/${ch.target} | ${remaining}ث | جائزة: ${ch.reward}`;
+      document.getElementById('challenge-progress').textContent = `${remaining}s | +${ch.reward}`;
     }
     
     return true;
