@@ -900,7 +900,7 @@ function shadeColor(hex, pct) {
 // ==================== GAME ====================
 const WORLD_W = 2400, WORLD_H = 2400;
 const TILE = 80;
-const ROAD_COLOR = '#2a2a2a', SIDEWALK_COLOR = '#3a3530', BUILDING_COLOR = '#1e2535', LINE_COLOR = 'rgba(255,255,200,0.4)';
+const ROAD_COLOR = '#42585c', SIDEWALK_COLOR = '#d7c4a3', BUILDING_COLOR = '#1e2535', LINE_COLOR = 'rgba(255,255,255,0.4)';
 
 // World chunks container
 function seededRandom(x, y) {
@@ -2127,6 +2127,52 @@ function drawWorld(camX, camY) {
   const startChunkY = Math.floor(camY / 1280);
   const endChunkY   = Math.floor((camY + cssH) / 1280);
 
+  const getTile = (ccx, ccy, row, col) => {
+    if (row < 0) { row = 15; ccy--; }
+    else if (row > 15) { row = 0; ccy++; }
+    if (col < 0) { col = 15; ccx--; }
+    else if (col > 15) { col = 0; ccx++; }
+    const k = `${ccx},${ccy}`;
+    return gameState.chunks[k] ? gameState.chunks[k].map[row][col] : 0;
+  };
+
+  const drawFence = (x1, y1, x2, y2) => {
+    ctx.save();
+    // Fence shadow
+    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+    ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    ctx.moveTo(x1 + 3, y1 + 3);
+    ctx.lineTo(x2 + 3, y2 + 3);
+    ctx.stroke();
+    
+    // Fence rail
+    ctx.strokeStyle = '#475569';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+    
+    // Vertical poles
+    ctx.strokeStyle = '#64748b';
+    ctx.lineWidth = 1.2;
+    const len = Math.hypot(x2 - x1, y2 - y1);
+    const steps = Math.floor(len / 8);
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const bx = x1 + (x2 - x1) * t;
+      const by = y1 + (y2 - y1) * t;
+      const px = -(y2 - y1) / len * 7;
+      const py = (x2 - x1) / len * 7;
+      ctx.beginPath();
+      ctx.moveTo(bx, by);
+      ctx.lineTo(bx + px, by + py);
+      ctx.stroke();
+    }
+    ctx.restore();
+  };
+
   // 1. Draw visible ground tiles (roads, sidewalks, grass)
   for (let cy = startChunkY; cy <= endChunkY; cy++) {
     for (let cx = startChunkX; cx <= endChunkX; cx++) {
@@ -2145,17 +2191,45 @@ function drawWorld(camX, camY) {
           const ty = chunkY + r * 80;
           
           if (tile === 0) {
-            ctx.fillStyle = '#064e3b'; // grass
+            ctx.fillStyle = '#1e3a24'; // Grass
             ctx.fillRect(tx, ty, 80, 80);
+            
+            // Draw subtle grass blades
+            const seed = Math.abs(tx * 33 + ty * 73) % 100;
+            ctx.fillStyle = '#14532d';
+            if (seed % 3 === 0) {
+              ctx.fillRect(tx + 20, ty + 20, 2, 6);
+              ctx.fillRect(tx + 22, ty + 18, 2, 8);
+            } else if (seed % 3 === 1) {
+              ctx.fillRect(tx + 50, ty + 50, 2, 8);
+              ctx.fillRect(tx + 52, ty + 48, 2, 6);
+            }
           } else if (tile === 1) {
             ctx.fillStyle = ROAD_COLOR;
             ctx.fillRect(tx, ty, 80, 80);
             
+            // Curbs (dark borders separating road from sidewalks/grass)
+            ctx.strokeStyle = '#253335';
+            ctx.lineWidth = 6;
+            
+            if (getTile(cx, cy, r - 1, c) !== 1) {
+              ctx.beginPath(); ctx.moveTo(tx, ty + 3); ctx.lineTo(tx + 80, ty + 3); ctx.stroke();
+            }
+            if (getTile(cx, cy, r + 1, c) !== 1) {
+              ctx.beginPath(); ctx.moveTo(tx, ty + 77); ctx.lineTo(tx + 80, ty + 77); ctx.stroke();
+            }
+            if (getTile(cx, cy, r, c - 1) !== 1) {
+              ctx.beginPath(); ctx.moveTo(tx + 3, ty); ctx.lineTo(tx + 3, ty + 80); ctx.stroke();
+            }
+            if (getTile(cx, cy, r, c + 1) !== 1) {
+              ctx.beginPath(); ctx.moveTo(tx + 77, ty); ctx.lineTo(tx + 77, ty + 80); ctx.stroke();
+            }
+            
             // Vertical road lanes
             if (c === 7 || c === 8) {
-              ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-              ctx.lineWidth = 2;
-              ctx.setLineDash([15, 15]);
+              ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+              ctx.lineWidth = 2.5;
+              ctx.setLineDash([12, 12]);
               ctx.beginPath();
               ctx.moveTo(tx + 40, ty);
               ctx.lineTo(tx + 40, ty + 80);
@@ -2164,9 +2238,9 @@ function drawWorld(camX, camY) {
             }
             // Horizontal road lanes
             if (r === 7 || r === 8) {
-              ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-              ctx.lineWidth = 2;
-              ctx.setLineDash([15, 15]);
+              ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+              ctx.lineWidth = 2.5;
+              ctx.setLineDash([12, 12]);
               ctx.beginPath();
               ctx.moveTo(tx, ty + 40);
               ctx.lineTo(tx + 80, ty + 40);
@@ -2176,12 +2250,20 @@ function drawWorld(camX, camY) {
           } else if (tile === 2) {
             ctx.fillStyle = SIDEWALK_COLOR;
             ctx.fillRect(tx, ty, 80, 80);
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
-            for (let i = 0; i < 2; i++) {
-              for (let j = 0; j < 2; j++) {
-                ctx.fillRect(tx + i * 40, ty + j * 40, 39, 39);
-              }
+            
+            // 4x4 stone tile grid grout lines
+            ctx.strokeStyle = '#bfa57f';
+            ctx.lineWidth = 1.5;
+            for (let i = 20; i < 80; i += 20) {
+              ctx.beginPath(); ctx.moveTo(tx + i, ty); ctx.lineTo(tx + i, ty + 80); ctx.stroke();
+              ctx.beginPath(); ctx.moveTo(tx, ty + i); ctx.lineTo(tx + 80, ty + i); ctx.stroke();
             }
+
+            // Draw fences at boundaries
+            if (getTile(cx, cy, r - 1, c) === 0) drawFence(tx, ty, tx + 80, ty);
+            if (getTile(cx, cy, r + 1, c) === 0) drawFence(tx, ty + 80, tx + 80, ty + 80);
+            if (getTile(cx, cy, r, c - 1) === 0) drawFence(tx, ty, tx, ty + 80);
+            if (getTile(cx, cy, r, c + 1) === 0) drawFence(tx + 80, ty, tx + 80, ty + 80);
           }
         }
       }
