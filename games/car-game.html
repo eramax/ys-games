@@ -236,7 +236,7 @@
     position: absolute; bottom: 0; left: 0; right: 0;
     z-index: 50;
     display: flex; justify-content: space-between; align-items: flex-end;
-    padding: 8px 10px 14px;
+    padding: 8px 10px 28px;
     pointer-events: none;
     direction: ltr;
   }
@@ -301,13 +301,13 @@
     50% { opacity: 0.6; }
   }
   #joystick-container {
-    width: 130px; height: 130px;
+    width: 150px; height: 150px;
     position: relative;
     pointer-events: all;
     touch-action: none;
   }
   #joystick-base {
-    width: 130px; height: 130px;
+    width: 150px; height: 150px;
     background: rgba(0,0,0,0.45);
     border: 2px solid rgba(255,255,255,0.15);
     border-radius: 50%;
@@ -315,12 +315,12 @@
     top: 0; left: 0;
   }
   #joystick-thumb {
-    width: 50px; height: 50px;
+    width: 55px; height: 55px;
     background: rgba(245,197,24,0.5);
     border: 2px solid rgba(245,197,24,0.7);
     border-radius: 50%;
     position: absolute;
-    top: 40px; left: 40px;
+    top: 47.5px; left: 47.5px;
     transition: background 0.1s;
     pointer-events: none;
   }
@@ -1712,7 +1712,7 @@ function setupInput() {
   const joystickContainer = document.getElementById('joystick-container');
   const joystickThumb = document.getElementById('joystick-thumb');
   let joystickTouchId = null;
-  const joystickRadius = 40;
+  const joystickRadius = 47;
 
   if (joystickContainer && joystickThumb) {
     const getJoystickPos = (touch) => {
@@ -1734,8 +1734,8 @@ function setupInput() {
       const touch = e.changedTouches[0];
       joystickTouchId = touch.identifier;
       const pos = getJoystickPos(touch);
-      joystickThumb.style.left = (40 + pos.dx) + 'px';
-      joystickThumb.style.top = (40 + pos.dy) + 'px';
+      joystickThumb.style.left = (47.5 + pos.dx) + 'px';
+      joystickThumb.style.top = (47.5 + pos.dy) + 'px';
       joystickThumb.style.background = 'rgba(245,197,24,0.7)';
       if (gameState) {
         gameState.joystickX = pos.dx / joystickRadius;
@@ -1748,8 +1748,8 @@ function setupInput() {
       for (const touch of e.changedTouches) {
         if (touch.identifier === joystickTouchId) {
           const pos = getJoystickPos(touch);
-          joystickThumb.style.left = (40 + pos.dx) + 'px';
-          joystickThumb.style.top = (40 + pos.dy) + 'px';
+          joystickThumb.style.left = (47.5 + pos.dx) + 'px';
+          joystickThumb.style.top = (47.5 + pos.dy) + 'px';
           if (gameState) {
             gameState.joystickX = pos.dx / joystickRadius;
             gameState.joystickY = pos.dy / joystickRadius;
@@ -1762,8 +1762,8 @@ function setupInput() {
       for (const touch of e.changedTouches) {
         if (touch.identifier === joystickTouchId) {
           joystickTouchId = null;
-          joystickThumb.style.left = '40px';
-          joystickThumb.style.top = '40px';
+          joystickThumb.style.left = '47.5px';
+          joystickThumb.style.top = '47.5px';
           joystickThumb.style.background = 'rgba(245,197,24,0.5)';
           if (gameState) {
             gameState.joystickX = 0;
@@ -1823,8 +1823,8 @@ function update(dt) {
   const jx = gameState.joystickX || 0;
   const jy = gameState.joystickY || 0;
   const jDead = 0.15;
-  const turnLeft  = keys['ArrowLeft']  || keys['KeyA'] || tk['left'] || jx < -jDead;
-  const turnRight = keys['ArrowRight'] || keys['KeyD'] || tk['right'] || jx > jDead;
+  const turnLeft  = keys['ArrowLeft']  || keys['KeyA'] || tk['left'];
+  const turnRight = keys['ArrowRight'] || keys['KeyD'] || tk['right'];
   const accel     = keys['ArrowUp']    || keys['KeyW'] || tk['up'] || tk['accel'] || jy < -jDead;
   const brake     = keys['ArrowDown']  || keys['KeyS'] || tk['down'] || tk['brake'] || jy > jDead;
   const fireKeys  = p.weapons.map((_,i)=> tk['fire_'+p.weapons[i]] || false);
@@ -1832,8 +1832,10 @@ function update(dt) {
 
   // Steer
   const steerSpeed = 2.5;
-  if (turnLeft)  p.angle -= steerSpeed * dt * (0.4 + Math.abs(p.speed)/200);
-  if (turnRight) p.angle += steerSpeed * dt * (0.4 + Math.abs(p.speed)/200);
+  const steerMul = 0.4 + Math.abs(p.speed)/200;
+  if (turnLeft)       p.angle -= steerSpeed * dt * steerMul;
+  else if (turnRight) p.angle += steerSpeed * dt * steerMul;
+  else if (Math.abs(jx) > jDead) p.angle += steerSpeed * dt * steerMul * jx * 0.7;
 
   // Acceleration
   const maxSpeed = (340 * p.size) * (p.nitroTime > 0 ? 1.7 : 1) * timeSpeedMultiplier;
