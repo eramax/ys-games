@@ -1364,6 +1364,161 @@ function update(dt) {
     p.life -= dt; p.alpha = p.life/p.maxLife;
   });
   gameState.particles = gameState.particles.filter(p=>p.life>0);
+
+  // Power-ups spawn, lifetime and collision update
+  if (!gameState.powerUpSpawnTimer) gameState.powerUpSpawnTimer = 4;
+  gameState.powerUpSpawnTimer -= dt;
+  if (gameState.powerUpSpawnTimer <= 0) {
+    spawnPowerUp();
+    gameState.powerUpSpawnTimer = 8 + Math.random() * 8; // Spawn a power-up every 8-16 seconds
+  }
+
+  // Filter out expired power-ups
+  gameState.powerUps = (gameState.powerUps || []).filter(pu => {
+    return (Date.now() - pu.spawnTime) < pu.duration;
+  });
+
+  // Collision with player
+  gameState.powerUps.forEach((pu, idx) => {
+    const dist = Math.hypot(p.x - pu.x, p.y - pu.y);
+    const colDist = pu.size + (p.type.w * p.size * 0.45);
+    if (dist < colDist) {
+      applyPowerUp(pu);
+      // Spawn pickup particle sparkles
+      for (let i = 0; i < 15; i++) {
+        gameState.particles.push({
+          x: pu.x, y: pu.y,
+          vx: (Math.random() - 0.5) * 150,
+          vy: (Math.random() - 0.5) * 150,
+          color: pu.type === 'health' ? '#10b981' : pu.type === 'shield' ? '#3b82f6' : pu.type === 'nitro' ? '#f97316' : '#eab308',
+          size: 2 + Math.random() * 3,
+          life: 0.5,
+          maxLife: 0.5,
+          alpha: 1
+        });
+      }
+      playPowerUpSound(pu.type);
+      gameState.powerUps.splice(idx, 1);
+    }
+  });
+}
+
+function spawnPowerUp() {
+  if (!gameState || (gameState.powerUps || []).length >= 6) return;
+  const cols = WORLD_W/TILE, rows = WORLD_H/TILE;
+  let attempts = 0;
+  while (attempts < 100) {
+    const r = Math.floor(Math.random() * rows);
+    const c = Math.floor(Math.random() * cols);
+    if (worldMap[r] && worldMap[r][c] === 1) { // road tile
+      const px = c * TILE + TILE/2 + (Math.random()-0.5)*15;
+      const py = r * TILE + TILE/2 + (Math.random()-0.5)*15;
+      
+      const dist = Math.hypot(px - gameState.player.x, py - gameState.player.y);
+      if (dist > 300) {
+        const types = ['health', 'shield', 'nitro', 'score'];
+        const type = types[Math.floor(Math.random() * types.length)];
+        gameState.powerUps.push({
+          id: Math.random(),
+          x: px, y: py,
+          type: type,
+          spawnTime: Date.now(),
+          duration: 15000 + Math.random()*5000,
+          size: 16
+        });
+        break;
+      }
+    }
+    attempts++;
+  }
+}
+
+function applyPowerUp(pu) {
+  if (!gameState) return;
+  const p = gameState.player;
+  if (pu.type === 'health') {
+    // Wanted Level decrease (represented as Repair icon 🔧)
+    p.wantedLevel = Math.max(0, p.wantedLevel - 1);
+    p.score += 100;
+  } else if (pu.type === 'shield') {
+    p.shieldTime = 10;
+  } else if (pu.type === 'nitro') {
+    p.nitroTime = 6;
+  } else if (pu.type === 'score') {
+    p.score += 500;
+  }
+}
+
+function playPowerUpSound(type) {
+  if (typeof audioCtx === 'undefined' || !audioCtx) return;
+  const t = audioCtx.currentTime;
+  if (type === 'health') {
+    playTone(330, 0.1, 'sine', 0.15);
+    setTimeout(() => playTone(440, 0.1, 'sine', 0.15), 100);
+    setTimeout(() => playTone(554, 0.15, 'sine', 0.15), 200);
+  } else if (type === 'shield') {
+    try {
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(200, t);
+      osc.frequency.exponentialRampToValueAtTime(800, t + 0.3);
+      g.gain.setValueAtTime(0.15, t);
+      g.gain.linearRampToValueAtTime(0.001, t + 0.3);
+      osc.connect(g); g.connect(audioCtx.destination);
+      osc.start(); osc.stop(t + 0.3);
+    } catch(e) {}
+  } else if (type === 'nitro') {
+    playTone(400, 0.08, 'sawtooth', 0.15);
+    setTimeout(() => playTone(600, 0.08, 'sawtooth', 0.15), 80);
+    setTimeout(() => playTone(900, 0.12, 'sawtooth', 0.15), 160);
+  } else if (type === 'score') {
+    playTone(987, 0.08, 'sine', 0.12);
+    setTimeout(() => playTone(1318, 0.2, 'sine', 0.12), 80);
+  }
+}
+
+function drawPowerUps() {
+  if (!gameState || !gameState.powerUps) return;
+  gameState.powerUps.forEach(pu => {
+    const age = Date.now() - pu.spawnTime;
+    const timeLeft = pu.duration - age;
+    if (timeLeft < 3000 && Math.floor(timeLeft / 150) % 2 === 0) {
+      return; // Flashing warning before vanishing
+    }
+    
+    ctx.save();
+    ctx.translate(pu.x, pu.y);
+    const hover = Math.sin(Date.now() * 0.005) * 4;
+    ctx.translate(0, hover);
+    const rot = (Date.now() * 0.002) % (Math.PI*2);
+    ctx.rotate(rot);
+
+    let color = '#3b82f6';
+    let icon = '🎁';
+    if (pu.type === 'health') { color = '#10b981'; icon = '🔧'; }
+    else if (pu.type === 'shield') { color = '#3b82f6'; icon = '🛡️'; }
+    else if (pu.type === 'nitro') { color = '#f97316'; icon = '⚡'; }
+    else if (pu.type === 'score') { color = '#eab308'; icon = '💰'; }
+
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 10 + Math.sin(Date.now() * 0.01) * 3;
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, pu.size, 0, Math.PI*2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#fff';
+    ctx.font = '14px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(icon, 0, 0);
+    ctx.restore();
+  });
 }
 
 let lastFireTime = {};
