@@ -1638,11 +1638,21 @@ function update(dt) {
     }
   });
 
-  // Remove destroyed vehicles after delay
-  if (Math.random()<0.005) {
-    gameState.traffic = gameState.traffic.filter(c=>c.state!=='destroyed');
-    gameState.police = gameState.police.filter(c=>c.state!=='destroyed');
-    while(gameState.traffic.length < 15) spawnTraffic();
+  // Remove destroyed or far-away vehicles
+  gameState.traffic = gameState.traffic.filter(c => {
+    if (c.state === 'destroyed') return false;
+    const dist = Math.hypot(c.x - p.x, c.y - p.y);
+    return dist < 1600;
+  });
+  
+  gameState.police = gameState.police.filter(c => {
+    if (c.state === 'destroyed') return false;
+    const dist = Math.hypot(c.x - p.x, c.y - p.y);
+    return dist < 2000;
+  });
+
+  while (gameState.traffic.length < 15) {
+    spawnTraffic();
   }
 
   // Particles
@@ -1696,8 +1706,18 @@ function update(dt) {
     return arc.life > 0;
   });
 
-  // Update pedestrians
-  if (gameState.pedestrians.length < 40 && Math.random() < 0.15) {
+  // Update and clean up pedestrians
+  const now = Date.now();
+  gameState.pedestrians = gameState.pedestrians.filter(ped => {
+    if (ped.state === 'splatted') {
+      // Keep blood on the road for 15 seconds
+      return (now - (ped.deathTime || 0)) < 15000;
+    }
+    const dist = Math.hypot(ped.x - p.x, ped.y - p.y);
+    return dist < 1300;
+  });
+
+  if (gameState.pedestrians.length < 40 && Math.random() < 0.25) {
     spawnPedestrian();
   }
   gameState.pedestrians.forEach(ped => {
