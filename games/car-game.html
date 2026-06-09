@@ -218,7 +218,7 @@
     z-index: 50;
     pointer-events: none;
     display: flex; justify-content: space-between; align-items: flex-start;
-    padding: 10px 14px;
+    padding: 10px 14px 10px 60px;
   }
   .hud-panel {
     background: rgba(0,0,0,0.6);
@@ -398,9 +398,11 @@
   <div class="hud-panel">
     <div>السلاح: <span class="hud-value" id="hud-weapon">--</span></div>
     <div style="font-size:0.75rem; color:var(--color-muted)" id="hud-ammo">∞ طلقات</div>
-    <button onclick="exitToMenu()" style="margin-top:4px; background:rgba(220,38,38,0.7); color:#fff; border:none; border-radius:6px; padding:3px 10px; font-size:0.7rem; font-family:var(--font-ar); cursor:pointer; pointer-events:auto">🚪 خروج</button>
   </div>
 </div>
+
+<!-- EXIT BUTTON (top of screen) -->
+<button id="btn-exit-game" class="hidden" onclick="exitToMenu()" style="position:absolute; top:10px; left:10px; z-index:60; background:rgba(220,38,38,0.9); color:#fff; border:2px solid rgba(255,255,255,0.3); border-radius:50%; width:44px; height:44px; font-size:1.4rem; display:flex; align-items:center; justify-content:center; cursor:pointer; pointer-events:auto; box-shadow:0 2px 8px rgba(0,0,0,0.4)">✕</button>
 
 <!-- TOUCH CONTROLS -->
 <div id="touch-controls" class="hidden">
@@ -568,7 +570,7 @@ function showTitle() {
   document.getElementById('title-screen').classList.remove('hidden');
 }
 function hideAll() {
-  ['title-screen','garage-screen','hud','touch-controls','gameover-screen'].forEach(id=>{
+  ['title-screen','garage-screen','hud','touch-controls','gameover-screen','btn-exit-game'].forEach(id=>{
     document.getElementById(id).classList.add('hidden');
   });
   gameRunning = false;
@@ -1588,6 +1590,7 @@ function startGame() {
   hideAll();
   document.getElementById('hud').classList.remove('hidden');
   document.getElementById('touch-controls').classList.remove('hidden');
+  document.getElementById('btn-exit-game').classList.remove('hidden');
   buildWeaponFireBtns();
   initGameState();
   setupInput();
@@ -3082,6 +3085,7 @@ function gameOver() {
   document.getElementById('final-score').textContent = gameState.player.score;
   document.getElementById('hud').classList.add('hidden');
   document.getElementById('touch-controls').classList.add('hidden');
+  document.getElementById('btn-exit-game').classList.add('hidden');
   document.getElementById('gameover-screen').classList.remove('hidden');
 }
 
