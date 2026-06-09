@@ -350,8 +350,23 @@
 // ==================== AUDIO ====================
 let audioCtx = null;
 function initAudio() {
-  if (audioCtx) return;
+  if (audioCtx) {
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+    return;
+  }
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') {
+    const resume = () => {
+      audioCtx.resume().then(() => {
+        window.removeEventListener('click', resume);
+        window.removeEventListener('touchstart', resume);
+      });
+    };
+    window.addEventListener('click', resume);
+    window.addEventListener('touchstart', resume);
+  }
 }
 function playTone(freq, dur, type='square', vol=0.18, detune=0) {
   if (!audioCtx) return;
@@ -386,19 +401,24 @@ function playExplosion() {
     playTone(40+Math.random()*80, 0.3+Math.random()*0.3, 'sawtooth', 0.35);
   }, i*50);
 }
+let lastSirenTime = 0;
 function playSiren() {
-  if (!audioCtx || Math.random() > 0.02) return;
+  if (!audioCtx) return;
+  const now = performance.now();
+  if (now - lastSirenTime < 1000) return;
+  lastSirenTime = now;
+  
   const t = audioCtx.currentTime;
   const osc = audioCtx.createOscillator();
   const g = audioCtx.createGain();
   osc.type = 'sine';
   osc.frequency.setValueAtTime(700, t);
-  osc.frequency.linearRampToValueAtTime(900, t+0.2);
-  osc.frequency.linearRampToValueAtTime(700, t+0.4);
-  g.gain.setValueAtTime(0.1, t);
-  g.gain.exponentialRampToValueAtTime(0.001, t+0.5);
+  osc.frequency.linearRampToValueAtTime(900, t+0.25);
+  osc.frequency.linearRampToValueAtTime(700, t+0.5);
+  g.gain.setValueAtTime(0.06, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t+0.6);
   osc.connect(g); g.connect(audioCtx.destination);
-  osc.start(t); osc.stop(t+0.5);
+  osc.start(t); osc.stop(t+0.6);
 }
 function playCrash() {
   if (!audioCtx) return;
@@ -557,10 +577,14 @@ function drawCarShape(ctx, type, color, weapons=[], angle=0) {
   [[2,-4],[t.w-10,-4],[2,t.h-10],[t.w-10,t.h-10]].forEach(([x,y])=>{
     ctx.beginPath(); ctx.arc(x+4, y+4, 5, 0, Math.PI*2); ctx.fill();
   });
-  // Headlights
+  // Headlights (at the front top)
   ctx.fillStyle = '#ffffaa';
-  ctx.fillRect(4, t.h-8, 8, 5);
-  ctx.fillRect(t.w-12, t.h-8, 8, 5);
+  ctx.fillRect(4, 2, 8, 5);
+  ctx.fillRect(t.w-12, 2, 8, 5);
+  // Taillights (at the rear bottom)
+  ctx.fillStyle = '#ff3333';
+  ctx.fillRect(4, t.h-5, 6, 3);
+  ctx.fillRect(t.w-10, t.h-5, 6, 3);
   // Weapons visual
   if (weapons.includes('cannon')) {
     ctx.fillStyle = '#666';
@@ -571,6 +595,10 @@ function drawCarShape(ctx, type, color, weapons=[], angle=0) {
     ctx.fillStyle = '#888';
     ctx.fillRect(t.w-4, t.roofY+5, 14, 4);
     ctx.fillRect(-10, t.roofY+5, 14, 4);
+  }
+  if (weapons.includes('pistol')) {
+    ctx.fillStyle = '#555';
+    ctx.fillRect(t.w/2-2, -8, 4, 10);
   }
 }
 
@@ -605,12 +633,25 @@ function generateWorld() {
     for (let c=2; c<cols-2; c+=8) {
       const bw = 3+Math.floor(Math.random()*3);
       const bh = 3+Math.floor(Math.random()*3);
+      const wWidth = bw*TILE*0.8;
+      const wHeight = bh*TILE*0.8;
+      const cols2 = Math.floor(wWidth/22);
+      const rows2 = Math.floor(wHeight/18);
+      const windowStates = [];
+      for(let i=0; i<cols2; i++) {
+        const col = [];
+        for(let j=0; j<rows2; j++) {
+          col.push(Math.random() > 0.45);
+        }
+        windowStates.push(col);
+      }
       const colors = ['#1e2535','#252535','#2a2040','#1c2020','#20251c'];
       buildings.push({
         x: c*TILE+TILE*0.3, y: r*TILE+TILE*0.3,
-        w: bw*TILE*0.8, h: bh*TILE*0.8,
+        w: wWidth, h: wHeight,
         color: colors[Math.floor(Math.random()*colors.length)],
-        floors: 2+Math.floor(Math.random()*6)
+        floors: 2+Math.floor(Math.random()*6),
+        windowStates: windowStates
       });
     }
   }
@@ -747,13 +788,29 @@ function buildWeaponFireBtns() {
 }
 
 function setupTouchBtn(btn, action) {
-  btn.addEventListener('touchstart', e=>{e.preventDefault(); gameState&&(gameState.touchKeys[action]=true); btn.classList.add('pressed');}, {passive:false});
-  btn.addEventListener('touchend', e=>{e.preventDefault(); gameState&&(gameState.touchKeys[action]=false); btn.classList.remove('pressed');}, {passive:false});
-  btn.addEventListener('mousedown', ()=>{ gameState&&(gameState.touchKeys[action]=true); btn.classList.add('pressed'); });
-  btn.addEventListener('mouseup', ()=>{ gameState&&(gameState.touchKeys[action]=false); btn.classList.remove('pressed'); });
+  const press = (e) => {
+    if (e && e.cancelable) e.preventDefault();
+    if (gameState) gameState.touchKeys[action] = true;
+    btn.classList.add('pressed');
+  };
+  const release = (e) => {
+    if (e && e.cancelable) e.preventDefault();
+    if (gameState) gameState.touchKeys[action] = false;
+    btn.classList.remove('pressed');
+  };
+  btn.addEventListener('touchstart', press, {passive:false});
+  btn.addEventListener('touchend', release, {passive:false});
+  btn.addEventListener('touchcancel', release, {passive:false});
+  btn.addEventListener('mousedown', press);
+  btn.addEventListener('mouseup', release);
+  btn.addEventListener('mouseleave', release);
 }
 
+let inputSetupDone = false;
 function setupInput() {
+  if (inputSetupDone) return;
+  inputSetupDone = true;
+
   // Direction + accel/brake touch buttons
   ['up','down','left','right','accel','brake'].forEach(action => {
     const btn = document.getElementById('btn-'+action);
@@ -888,32 +945,121 @@ function update(dt) {
     const spd = car.state==='slow'?car.speed*0.25:car.speed;
     const nx = car.x + Math.sin(car.angle)*spd*dt;
     const ny = car.y - Math.cos(car.angle)*spd*dt;
-    if (!isWall(nx, ny, car.type.w*car.size*0.8, car.type.h*car.size*0.8)) {
-      car.x=nx; car.y=ny;
+    let hitX = false, hitY = false;
+    if (!isWall(nx, car.y, car.type.w*car.size*0.8, car.type.h*car.size*0.8)) {
+      car.x = nx;
     } else {
+      hitX = true;
+    }
+    if (!isWall(car.x, ny, car.type.w*car.size*0.8, car.type.h*car.size*0.8)) {
+      car.y = ny;
+    } else {
+      hitY = true;
+    }
+    if (hitX || hitY) {
       car.angle += Math.PI/2 + (Math.random()-0.5)*0.5;
     }
     car.x=Math.max(10,Math.min(WORLD_W-10,car.x));
     car.y=Math.max(10,Math.min(WORLD_H-10,car.y));
   });
 
+  // Player vs Traffic Collisions
+  const pRadius = (p.type.w * p.size + p.type.h * p.size) / 4;
+  gameState.traffic.forEach(car => {
+    if (car.state === 'destroyed') return;
+    const tRadius = (car.type.w * car.size + car.type.h * car.size) / 4;
+    const dx = p.x - car.x;
+    const dy = p.y - car.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    const minDist = pRadius + tRadius;
+    if (dist < minDist) {
+      const overlap = minDist - dist;
+      const nx = dx / (dist || 1);
+      const ny = dy / (dist || 1);
+      
+      const targetPx = p.x + nx * overlap * 0.6;
+      const targetPy = p.y + ny * overlap * 0.6;
+      if (!isWall(targetPx, p.y, p.type.w*p.size, p.type.h*p.size)) p.x = targetPx;
+      if (!isWall(p.x, targetPy, p.type.w*p.size, p.type.h*p.size)) p.y = targetPy;
+      
+      const targetCx = car.x - nx * overlap * 0.4;
+      const targetCy = car.y - ny * overlap * 0.4;
+      if (!isWall(targetCx, car.y, car.type.w*car.size, car.type.h*car.size)) car.x = targetCx;
+      if (!isWall(car.x, targetCy, car.type.w*car.size, car.type.h*car.size)) car.y = targetCy;
+      
+      if (Math.abs(p.speed) > 30) {
+        playCrash();
+        spawnParticles((p.x + car.x)/2, (p.y + car.y)/2, 8, '#ffaa00');
+        hitCar(car, 'pistol');
+      }
+      p.speed *= -0.3;
+    }
+  });
+
+  // Traffic vs Traffic Collisions
+  for (let i = 0; i < gameState.traffic.length; i++) {
+    const car1 = gameState.traffic[i];
+    if (car1.state === 'destroyed') continue;
+    const r1 = (car1.type.w * car1.size + car1.type.h * car1.size) / 4;
+    for (let j = i + 1; j < gameState.traffic.length; j++) {
+      const car2 = gameState.traffic[j];
+      if (car2.state === 'destroyed') continue;
+      const r2 = (car2.type.w * car2.size + car2.type.h * car2.size) / 4;
+      const dx = car1.x - car2.x;
+      const dy = car1.y - car2.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      const minDist = r1 + r2;
+      if (dist < minDist) {
+        const overlap = minDist - dist;
+        const nx = dx / (dist || 1);
+        const ny = dy / (dist || 1);
+        
+        const targetC1x = car1.x + nx * overlap * 0.5;
+        const targetC1y = car1.y + ny * overlap * 0.5;
+        const targetC2x = car2.x - nx * overlap * 0.5;
+        const targetC2y = car2.y - ny * overlap * 0.5;
+        
+        if (!isWall(targetC1x, car1.y, car1.type.w*car1.size, car1.type.h*car1.size)) car1.x = targetC1x;
+        if (!isWall(car1.x, targetC1y, car1.type.w*car1.size, car1.type.h*car1.size)) car1.y = targetC1y;
+        if (!isWall(targetC2x, car2.y, car2.type.w*car2.size, car2.type.h*car2.size)) car2.x = targetC2x;
+        if (!isWall(car2.x, targetC2y, car2.type.w*car2.size, car2.type.h*car2.size)) car2.y = targetC2y;
+        
+        car1.angle += (Math.random() - 0.5) * 0.5;
+        car2.angle += (Math.random() - 0.5) * 0.5;
+      }
+    }
+  }
+
   // Police AI
   gameState.police.forEach(pol => {
     if (pol.state==='destroyed') return;
     playSiren();
-    // chase player
     const dx = p.x-pol.x, dy = p.y-pol.y;
     const targetAngle = Math.atan2(dx, -dy);
     let da = targetAngle - pol.angle;
     while(da>Math.PI) da-=Math.PI*2;
     while(da<-Math.PI) da+=Math.PI*2;
     pol.angle += Math.sign(da)*Math.min(Math.abs(da),2.5*dt);
-    const nx = pol.x + Math.sin(pol.angle)*pol.speed*dt;
-    const ny = pol.y - Math.cos(pol.angle)*pol.speed*dt;
-    if (!isWall(nx,ny,pol.type.w*pol.size*0.8,pol.type.h*pol.size*0.8)) {
-      pol.x=nx; pol.y=ny;
+    
+    const pvx = Math.sin(pol.angle)*pol.speed;
+    const pvy = -Math.cos(pol.angle)*pol.speed;
+    const pnx = pol.x + pvx*dt;
+    const pny = pol.y + pvy*dt;
+    let hitX = false, hitY = false;
+    
+    if (!isWall(pnx, pol.y, pol.type.w*pol.size*0.8, pol.type.h*pol.size*0.8)) {
+      pol.x = pnx;
     } else {
-      pol.angle += Math.PI/2;
+      hitX = true;
+    }
+    if (!isWall(pol.x, pny, pol.type.w*pol.size*0.8, pol.type.h*pol.size*0.8)) {
+      pol.y = pny;
+    } else {
+      hitY = true;
+    }
+    
+    if (hitX || hitY) {
+      pol.angle += Math.PI/4 * (Math.random() > 0.5 ? 1 : -1);
     }
     pol.x=Math.max(10,Math.min(WORLD_W-10,pol.x));
     pol.y=Math.max(10,Math.min(WORLD_H-10,pol.y));
@@ -921,7 +1067,6 @@ function update(dt) {
     // catch player?
     const dist = Math.sqrt(dx*dx+dy*dy);
     if (dist < (p.type.w*p.size + pol.type.w*pol.size)*0.8) {
-      // caught!
       gameOver();
       return;
     }
@@ -962,8 +1107,11 @@ function fireBullet(weapon) {
     const a = p.angle + (Math.random()-0.5)*spread;
     const spd = speeds[w]+(Math.random()-0.5)*50;
     const wx = Math.sin(a)*spd, wy=-Math.cos(a)*spd;
+    const spawnDist = p.type.h * p.size * 0.5;
+    const startX = p.x + Math.sin(p.angle) * spawnDist;
+    const startY = p.y - Math.cos(p.angle) * spawnDist;
     gameState.bullets.push({
-      x:p.x, y:p.y-p.type.h*p.size*0.5,
+      x:startX, y:startY,
       vx:wx+p.vx*0.3, vy:wy+p.vy*0.3,
       weapon:w,
       life: w==='cannon'?2.5:1.5,
@@ -1133,7 +1281,9 @@ function drawWorld(camX, camY) {
     ctx.fillStyle='rgba(255,255,180,0.18)';
     const cols = Math.floor(b.w/22), rows2 = Math.floor(b.h/18);
     for(let i=0;i<cols;i++) for(let j=0;j<rows2;j++) {
-      if (Math.random()>0.3||!windowsInit) ctx.fillRect(b.x+6+i*22, b.y+8+j*18, 12, 10);
+      if (b.windowStates && b.windowStates[i] && b.windowStates[i][j]) {
+        ctx.fillRect(b.x+6+i*22, b.y+8+j*18, 12, 10);
+      }
     }
     // Roof
     ctx.fillStyle = shadeColor(b.color, 15);
