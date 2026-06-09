@@ -2007,6 +2007,42 @@ function drawWorld(camX, camY) {
         ctx.lineTo(b.x + b.w - offset, b.y + b.h - offset);
         ctx.lineTo(b.x + b.w, b.y + b.h);
         ctx.closePath(); ctx.fill();
+
+        // Draw windows on side walls
+        const floorHeight = offset / b.floors;
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
+        for (let f = 0; f < b.floors; f++) {
+          const factor = (f + 0.5) * floorHeight;
+          const fx = b.x - factor;
+          const fy1 = b.y - factor;
+          
+          const wCountY = Math.floor(b.h / 18);
+          for (let wIdx = 0; wIdx < wCountY; wIdx++) {
+            const wy = fy1 + 8 + wIdx * 18;
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.8)';
+            ctx.fillRect(fx - 4, wy - 3, 8, 6);
+            if (seededRandom(b.x + f, wy) > 0.45) {
+              ctx.fillStyle = '#fef08a';
+              ctx.fillRect(fx - 3, wy - 2, 6, 4);
+            }
+          }
+        }
+        for (let f = 0; f < b.floors; f++) {
+          const factor = (f + 0.5) * floorHeight;
+          const fy = b.y + b.h - factor;
+          const fx1 = b.x - factor;
+          
+          const wCountX = Math.floor(b.w / 18);
+          for (let wIdx = 0; wIdx < wCountX; wIdx++) {
+            const wx = fx1 + 8 + wIdx * 18;
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.8)';
+            ctx.fillRect(wx - 4, fy - 3, 8, 6);
+            if (seededRandom(b.y + f, wx) > 0.45) {
+              ctx.fillStyle = '#fef08a';
+              ctx.fillRect(wx - 3, fy - 2, 6, 4);
+            }
+          }
+        }
         ctx.restore();
 
         // Roof Slab
@@ -2016,10 +2052,27 @@ function drawWorld(camX, camY) {
         ctx.lineWidth = 1.5;
         ctx.strokeRect(b.x - offset, b.y - offset, b.w, b.h);
 
-        // Helipad decoration
+        // Draw concrete roof tile grids (GTA 2 style)
+        ctx.save();
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.15)';
+        ctx.lineWidth = 1;
         const rx = b.x - offset;
         const ry = b.y - offset;
-        
+        for (let gx = rx + 12; gx < rx + b.w - 12; gx += 16) {
+          ctx.beginPath();
+          ctx.moveTo(gx, ry);
+          ctx.lineTo(gx, ry + b.h);
+          ctx.stroke();
+        }
+        for (let gy = ry + 12; gy < ry + b.h - 12; gy += 16) {
+          ctx.beginPath();
+          ctx.moveTo(rx, gy);
+          ctx.lineTo(rx + b.w, gy);
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        // Helipad decoration
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
         ctx.lineWidth = 2;
         ctx.beginPath();
