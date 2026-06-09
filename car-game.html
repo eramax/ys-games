@@ -1585,12 +1585,36 @@ function spawnParticles(x, y, n, color) {
 }
 
 function isWall(x, y, w, h) {
-  // check corners
-  const corners = [[x-w/2,y-h/2],[x+w/2,y-h/2],[x-w/2,y+h/2],[x+w/2,y+h/2]];
-  for(const [cx,cy] of corners) {
-    const col = Math.floor(cx/TILE), row = Math.floor(cy/TILE);
-    if (row<0||row>=WORLD_H/TILE||col<0||col>=WORLD_W/TILE) return true;
-    if (worldMap[row]&&worldMap[row][col]===0) return true;
+  const chunkCol = Math.floor(x / 1280);
+  const chunkRow = Math.floor(y / 1280);
+  
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dy = -1; dy <= 1; dy++) {
+      const key = `${chunkCol + dx},${chunkRow + dy}`;
+      const chunk = gameState.chunks[key];
+      if (!chunk) continue;
+      
+      // 1. Check building rectangles
+      for (const b of chunk.buildings) {
+        const marginX = w / 2;
+        const marginY = h / 2;
+        if (x >= b.x - marginX && x <= b.x + b.w + marginX &&
+            y >= b.y - marginY && y <= b.y + b.h + marginY) {
+          return true;
+        }
+      }
+      
+      // 2. Check park ponds and trees (circular obstacles)
+      for (const p of chunk.parks) {
+        const distToPond = Math.hypot(x - p.pond.x, y - p.pond.y);
+        if (distToPond < p.pond.r + w/3) return true;
+        
+        for (const t of p.trees) {
+          const distToTree = Math.hypot(x - t.x, y - t.y);
+          if (distToTree < 16 + w/3) return true;
+        }
+      }
+    }
   }
   return false;
 }
