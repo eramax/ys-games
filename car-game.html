@@ -651,6 +651,49 @@ function drawCarShape(ctx, type, color, weapons=[], angle=0) {
   ctx.fill();
   ctx.stroke();
 
+  // Chrome bumpers (silver guards curving around the front/back)
+  ctx.save();
+  ctx.fillStyle = '#e5e7eb';
+  ctx.strokeStyle = '#9ca3af';
+  ctx.lineWidth = 1;
+  
+  // Front Bumper
+  ctx.beginPath();
+  ctx.roundRect(1, -2, w - 2, 4, 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#f3f4f6';
+  ctx.fillRect(w * 0.28 - 2, -3, 4, 6);
+  ctx.fillRect(w * 0.72 - 2, -3, 4, 6);
+
+  // Rear Bumper
+  ctx.fillStyle = '#e5e7eb';
+  ctx.beginPath();
+  ctx.roundRect(1, h - 2, w - 2, 4, 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#f3f4f6';
+  ctx.fillRect(w * 0.28 - 2, h - 3, 4, 6);
+  ctx.fillRect(w * 0.72 - 2, h - 3, 4, 6);
+  ctx.restore();
+
+  // Hood classic chrome dividing stripe (1950s style)
+  ctx.strokeStyle = '#f3f4f6';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(w / 2, 2);
+  ctx.lineTo(w / 2, t.roofY - 2);
+  ctx.stroke();
+
+  // Racing stripes for sports cars
+  if (t.id === 'sport') {
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+    ctx.fillRect(w * 0.35, 2, 3, t.roofY - 3);
+    ctx.fillRect(w * 0.6, 2, 3, t.roofY - 3);
+    ctx.fillRect(w * 0.35, t.roofY + t.roofH + 2, 3, h - (t.roofY + t.roofH) - 4);
+    ctx.fillRect(w * 0.6, t.roofY + t.roofH + 2, 3, h - (t.roofY + t.roofH) - 4);
+  }
+
   // Disable shadow for interior details to keep them crisp
   ctx.shadowColor = 'transparent';
   ctx.shadowBlur = 0;
@@ -679,10 +722,6 @@ function drawCarShape(ctx, type, color, weapons=[], angle=0) {
   ctx.beginPath();
   ctx.moveTo(w*0.35, 1); ctx.lineTo(w*0.65, 1);
   ctx.stroke();
-
-  // Front bumper lip
-  ctx.fillStyle = '#374151';
-  ctx.fillRect(4, -1, w - 8, 1);
 
   // Side Mirrors
   ctx.fillStyle = color;
