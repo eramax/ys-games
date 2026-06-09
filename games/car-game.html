@@ -301,27 +301,27 @@
     50% { opacity: 0.6; }
   }
   #joystick-container {
-    width: 150px; height: 150px;
+    width: 180px; height: 200px;
     position: relative;
     pointer-events: all;
     touch-action: none;
   }
   #joystick-base {
-    width: 150px; height: 150px;
-    background: rgba(0,0,0,0.45);
-    border: 2px solid rgba(255,255,255,0.15);
+    width: 120px; height: 120px;
+    background: rgba(255,255,255,0.08);
+    border: 2px solid rgba(255,255,255,0.12);
     border-radius: 50%;
     position: absolute;
-    top: 0; left: 0;
+    display: none;
+    pointer-events: none;
   }
   #joystick-thumb {
-    width: 55px; height: 55px;
-    background: rgba(245,197,24,0.5);
-    border: 2px solid rgba(245,197,24,0.7);
+    width: 50px; height: 50px;
+    background: rgba(255,255,255,0.35);
+    border: 2px solid rgba(255,255,255,0.5);
     border-radius: 50%;
     position: absolute;
-    top: 47.5px; left: 47.5px;
-    transition: background 0.1s;
+    display: none;
     pointer-events: none;
   }
 
@@ -1708,51 +1708,51 @@ function setupInput() {
   const bombBtn = document.getElementById('btn-bomb');
   if (bombBtn) setupTouchBtn(bombBtn, 'bomb');
 
-  // Joystick
+  // Joystick (PUBG-style floating)
   const joystickContainer = document.getElementById('joystick-container');
+  const joystickBase = document.getElementById('joystick-base');
   const joystickThumb = document.getElementById('joystick-thumb');
   let joystickTouchId = null;
-  const joystickRadius = 47;
+  let joyStartX = 0, joyStartY = 0;
+  const joyMaxRadius = 50;
 
-  if (joystickContainer && joystickThumb) {
-    const getJoystickPos = (touch) => {
-      const rect = joystickContainer.getBoundingClientRect();
-      const cx = rect.left + rect.width / 2;
-      const cy = rect.top + rect.height / 2;
-      let dx = touch.clientX - cx;
-      let dy = touch.clientY - cy;
-      const dist = Math.sqrt(dx*dx + dy*dy);
-      if (dist > joystickRadius) {
-        dx = dx / dist * joystickRadius;
-        dy = dy / dist * joystickRadius;
-      }
-      return { dx, dy };
-    };
-
+  if (joystickContainer) {
     joystickContainer.addEventListener('touchstart', (e) => {
       if (e.cancelable) e.preventDefault();
       const touch = e.changedTouches[0];
       joystickTouchId = touch.identifier;
-      const pos = getJoystickPos(touch);
-      joystickThumb.style.left = (47.5 + pos.dx) + 'px';
-      joystickThumb.style.top = (47.5 + pos.dy) + 'px';
-      joystickThumb.style.background = 'rgba(245,197,24,0.7)';
-      if (gameState) {
-        gameState.joystickX = pos.dx / joystickRadius;
-        gameState.joystickY = pos.dy / joystickRadius;
-      }
+      joyStartX = touch.clientX;
+      joyStartY = touch.clientY;
+      const rect = joystickContainer.getBoundingClientRect();
+      const bx = touch.clientX - rect.left - 60;
+      const by = touch.clientY - rect.top - 60;
+      joystickBase.style.left = bx + 'px';
+      joystickBase.style.top = by + 'px';
+      joystickBase.style.display = 'block';
+      joystickThumb.style.left = (bx + 35) + 'px';
+      joystickThumb.style.top = (by + 35) + 'px';
+      joystickThumb.style.display = 'block';
     }, {passive: false});
 
     joystickContainer.addEventListener('touchmove', (e) => {
       if (e.cancelable) e.preventDefault();
       for (const touch of e.changedTouches) {
         if (touch.identifier === joystickTouchId) {
-          const pos = getJoystickPos(touch);
-          joystickThumb.style.left = (47.5 + pos.dx) + 'px';
-          joystickThumb.style.top = (47.5 + pos.dy) + 'px';
+          let dx = touch.clientX - joyStartX;
+          let dy = touch.clientY - joyStartY;
+          const dist = Math.sqrt(dx*dx + dy*dy);
+          if (dist > joyMaxRadius) {
+            dx = dx / dist * joyMaxRadius;
+            dy = dy / dist * joyMaxRadius;
+          }
+          const rect = joystickContainer.getBoundingClientRect();
+          const baseX = joyStartX - rect.left - 60;
+          const baseY = joyStartY - rect.top - 60;
+          joystickThumb.style.left = (baseX + 35 + dx) + 'px';
+          joystickThumb.style.top = (baseY + 35 + dy) + 'px';
           if (gameState) {
-            gameState.joystickX = pos.dx / joystickRadius;
-            gameState.joystickY = pos.dy / joystickRadius;
+            gameState.joystickX = dx / joyMaxRadius;
+            gameState.joystickY = dy / joyMaxRadius;
           }
         }
       }
@@ -1762,9 +1762,8 @@ function setupInput() {
       for (const touch of e.changedTouches) {
         if (touch.identifier === joystickTouchId) {
           joystickTouchId = null;
-          joystickThumb.style.left = '47.5px';
-          joystickThumb.style.top = '47.5px';
-          joystickThumb.style.background = 'rgba(245,197,24,0.5)';
+          joystickBase.style.display = 'none';
+          joystickThumb.style.display = 'none';
           if (gameState) {
             gameState.joystickX = 0;
             gameState.joystickY = 0;
