@@ -392,6 +392,9 @@
     <div class="ctrl-row" id="weapon-fire-row">
       <!-- weapon buttons injected dynamically -->
     </div>
+    <div class="ctrl-row">
+      <button class="ctrl-btn" id="btn-bomb" style="background:rgba(255,80,0,0.5); color:#fff; font-size:1rem">💣</button>
+    </div>
   </div>
 
   <!-- RIGHT: direction -->
@@ -1219,7 +1222,8 @@ function initGameState() {
         machine: Infinity,
         cannon: Infinity,
         electro: 0,
-        flame: 0
+        flame: 0,
+        bomb: 5
       },
       score: 0,
       wantedLevel: 0,
@@ -1237,6 +1241,10 @@ function initGameState() {
     chunks: {},
     pedestrians: [],
     lightningArcs: [],
+    trams: [],
+    roadblocks: [],
+    bombs: [],
+    fireCircles: [],
     startTime: Date.now(),
     keys: {},
     touchKeys: {},
@@ -1258,6 +1266,9 @@ function initGameState() {
 
   // spawn initial pedestrians
   for (let i = 0; i < 60; i++) spawnPedestrian();
+
+  // spawn trams on some road segments
+  spawnTrams();
   return gameState;
 }
 
@@ -1412,6 +1423,151 @@ function spawnPedestrian() {
   }
 }
 
+// ==================== TRAM SYSTEM ====================
+function spawnTrams() {
+  if (!gameState) return;
+  const p = gameState.player;
+  const pCX = Math.floor(p.x / 1280);
+  const pCY = Math.floor(p.y / 1280);
+  for (let dx = -3; dx <= 3; dx++) {
+    for (let dy = -3; dy <= 3; dy++) {
+      const cx = pCX + dx;
+      const cy = pCY + dy;
+      const seed = Math.abs(cx * 137 + cy * 251) % 100;
+      if (seed < 50) {
+        const key = `${cx},${cy}`;
+        if (!gameState.chunks[key]) generateChunk(cx, cy);
+        const isHorizontal = seed < 25;
+        if (isHorizontal) {
+          const ty = cy * 1280 + 7 * 80 + 40;
+          const exists = gameState.trams.some(t => t.trackId === `h_${cy}`);
+          if (!exists) {
+            gameState.trams.push({
+              x: (cx - 2) * 1280, y: ty,
+              angle: 0, speed: 90, direction: 1,
+              trackStartX: (cx - 3) * 1280,
+              trackEndX: (cx + 4) * 1280,
+              trackY: ty,
+              trackId: `h_${cy}`,
+              w: 160, h: 34, color: '#b91c1c',
+              hp: 800, state: 'moving', size: 1
+            });
+          }
+        } else {
+          const tx = cx * 1280 + 7 * 80 + 40;
+          const exists = gameState.trams.some(t => t.trackId === `v_${cx}`);
+          if (!exists) {
+            gameState.trams.push({
+              x: tx, y: (cy - 2) * 1280,
+              angle: Math.PI / 2, speed: 90, direction: 1,
+              trackStartY: (cy - 3) * 1280,
+              trackEndY: (cy + 4) * 1280,
+              trackX: tx,
+              trackId: `v_${cx}`,
+              w: 160, h: 34, color: '#b91c1c',
+              hp: 800, state: 'moving', size: 1
+            });
+          }
+        }
+      }
+    }
+  }
+}
+
+// ==================== BOMB SYSTEM ====================
+function dropBomb() {
+  if (!gameState) return;
+  const p = gameState.player;
+  if (!p.ammo || p.ammo.bomb === undefined || p.ammo.bomb <= 0) return;
+  p.ammo.bomb--;
+  if (p.ammo.bomb <= 0) {
+    const idx = p.weapons.indexOf('bomb');
+    if (idx !== -1) { p.weapons.splice(idx, 1); p.activeWeapon = Math.max(0, p.activeWeapon - 1); }
+  }
+  const spawnDist = p.type.h * p.size * 0.8;
+  const bx = p.x + Math.sin(p.angle) * spawnDist;
+  const by = p.y - Math.cos(p.angle) * spawnDist;
+  gameState.bombs.push({
+    x: bx, y: by,
+    vx: Math.sin(p.angle) * 280 + p.vx * 0.6,
+    vy: -Math.cos(p.angle) * 280 + p.vy * 0.6,
+    timer: 1.0,
+    size: 6
+  });
+  playShoot('cannon');
+}
+
+function explodeBomb(bomb) {
+  const radius = 160;
+  const p = gameState.player;
+  spawnParticles(bomb.x, bomb.y, 40, '#ff4400');
+  spawnParticles(bomb.x, bomb.y, 30, '#ffaa00');
+  spawnParticles(bomb.x, bomb.y, 20, '#ffff00');
+  gameState.fireCircles.push({ x: bomb.x, y: bomb.y, radius: radius, timer: 4, maxTimer: 4 });
+  playCrash();
+  gameState.traffic.forEach(car => {
+    if (car.state === 'destroyed') return;
+    const d = Math.hypot(car.x - bomb.x, car.y - bomb.y);
+    if (d < radius) {
+      car.hp = 0;
+      car.state = 'burning';
+      car.burnTimer = 4;
+      spawnParticles(car.x, car.y, 10, '#ff4400');
+    }
+  });
+  gameState.police.forEach(pol => {
+    if (pol.state === 'destroyed') return;
+    const d = Math.hypot(pol.x - bomb.x, pol.y - bomb.y);
+    if (d < radius) {
+      pol.hp = 0;
+      pol.state = 'burning';
+      pol.burnTimer = 4;
+      spawnParticles(pol.x, pol.y, 10, '#ff4400');
+    }
+  });
+  gameState.pedestrians.forEach(ped => {
+    if (ped.state === 'splatted' || ped.state === 'dead') return;
+    const d = Math.hypot(ped.x - bomb.x, ped.y - bomb.y);
+    if (d < radius) {
+      ped.state = 'splatted';
+      ped.deathTime = Date.now();
+      spawnParticles(ped.x, ped.y, 6, '#ef4444');
+      p.score += 20;
+    }
+  });
+  const pd = Math.hypot(p.x - bomb.x, p.y - bomb.y);
+  if (pd < radius + 30) {
+    damagePlayer(50);
+    p.speed *= 0.2;
+    const pushX = (p.x - bomb.x) / (pd || 1);
+    const pushY = (p.y - bomb.y) / (pd || 1);
+    p.x += pushX * 40;
+    p.y += pushY * 40;
+  }
+}
+
+// ==================== ROADBLOCK SYSTEM ====================
+function spawnRoadblock() {
+  if (!gameState) return;
+  const p = gameState.player;
+  if (p.wantedLevel < 2) return;
+  if (gameState.roadblocks.length > 5) return;
+  const a = Math.random() * Math.PI * 2;
+  const dist = 400 + Math.random() * 300;
+  const bx = p.x + Math.cos(a) * dist;
+  const by = p.y + Math.sin(a) * dist;
+  const isHoriz = Math.abs(Math.cos(a)) > Math.abs(Math.sin(a));
+  const barriers = [];
+  for (let i = 0; i < 4; i++) {
+    barriers.push({
+      x: bx + (isHoriz ? i * 30 - 45 : 0),
+      y: by + (isHoriz ? 0 : i * 30 - 45),
+      hp: 30, alive: true
+    });
+  }
+  gameState.roadblocks.push({ x: bx, y: by, barriers, isHoriz, spawnTime: Date.now() });
+}
+
 // ==================== GAME LOOP ====================
 function startGame() {
   hideAll();
@@ -1482,6 +1638,9 @@ function setupInput() {
     const btn = document.getElementById('btn-'+action);
     if (btn) setupTouchBtn(btn, action);
   });
+  // Bomb button
+  const bombBtn = document.getElementById('btn-bomb');
+  if (bombBtn) setupTouchBtn(bombBtn, 'bomb');
 
   document.addEventListener('keydown', e => {
     if (!gameState) return;
@@ -1582,18 +1741,66 @@ function update(dt) {
 
   // Fire
   if (anyFire) {
-    // find which weapon is being fired from touchkeys
     let wToFire = p.weapons[p.activeWeapon] || p.weapons[0];
     for(let i=0;i<p.weapons.length;i++) if(tk['fire_'+p.weapons[i]]) { wToFire=p.weapons[i]; break; }
     fireBullet(wToFire);
   }
+  if (keys['KeyE'] || tk['bomb']) {
+    if (!gameState._bombCooldown) { dropBomb(); gameState._bombCooldown = true; }
+  } else { gameState._bombCooldown = false; }
 
   // Update bullets
   gameState.bullets = gameState.bullets.filter(b => {
     b.x += b.vx*dt; b.y += b.vy*dt;
     b.life -= dt;
     if (b.life<=0) return false;
-    if (isWall(b.x,b.y,4,4)) { spawnParticles(b.x,b.y,4,'#ffaa00'); return false; }
+
+    // Player bullets hit trams (before isWall check)
+    if (!b.fromPedestrian && gameState.trams) {
+      for (const tram of gameState.trams) {
+        if (tram.state === 'destroyed') continue;
+        // Use AABB check since trams are long rectangles
+        const cos = Math.cos(-tram.angle);
+        const sin = Math.sin(-tram.angle);
+        const dx = b.x - tram.x;
+        const dy = b.y - tram.y;
+        const lx = Math.abs(cos * dx - sin * dy);
+        const ly = Math.abs(sin * dx + cos * dy);
+        if (lx < tram.w / 2 + 12 && ly < tram.h / 2 + 12) {
+          const dmg = b.weapon === 'cannon' ? 40 : b.weapon === 'flame' ? 8 : 15;
+          tram.hp -= dmg;
+          spawnParticles(b.x, b.y, 6, b.weapon === 'cannon' ? '#ff6600' : '#ffaa00');
+          if (tram.hp <= 0) {
+            tram.state = 'destroyed';
+            spawnParticles(tram.x, tram.y, 30, '#ff4400');
+            spawnParticles(tram.x, tram.y, 20, '#ffaa00');
+            p.score += 100;
+            p.wantedLevel = Math.min(5, p.wantedLevel + 1);
+          }
+          return false;
+        }
+      }
+    }
+
+    // Player bullets hit roadblock barriers (before isWall check)
+    if (!b.fromPedestrian && gameState.roadblocks) {
+      for (const rb of gameState.roadblocks) {
+        for (const barrier of rb.barriers) {
+          if (!barrier.alive) continue;
+          if (Math.hypot(b.x - barrier.x, b.y - barrier.y) < 15) {
+            barrier.hp -= b.weapon === 'cannon' ? 40 : b.weapon === 'flame' ? 8 : 15;
+            spawnParticles(b.x, b.y, 4, '#ffaa00');
+            if (barrier.hp <= 0) {
+              barrier.alive = false;
+              spawnParticles(barrier.x, barrier.y, 8, '#888');
+            }
+            return false;
+          }
+        }
+      }
+    }
+
+    if (isWall(b.x,b.y,4,4,true)) { spawnParticles(b.x,b.y,4,'#ffaa00'); return false; }
     
     if (b.fromPedestrian) {
       // Pedestrian bullets hit: player, traffic, police, and other pedestrians
@@ -1628,7 +1835,8 @@ function update(dt) {
         if (car.state === 'destroyed') continue;
         if (rectHit(b.x, b.y, car.x, car.y, car.type.w * car.size, car.type.h * car.size)) {
           hitCar(car, b.weapon);
-          spawnParticles(b.x, b.y, 6, '#ff4455');
+          spawnParticles(b.x, b.y, 8, b.weapon === 'flame' ? '#f97316' : '#ff4455');
+          p.score += b.weapon === 'cannon' ? 50 : b.weapon === 'flame' ? 5 : 20;
           return false;
         }
       }
@@ -1909,6 +2117,13 @@ function update(dt) {
   while (gameState.traffic.length < 20) {
     spawnTraffic();
   }
+
+  // Dynamic tram spawning as player explores
+  if (Math.random() < dt * 0.5) spawnTrams();
+
+  // Cleanup only destroyed trams, keep active ones
+  gameState.trams = gameState.trams.filter(t => t.state !== 'destroyed');
+  if (gameState.trams.length > 30) gameState.trams.splice(0, gameState.trams.length - 30);
 
   // Particles
   gameState.particles.forEach(p => {
@@ -2220,6 +2435,126 @@ function update(dt) {
       }
     }
   });
+
+  // === TRAM UPDATE ===
+  gameState.trams.forEach(tram => {
+    if (tram.state === 'destroyed') return;
+    if (tram.trackStartX !== undefined) {
+      tram.x += tram.speed * tram.direction * dt;
+      if (tram.x > tram.trackEndX) { tram.direction = -1; }
+      if (tram.x < tram.trackStartX) { tram.direction = 1; }
+    } else {
+      tram.y += tram.speed * tram.direction * dt;
+      if (tram.y > tram.trackEndY) { tram.direction = -1; }
+      if (tram.y < tram.trackStartY) { tram.direction = 1; }
+    }
+    const d = Math.hypot(p.x - tram.x, p.y - tram.y);
+    if (d < 70) {
+      damagePlayer(15);
+      const pushX = (p.x - tram.x) / (d || 1);
+      const pushY = (p.y - tram.y) / (d || 1);
+      p.x += pushX * 10;
+      p.y += pushY * 10;
+    }
+    gameState.traffic.forEach(car => {
+      if (car.state === 'destroyed') return;
+      if (Math.hypot(car.x - tram.x, car.y - tram.y) < 50) {
+        car.hp = 0;
+        car.state = 'burning';
+        car.burnTimer = 3;
+        spawnParticles(car.x, car.y, 15, '#ff4400');
+      }
+    });
+  });
+
+  // === BOMB UPDATE ===
+  gameState.bombs.forEach(bomb => {
+    bomb.x += bomb.vx * dt;
+    bomb.y += bomb.vy * dt;
+    bomb.vx *= 0.9;
+    bomb.vy *= 0.9;
+    bomb.timer -= dt;
+    // Bomb only bounces off buildings and roundabouts, not trams/roadblocks
+    const bx = Math.floor(bomb.x / 1280);
+    const by = Math.floor(bomb.y / 1280);
+    const key = `${bx},${by}`;
+    const chunk = gameState.chunks[key];
+    if (chunk) {
+      let hitWall = false;
+      for (const b of chunk.buildings) {
+        if (bomb.x >= b.x - 4 && bomb.x <= b.x + b.w + 4 && bomb.y >= b.y - 4 && bomb.y <= b.y + b.h + 4) { hitWall = true; break; }
+      }
+      if (hitWall) { bomb.vx *= -0.5; bomb.vy *= -0.5; }
+    }
+    if (bomb.timer <= 0) {
+      bomb.exploded = true;
+      explodeBomb(bomb);
+    }
+  });
+  gameState.bombs = gameState.bombs.filter(b => !b.exploded);
+
+  // === ROADBLOCK SPAWN ===
+  if (p.wantedLevel >= 2 && Math.random() < dt * 0.3) {
+    spawnRoadblock();
+  }
+
+  // === ROADBLOCK UPDATE ===
+  gameState.roadblocks.forEach(rb => {
+    rb.barriers.forEach(barrier => {
+      if (!barrier.alive) return;
+      const allCars = [p, ...gameState.traffic, ...gameState.police];
+      allCars.forEach(car => {
+        if (car.state === 'destroyed') return;
+        if (Math.hypot(car.x - barrier.x, car.y - barrier.y) < 20) {
+          barrier.hp -= Math.abs(car.speed) * dt * 2;
+          if (barrier.hp <= 0) {
+            barrier.alive = false;
+            spawnParticles(barrier.x, barrier.y, 5, '#ffaa00');
+          }
+        }
+      });
+      gameState.bullets.forEach(b => {
+        if (b.fromPedestrian) return;
+        if (Math.hypot(b.x - barrier.x, b.y - barrier.y) < 15) {
+          barrier.hp -= 10;
+          b.life = 0;
+          if (barrier.hp <= 0) {
+            barrier.alive = false;
+            spawnParticles(barrier.x, barrier.y, 5, '#ffaa00');
+          }
+        }
+      });
+    });
+  });
+  gameState.roadblocks = gameState.roadblocks.filter(rb => rb.barriers.some(b => b.alive));
+
+  // === FIRE CIRCLE UPDATE ===
+  gameState.fireCircles.forEach(fc => {
+    fc.timer -= dt;
+    gameState.traffic.forEach(car => {
+      if (car.state === 'destroyed' || car.state === 'burning') return;
+      if (Math.hypot(car.x - fc.x, car.y - fc.y) < fc.radius * 0.7) {
+        car.hp -= 30 * dt;
+        if (car.hp <= 0) { car.state = 'burning'; car.burnTimer = 3; }
+      }
+    });
+    gameState.police.forEach(pol => {
+      if (pol.state === 'destroyed' || pol.state === 'burning') return;
+      if (Math.hypot(pol.x - fc.x, pol.y - fc.y) < fc.radius * 0.7) {
+        pol.hp -= 30 * dt;
+        if (pol.hp <= 0) { pol.state = 'burning'; pol.burnTimer = 3; }
+      }
+    });
+    gameState.pedestrians.forEach(ped => {
+      if (ped.state === 'splatted' || ped.state === 'dead') return;
+      if (Math.hypot(ped.x - fc.x, ped.y - fc.y) < fc.radius * 0.7) {
+        ped.state = 'splatted';
+        ped.deathTime = Date.now();
+        p.score += 20;
+      }
+    });
+  });
+  gameState.fireCircles = gameState.fireCircles.filter(fc => fc.timer > 0);
 }
 
 function spawnPowerUp() {
@@ -2252,7 +2587,7 @@ function spawnPowerUp() {
     
     const dist = Math.hypot(px - p.x, py - p.y);
     if (dist > 150) {
-      const types = ['health', 'shield', 'nitro', 'score', 'electro', 'flame'];
+      const types = ['health', 'shield', 'nitro', 'score', 'electro', 'flame', 'bomb'];
       const type = types[Math.floor(Math.random() * types.length)];
       gameState.powerUps.push({
         id: Math.random(),
@@ -2288,6 +2623,9 @@ function applyPowerUp(pu) {
     if (!p.weapons.includes('flame')) p.weapons.push('flame');
     p.ammo.flame = (p.ammo.flame || 0) + 80;
     p.activeWeapon = p.weapons.indexOf('flame');
+  } else if (pu.type === 'bomb') {
+    if (!p.weapons.includes('bomb')) p.weapons.push('bomb');
+    p.ammo.bomb = (p.ammo.bomb || 0) + 5;
   }
 }
 
@@ -2350,6 +2688,7 @@ function drawPowerUps() {
     else if (pu.type === 'score') { color = '#eab308'; icon = '💰'; label = 'جائزة'; }
     else if (pu.type === 'electro') { color = '#a855f7'; icon = '🔌'; label = 'كهرباء'; }
     else if (pu.type === 'flame') { color = '#ef4444'; icon = '🔥'; label = 'نار'; }
+    else if (pu.type === 'bomb') { color = '#f97316'; icon = '💣'; label = 'قنبلة'; }
 
     // Outer glow ring
     ctx.shadowColor = color;
@@ -2619,7 +2958,7 @@ function onPowerUpCollected() {
   });
 }
 
-function isWall(x, y, w, h) {
+function isWall(x, y, w, h, _isWallForBullets) {
   const chunkCol = Math.floor(x / 1280);
   const chunkRow = Math.floor(y / 1280);
   
@@ -2670,6 +3009,34 @@ function isWall(x, y, w, h) {
       }
     }
   }
+
+  // 4. Check trams as walls (player movement only, not bullets)
+  if (gameState.trams && !_isWallForBullets) {
+    for (const tram of gameState.trams) {
+      if (tram.state === 'destroyed') continue;
+      const cos = Math.cos(-tram.angle);
+      const sin = Math.sin(-tram.angle);
+      const dx = x - tram.x;
+      const dy = y - tram.y;
+      const lx = cos * dx - sin * dy;
+      const ly = sin * dx + cos * dy;
+      if (Math.abs(lx) < tram.w / 2 + w / 2 && Math.abs(ly) < tram.h / 2 + h / 2) return true;
+    }
+  }
+
+  // 5. Check roadblock barriers as walls (player movement only, not bullets)
+  if (gameState.roadblocks && !_isWallForBullets) {
+    for (const rb of gameState.roadblocks) {
+      for (const b of rb.barriers) {
+        if (!b.alive) continue;
+        const marginX = w / 2 + 10;
+        const marginY = h / 2 + 10;
+        if (x >= b.x - marginX && x <= b.x + marginX &&
+            y >= b.y - marginY && y <= b.y + marginY) return true;
+      }
+    }
+  }
+
   return false;
 }
 
@@ -2758,6 +3125,14 @@ function render() {
   drawBullets();
   // Particles
   drawParticles();
+  // Fire circles
+  drawFireCircles();
+  // Trams
+  drawTrams();
+  // Roadblocks
+  drawRoadblocks();
+  // Bombs
+  drawBombs();
   // Lightning arcs (drawn on top)
   drawLightningArcs();
 
@@ -3640,8 +4015,180 @@ function drawLightningArcs() {
   ctx.restore();
 }
 
+// ==================== TRAM DRAW ====================
+function drawTrams() {
+  if (!gameState || !gameState.trams) return;
+  const p = gameState.player;
+  gameState.trams.forEach(tram => {
+    if (tram.state === 'destroyed') return;
+    ctx.save();
+    ctx.translate(tram.x, tram.y);
+    ctx.rotate(tram.angle);
+    // Tram body
+    ctx.fillStyle = tram.color;
+    ctx.beginPath();
+    ctx.roundRect(-tram.w/2, -tram.h/2, tram.w, tram.h, 6);
+    ctx.fill();
+    ctx.strokeStyle = '#7f1d1d';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Windows
+    ctx.fillStyle = 'rgba(200,220,255,0.7)';
+    for (let i = 0; i < 5; i++) {
+      ctx.fillRect(-tram.w/2 + 14 + i * 30, -tram.h/2 + 4, 22, tram.h - 8);
+    }
+    // Roof
+    ctx.fillStyle = '#991b1b';
+    ctx.fillRect(-tram.w/2 + 4, -tram.h/2 - 3, tram.w - 8, 5);
+    // Headlights
+    ctx.fillStyle = '#fef9c3';
+    ctx.beginPath();
+    ctx.arc(tram.w/2 - 4, -6, 3, 0, Math.PI*2);
+    ctx.arc(tram.w/2 - 4, 6, 3, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+    // Tram tracks (rails) - draw only visible portion
+    ctx.save();
+    ctx.strokeStyle = '#6b7280';
+    ctx.lineWidth = 3;
+    if (tram.trackStartX !== undefined) {
+      const visL = Math.max(tram.trackStartX, p.x - 1200);
+      const visR = Math.min(tram.trackEndX, p.x + 1200);
+      if (visL < visR) {
+        ctx.beginPath();
+        ctx.moveTo(visL, tram.trackY - 8);
+        ctx.lineTo(visR, tram.trackY - 8);
+        ctx.moveTo(visL, tram.trackY + 8);
+        ctx.lineTo(visR, tram.trackY + 8);
+        ctx.stroke();
+        // Sleepers
+        ctx.strokeStyle = '#4b5563';
+        ctx.lineWidth = 2;
+        for (let sx = Math.floor(visL/40)*40; sx < visR; sx += 40) {
+          ctx.beginPath();
+          ctx.moveTo(sx, tram.trackY - 12);
+          ctx.lineTo(sx, tram.trackY + 12);
+          ctx.stroke();
+        }
+      }
+    } else {
+      const visT = Math.max(tram.trackStartY, p.y - 1200);
+      const visB = Math.min(tram.trackEndY, p.y + 1200);
+      if (visT < visB) {
+        ctx.beginPath();
+        ctx.moveTo(tram.trackX - 8, visT);
+        ctx.lineTo(tram.trackX - 8, visB);
+        ctx.moveTo(tram.trackX + 8, visT);
+        ctx.lineTo(tram.trackX + 8, visB);
+        ctx.stroke();
+        ctx.strokeStyle = '#4b5563';
+        ctx.lineWidth = 2;
+        for (let sy = Math.floor(visT/40)*40; sy < visB; sy += 40) {
+          ctx.beginPath();
+          ctx.moveTo(tram.trackX - 12, sy);
+          ctx.lineTo(tram.trackX + 12, sy);
+          ctx.stroke();
+        }
+      }
+    }
+    ctx.restore();
+  });
+}
+
+// ==================== BOMB DRAW ====================
+function drawBombs() {
+  if (!gameState || !gameState.bombs) return;
+  gameState.bombs.forEach(bomb => {
+    ctx.save();
+    ctx.translate(bomb.x, bomb.y);
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath();
+    ctx.ellipse(2, 2, bomb.size, bomb.size * 0.6, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Bomb body
+    ctx.fillStyle = '#1a1a1a';
+    ctx.beginPath();
+    ctx.arc(0, 0, bomb.size, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    // Fuse
+    ctx.strokeStyle = '#d97706';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, -bomb.size);
+    ctx.quadraticCurveTo(4, -bomb.size - 5, 2, -bomb.size - 8);
+    ctx.stroke();
+    // Fuse spark
+    if (bomb.timer < 0.5) {
+      ctx.fillStyle = bomb.timer % 0.1 > 0.05 ? '#ff4400' : '#ffaa00';
+      ctx.beginPath();
+      ctx.arc(2, -bomb.size - 8, 3 + Math.random() * 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  });
+}
+
+// ==================== ROADBLOCK DRAW ====================
+function drawRoadblocks() {
+  if (!gameState || !gameState.roadblocks) return;
+  gameState.roadblocks.forEach(rb => {
+    rb.barriers.forEach(barrier => {
+      if (!barrier.alive) return;
+      ctx.save();
+      ctx.translate(barrier.x, barrier.y);
+      // Concrete barrier
+      ctx.fillStyle = '#9ca3af';
+      ctx.fillRect(-12, -6, 24, 12);
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(-12, -6, 24, 12);
+      // Red-white stripes
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(-10, -4, 6, 8);
+      ctx.fillRect(4, -4, 6, 8);
+      ctx.restore();
+    });
+  });
+}
+
+// ==================== FIRE CIRCLE DRAW ====================
+function drawFireCircles() {
+  if (!gameState || !gameState.fireCircles) return;
+  gameState.fireCircles.forEach(fc => {
+    const alpha = fc.timer / fc.maxTimer;
+    ctx.save();
+    // Burn ground
+    const grad = ctx.createRadialGradient(fc.x, fc.y, 0, fc.x, fc.y, fc.radius);
+    grad.addColorStop(0, `rgba(255,80,0,${alpha * 0.4})`);
+    grad.addColorStop(0.5, `rgba(255,40,0,${alpha * 0.25})`);
+    grad.addColorStop(1, `rgba(200,0,0,0)`);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(fc.x, fc.y, fc.radius, 0, Math.PI * 2);
+    ctx.fill();
+    // Fire ring
+    ctx.strokeStyle = `rgba(255,120,0,${alpha * 0.6})`;
+    ctx.lineWidth = 4;
+    ctx.setLineDash([8, 6]);
+    ctx.beginPath();
+    ctx.arc(fc.x, fc.y, fc.radius * 0.85, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // Inner fire
+    ctx.fillStyle = `rgba(255,200,50,${alpha * 0.15})`;
+    ctx.beginPath();
+    ctx.arc(fc.x, fc.y, fc.radius * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  });
+}
+
 // ==================== HUD ====================
-const WEAPON_NAMES = {pistol:'🔫 مسدس', machine:'💥 رشاش', cannon:'💣 مدفع', electro:'⚡ سلاح كهرباء', flame:'🔥 قاذف اللهب'};
+const WEAPON_NAMES = {pistol:'🔫 مسدس', machine:'💥 رشاش', cannon:'💣 مدفع', electro:'⚡ سلاح كهرباء', flame:'🔥 قاذف اللهب', bomb:'💣 قنبلة'};
 const STAR_ON='★', STAR_OFF='☆';
 function updateHUD() {
   if (!gameState) return;
