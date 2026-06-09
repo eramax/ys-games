@@ -1095,6 +1095,10 @@ function update(dt) {
   const p = gameState.player;
   if (!p.alive) return;
 
+  // Decrement power-up timers
+  if (p.shieldTime > 0) p.shieldTime = Math.max(0, p.shieldTime - dt);
+  if (p.nitroTime > 0) p.nitroTime = Math.max(0, p.nitroTime - dt);
+
   // Input
   const keys = gameState.keys, tk = gameState.touchKeys;
   const turnLeft  = keys['ArrowLeft']  || keys['KeyA'] || tk['left'];
@@ -1110,8 +1114,8 @@ function update(dt) {
   if (turnRight) p.angle += steerSpeed * dt * (0.4 + Math.abs(p.speed)/200);
 
   // Acceleration
-  const maxSpeed = 220 * p.size;
-  const accelForce = 260;
+  const maxSpeed = (220 * p.size) * (p.nitroTime > 0 ? 1.6 : 1);
+  const accelForce = 260 * (p.nitroTime > 0 ? 1.8 : 1);
   const brakeForce = 400;
   const friction = 140;
   if (accel) p.speed = Math.min(p.speed + accelForce*dt, maxSpeed);
@@ -1121,6 +1125,23 @@ function update(dt) {
 
   p.vx = Math.sin(p.angle) * p.speed;
   p.vy = -Math.cos(p.angle) * p.speed;
+
+  // Nitro particle effects
+  if (p.nitroTime > 0 && Math.random() < 0.4) {
+    const backDist = -p.type.h * p.size * 0.45;
+    const px = p.x + Math.sin(p.angle) * backDist;
+    const py = p.y - Math.cos(p.angle) * backDist;
+    gameState.particles.push({
+      x: px, y: py,
+      vx: -Math.sin(p.angle) * 120 + (Math.random()-0.5)*30,
+      vy: Math.cos(p.angle) * 120 + (Math.random()-0.5)*30,
+      color: Math.random() > 0.5 ? '#f97316' : '#3b82f6',
+      size: 4 + Math.random()*4,
+      life: 0.3,
+      maxLife: 0.3,
+      alpha: 1
+    });
+  }
 
   const newX = p.x + p.vx*dt;
   const newY = p.y + p.vy*dt;
