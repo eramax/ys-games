@@ -285,9 +285,9 @@
   .go-sub { color: var(--color-muted); font-size: 1rem; }
   .go-score { font-size: 1.5rem; font-weight: 700; color: var(--color-primary); }
   #fps-debug {
-    position:fixed; top:0; left:0; background:rgba(0,0,0,.7);
-    color:#0f0; font:11px/1.5 monospace; padding:4px 8px;
-    z-index:9999; pointer-events:none;
+    position:fixed; top:4px; right:4px; background:rgba(0,0,0,.5);
+    color:rgba(255,255,255,.4); font:10px/1.2 monospace; padding:2px 6px;
+    border-radius:4px; z-index:9999; pointer-events:none;
   }
 </style>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
@@ -340,12 +340,8 @@
         <button class="weapon-btn" data-weapon="pistol">🔫 مسدس</button>
         <button class="weapon-btn" data-weapon="machine">💥 رشاش</button>
         <button class="weapon-btn" data-weapon="cannon">💣 مدفع</button>
-  </div>
-  <div class="hud-panel">
-    <div>السلاح: <span class="hud-value" id="hud-weapon">--</span></div>
-    <div style="font-size:0.75rem; color:var(--color-muted)" id="hud-ammo">∞ طلقات</div>
-  </div>
-</div>
+      </div>
+    </div>
 
     <div style="display:flex; gap:12px; align-items:center; justify-content:center; flex-wrap:wrap;">
       <canvas id="preview-canvas" width="160" height="100"></canvas>
@@ -381,6 +377,7 @@
   <div class="hud-panel">
     <div>السلاح: <span class="hud-value" id="hud-weapon">--</span></div>
     <div style="font-size:0.75rem; color:var(--color-muted)" id="hud-ammo">∞ طلقات</div>
+    <button onclick="exitToMenu()" style="margin-top:4px; background:rgba(220,38,38,0.7); color:#fff; border:none; border-radius:6px; padding:3px 10px; font-size:0.7rem; font-family:var(--font-ar); cursor:pointer; pointer-events:auto">🚪 خروج</button>
   </div>
 </div>
 
@@ -1494,6 +1491,7 @@ function setupInput() {
     if (e.code==='Digit2') gameState.player.activeWeapon=1;
     if (e.code==='Digit3') gameState.player.activeWeapon=2;
     if (e.code==='Space') fireBullet();
+    if (e.code==='Escape') { exitToMenu(); return; }
     e.preventDefault && (e.key===' ' || e.key==='ArrowUp' || e.key==='ArrowDown') && e.preventDefault();
   });
   document.addEventListener('keyup', e => { if(gameState) gameState.keys[e.code]=false; });
@@ -2706,6 +2704,13 @@ function gameOver() {
 function restartGame() {
   hideAll();
   startGame();
+}
+
+function exitToMenu() {
+  gameState = null;
+  hideAll();
+  document.getElementById('title-screen').classList.remove('hidden');
+  document.getElementById('touch-controls').classList.add('hidden');
 }
 
 // ==================== RENDER ====================
