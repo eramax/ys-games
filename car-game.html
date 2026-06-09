@@ -1273,9 +1273,6 @@ function update(dt) {
   if (!isWall(p.x, newY, p.type.w*p.size, p.type.h*p.size)) p.y = newY;
   else { p.vy=0; p.speed*=-0.3; }
 
-  p.x = Math.max(10, Math.min(WORLD_W-10, p.x));
-  p.y = Math.max(10, Math.min(WORLD_H-10, p.y));
-
   playEngine(Math.abs(p.speed));
 
   // Fire
@@ -1346,8 +1343,6 @@ function update(dt) {
     if (hitX || hitY) {
       car.angle += Math.PI/2 + (Math.random()-0.5)*0.5;
     }
-    car.x=Math.max(10,Math.min(WORLD_W-10,car.x));
-    car.y=Math.max(10,Math.min(WORLD_H-10,car.y));
   });
 
   // Player vs Traffic Collisions
