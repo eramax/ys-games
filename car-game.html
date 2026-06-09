@@ -299,6 +299,7 @@
   <div class="hud-panel">
     <div>النقاط: <span class="hud-value" id="hud-score">0</span></div>
     <div>السرعة: <span class="hud-value" id="hud-speed">0</span></div>
+    <div>الصحة: <span class="hud-value" id="hud-hp" style="color:#22c55e">100%</span></div>
   </div>
   <div class="hud-panel" style="text-align:center">
     <div style="font-size:0.7rem; color:var(--color-muted)">مطلوب من الشرطة</div>
@@ -1088,6 +1089,7 @@ function initGameState() {
       alive: true,
       shieldTime: 0,
       nitroTime: 0,
+      hp: 100,
     },
     bullets: [],
     traffic: [],
@@ -1223,7 +1225,8 @@ function spawnPedestrian() {
     
     if (Math.hypot(px - p.x, py - p.y) < 150) return;
     
-    const clothingColors = ['#f8fafc', '#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
+    const isHostile = Math.random() < 0.25;
+    const clothingColors = isHostile ? ['#b91c1c', '#1e293b', '#7c2d12'] : ['#f8fafc', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
     gameState.pedestrians.push({
       x: px, y: py,
       angle: Math.random() * Math.PI * 2,
@@ -1231,6 +1234,8 @@ function spawnPedestrian() {
       color: clothingColors[Math.floor(Math.random() * clothingColors.length)],
       state: 'walking',
       legSwing: Math.random() * 10,
+      isHostile: isHostile,
+      shootCooldown: 1.0 + Math.random() * 1.5,
       id: Math.random()
     });
   }
@@ -1417,42 +1422,66 @@ function update(dt) {
     if (b.life<=0) return false;
     if (isWall(b.x,b.y,4,4)) { spawnParticles(b.x,b.y,4,'#ffaa00'); return false; }
     
-    // Check pedestrian hits
-    for (let i = gameState.pedestrians.length - 1; i >= 0; i--) {
-      const ped = gameState.pedestrians[i];
-      if (ped.state === 'dead' || ped.state === 'splatted') continue;
-      if (Math.hypot(b.x - ped.x, b.y - ped.y) < 18) {
-        ped.state = 'splatted';
-        ped.deathTime = Date.now();
-        playSquishSound();
-        spawnParticles(ped.x, ped.y, 8, b.weapon === 'flame' ? '#f97316' : '#ef4444');
-        p.score += 50;
-        p.wantedLevel = Math.min(5, p.wantedLevel + 1);
+    if (b.fromPedestrian) {
+      // Pedestrian bullets hit: player, traffic, or police
+      if (rectHit(b.x, b.y, p.x, p.y, p.type.w * p.size, p.type.h * p.size)) {
+        damagePlayer(12);
+        spawnParticles(b.x, b.y, 6, '#ff4400');
         return false;
       }
-    }
-
-    // check traffic hits
-    for (let i=gameState.traffic.length-1; i>=0; i--) {
-      const car = gameState.traffic[i];
-      if (car.state==='destroyed') continue;
-      if (rectHit(b.x,b.y,car.x,car.y,car.type.w*car.size,car.type.h*car.size)) {
-        hitCar(car, b.weapon);
-        spawnParticles(b.x,b.y,8,b.weapon==='cannon'?'#ff6600':b.weapon==='flame'?'#f97316':'#ffcc00');
-        p.score += b.weapon==='cannon'?30:b.weapon==='flame'?3:b.weapon==='machine'?10:5;
-        p.wantedLevel = Math.min(5, p.wantedLevel+1);
-        if (p.wantedLevel>=2 && gameState.police.length < p.wantedLevel*2) spawnPolice();
-        return false;
+      for (let i = gameState.traffic.length - 1; i >= 0; i--) {
+        const car = gameState.traffic[i];
+        if (car.state === 'destroyed') continue;
+        if (rectHit(b.x, b.y, car.x, car.y, car.type.w * car.size, car.type.h * car.size)) {
+          hitCar(car, b.weapon);
+          spawnParticles(b.x, b.y, 6, '#ffcc00');
+          return false;
+        }
       }
-    }
-    // check police hits
-    for (let i=gameState.police.length-1; i>=0; i--) {
-      const car = gameState.police[i];
-      if (rectHit(b.x,b.y,car.x,car.y,car.type.w*car.size,car.type.h*car.size)) {
-        hitCar(car, b.weapon);
-        spawnParticles(b.x,b.y,8,b.weapon==='flame'?'#f97316':'#ff4455');
-        p.score += b.weapon==='cannon'?50:b.weapon==='flame'?5:20;
-        return false;
+      for (let i = gameState.police.length - 1; i >= 0; i--) {
+        const car = gameState.police[i];
+        if (car.state === 'destroyed') continue;
+        if (rectHit(b.x, b.y, car.x, car.y, car.type.w * car.size, car.type.h * car.size)) {
+          hitCar(car, b.weapon);
+          spawnParticles(b.x, b.y, 6, '#ff4455');
+          return false;
+        }
+      }
+    } else {
+      // Player bullets hit: pedestrians, traffic, or police
+      for (let i = gameState.pedestrians.length - 1; i >= 0; i--) {
+        const ped = gameState.pedestrians[i];
+        if (ped.state === 'dead' || ped.state === 'splatted') continue;
+        if (Math.hypot(b.x - ped.x, b.y - ped.y) < 18) {
+          ped.state = 'splatted';
+          ped.deathTime = Date.now();
+          playSquishSound();
+          spawnParticles(ped.x, ped.y, 8, b.weapon === 'flame' ? '#f97316' : '#ef4444');
+          p.score += 50;
+          p.wantedLevel = Math.min(5, p.wantedLevel + 1);
+          return false;
+        }
+      }
+      for (let i = gameState.traffic.length - 1; i >= 0; i--) {
+        const car = gameState.traffic[i];
+        if (car.state === 'destroyed') continue;
+        if (rectHit(b.x, b.y, car.x, car.y, car.type.w * car.size, car.type.h * car.size)) {
+          hitCar(car, b.weapon);
+          spawnParticles(b.x, b.y, 8, b.weapon === 'cannon' ? '#ff6600' : b.weapon === 'flame' ? '#f97316' : '#ffcc00');
+          p.score += b.weapon === 'cannon' ? 30 : b.weapon === 'flame' ? 3 : b.weapon === 'machine' ? 10 : 5;
+          p.wantedLevel = Math.min(5, p.wantedLevel + 1);
+          if (p.wantedLevel >= 2 && gameState.police.length < p.wantedLevel * 2) spawnPolice();
+          return false;
+        }
+      }
+      for (let i = gameState.police.length - 1; i >= 0; i--) {
+        const car = gameState.police[i];
+        if (rectHit(b.x, b.y, car.x, car.y, car.type.w * car.size, car.type.h * car.size)) {
+          hitCar(car, b.weapon);
+          spawnParticles(b.x, b.y, 8, b.weapon === 'flame' ? '#f97316' : '#ff4455');
+          p.score += b.weapon === 'cannon' ? 50 : b.weapon === 'flame' ? 5 : 20;
+          return false;
+        }
       }
     }
     return true;
@@ -1603,8 +1632,8 @@ function update(dt) {
         spawnParticles(pol.x, pol.y, 25, '#3b82f6');
         p.score += 200;
       } else {
-        gameOver();
-        return;
+        damagePlayer(25);
+        pol.speed = -40; // recoil
       }
     }
   });
@@ -1716,6 +1745,53 @@ function update(dt) {
     if (!panic) {
       ped.speed = 30 + Math.random() * 20;
     }
+
+    // Hostile Pedestrian Shooting AI
+    if (ped.isHostile) {
+      ped.shootCooldown -= dt;
+      const targets = [gameState.player, ...gameState.traffic, ...gameState.police].filter(car => car && car.state !== 'destroyed');
+      let closestTarget = null;
+      let minDist = 220;
+      targets.forEach(car => {
+        const d = Math.hypot(ped.x - car.x, ped.y - car.y);
+        if (d < minDist) {
+          minDist = d;
+          closestTarget = car;
+        }
+      });
+      
+      if (closestTarget) {
+        // Aim at target
+        const targetAngle = Math.atan2(closestTarget.x - ped.x, closestTarget.y - ped.y);
+        ped.angle = targetAngle;
+        
+        // Stop walking to aim & fire
+        ped.speed = 0;
+        
+        if (ped.shootCooldown <= 0) {
+          ped.shootCooldown = 1.0 + Math.random() * 1.5;
+          
+          const angle = targetAngle;
+          const spd = 340;
+          const vx = Math.sin(angle) * spd;
+          const vy = -Math.cos(angle) * spd;
+          
+          gameState.bullets.push({
+            x: ped.x + Math.sin(angle) * 10,
+            y: ped.y - Math.cos(angle) * 10,
+            vx: vx,
+            vy: vy,
+            weapon: 'pistol',
+            life: 1.2,
+            size: 3.5,
+            color: '#ffbb00',
+            fromPedestrian: true
+          });
+          
+          playShoot('pistol');
+        }
+      }
+    }
   });
 
   // Check pedestrian vs car collisions (run over)
@@ -1788,8 +1864,9 @@ function applyPowerUp(pu) {
   if (!gameState) return;
   const p = gameState.player;
   if (pu.type === 'health') {
-    // Wanted Level decrease (represented as Repair icon 🔧)
+    // Wanted Level decrease & Health Restore
     p.wantedLevel = Math.max(0, p.wantedLevel - 1);
+    p.hp = 100;
     p.score += 100;
   } else if (pu.type === 'shield') {
     p.shieldTime = 10;
@@ -2070,6 +2147,18 @@ function isWall(x, y, w, h) {
 
 function rectHit(bx, by, cx, cy, cw, ch) {
   return bx>cx-cw/2 && bx<cx+cw/2 && by>cy-ch/2 && by<cy+ch/2;
+}
+
+function damagePlayer(amount) {
+  if (!gameState || !gameState.player.alive) return;
+  const p = gameState.player;
+  if (p.shieldTime > 0) return; // Shield blocks all damage
+  p.hp = Math.max(0, p.hp - amount);
+  spawnParticles(p.x, p.y, 6, '#ef4444');
+  if (audioCtx) playTone(140, 0.08, 'sawtooth', 0.2);
+  if (p.hp <= 0) {
+    gameOver();
+  }
 }
 
 function gameOver() {
@@ -2716,6 +2805,13 @@ function drawPedestrians() {
     ctx.roundRect(-5, -6, 10, 8, 2);
     ctx.fill();
     
+    if (ped.isHostile) {
+      // Draw small gun in hand
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(4, -4, 2, 5);
+      ctx.fillRect(4, -6, 5, 2);
+    }
+    
     ctx.fillStyle = '#ffdbac';
     ctx.beginPath();
     ctx.arc(0, -1, 3.8, 0, Math.PI * 2);
@@ -2776,6 +2872,13 @@ function updateHUD() {
   const p = gameState.player;
   document.getElementById('hud-score').textContent = p.score;
   document.getElementById('hud-speed').textContent = Math.round(Math.abs(p.speed));
+  
+  const hpEl = document.getElementById('hud-hp');
+  if (hpEl) {
+    hpEl.textContent = Math.round(p.hp) + '%';
+    hpEl.style.color = p.hp > 50 ? '#22c55e' : p.hp > 25 ? '#eab308' : '#ef4444';
+  }
+  
   const wanted = '★'.repeat(p.wantedLevel) + '☆'.repeat(5-p.wantedLevel);
   document.getElementById('hud-wanted').textContent = wanted;
   
