@@ -1650,6 +1650,8 @@ function render() {
   gameState.traffic.forEach(car => drawCar(car, false));
   // Police
   gameState.police.forEach(pol => drawPolice(pol));
+  // Power-ups
+  drawPowerUps();
   // Player
   if (p.alive) drawPlayer(p);
   // Bullets
@@ -1802,6 +1804,27 @@ function drawPlayer(p) {
   ctx.translate(-t.w/2,-t.h/2);
   drawCarShape(ctx, t, p.color, p.weapons);
   ctx.restore();
+
+  // Draw player shield bubble
+  if (p.shieldTime > 0) {
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    const pulse = Math.sin(Date.now() * 0.015) * 3;
+    const r = (p.type.h * p.size * 0.6) + pulse;
+    
+    ctx.shadowColor = '#00bbff';
+    ctx.shadowBlur = 15;
+    ctx.strokeStyle = `rgba(56, 189, 248, ${0.4 + Math.sin(Date.now() * 0.01) * 0.15})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI*2);
+    ctx.stroke();
+
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.1)';
+    ctx.fill();
+    ctx.restore();
+  }
+
   // Direction indicator
   ctx.save();
   ctx.strokeStyle='rgba(255,255,255,0.15)';
@@ -1850,8 +1873,16 @@ function updateHUD() {
   document.getElementById('hud-speed').textContent = Math.round(Math.abs(p.speed));
   const wanted = '★'.repeat(p.wantedLevel) + '☆'.repeat(5-p.wantedLevel);
   document.getElementById('hud-wanted').textContent = wanted;
+  
   const w = p.weapons[p.activeWeapon]||p.weapons[0]||'--';
-  document.getElementById('hud-weapon').textContent = WEAPON_NAMES[w]||w;
+  let weaponText = WEAPON_NAMES[w]||w;
+  if (p.shieldTime > 0) {
+    weaponText += ` | 🛡️ درع (${Math.ceil(p.shieldTime)}ث)`;
+  }
+  if (p.nitroTime > 0) {
+    weaponText += ` | ⚡ نيترو (${Math.ceil(p.nitroTime)}ث)`;
+  }
+  document.getElementById('hud-weapon').textContent = weaponText;
 }
 
 // ==================== EXPOSE TEST HOOKS ====================
