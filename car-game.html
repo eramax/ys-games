@@ -1252,12 +1252,18 @@ function update(dt) {
       if (!isWall(targetCx, car.y, car.type.w*car.size, car.type.h*car.size)) car.x = targetCx;
       if (!isWall(car.x, targetCy, car.type.w*car.size, car.type.h*car.size)) car.y = targetCy;
       
-      if (Math.abs(p.speed) > 30) {
-        playCrash();
-        spawnParticles((p.x + car.x)/2, (p.y + car.y)/2, 8, '#ffaa00');
-        hitCar(car, 'pistol');
+      if (p.shieldTime > 0) {
+        playExplosion();
+        spawnParticles(car.x, car.y, 20, '#3b82f6');
+        hitCar(car, 'cannon');
+      } else {
+        if (Math.abs(p.speed) > 30) {
+          playCrash();
+          spawnParticles((p.x + car.x)/2, (p.y + car.y)/2, 8, '#ffaa00');
+          hitCar(car, 'pistol');
+        }
+        p.speed *= -0.3;
       }
-      p.speed *= -0.3;
     }
   });
 
@@ -1332,8 +1338,15 @@ function update(dt) {
     // catch player?
     const dist = Math.sqrt(dx*dx+dy*dy);
     if (dist < (p.type.w*p.size + pol.type.w*pol.size)*0.8) {
-      gameOver();
-      return;
+      if (p.shieldTime > 0) {
+        pol.state = 'destroyed';
+        playExplosion();
+        spawnParticles(pol.x, pol.y, 25, '#3b82f6');
+        p.score += 200;
+      } else {
+        gameOver();
+        return;
+      }
     }
   });
 
