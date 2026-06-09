@@ -1450,7 +1450,7 @@ function spawnTrams() {
               trackY: ty,
               trackId: `h_${cy}`,
               w: 160, h: 34, color: '#b91c1c',
-              hp: 800, state: 'moving', size: 1
+              hp: 200, state: 'moving', size: 1
             });
           }
         } else {
@@ -1465,7 +1465,7 @@ function spawnTrams() {
               trackX: tx,
               trackId: `v_${cx}`,
               w: 160, h: 34, color: '#b91c1c',
-              hp: 800, state: 'moving', size: 1
+              hp: 200, state: 'moving', size: 1
             });
           }
         }
@@ -1759,21 +1759,18 @@ function update(dt) {
     if (!b.fromPedestrian && gameState.trams) {
       for (const tram of gameState.trams) {
         if (tram.state === 'destroyed') continue;
-        // Use AABB check since trams are long rectangles
-        const cos = Math.cos(-tram.angle);
-        const sin = Math.sin(-tram.angle);
-        const dx = b.x - tram.x;
-        const dy = b.y - tram.y;
-        const lx = Math.abs(cos * dx - sin * dy);
-        const ly = Math.abs(sin * dx + cos * dy);
-        if (lx < tram.w / 2 + 12 && ly < tram.h / 2 + 12) {
-          const dmg = b.weapon === 'cannon' ? 40 : b.weapon === 'flame' ? 8 : 15;
+        const hitDist = Math.hypot(b.x - tram.x, b.y - tram.y);
+        if (hitDist < 90) {
+          const dmg = b.weapon === 'cannon' ? 50 : b.weapon === 'flame' ? 10 : 20;
           tram.hp -= dmg;
-          spawnParticles(b.x, b.y, 6, b.weapon === 'cannon' ? '#ff6600' : '#ffaa00');
+          tram.hitFlash = 0.2;
+          spawnParticles(b.x, b.y, 10, '#ffaa00');
+          spawnParticles(b.x, b.y, 5, '#ff6600');
           if (tram.hp <= 0) {
             tram.state = 'destroyed';
-            spawnParticles(tram.x, tram.y, 30, '#ff4400');
-            spawnParticles(tram.x, tram.y, 20, '#ffaa00');
+            spawnParticles(tram.x, tram.y, 40, '#ff4400');
+            spawnParticles(tram.x, tram.y, 30, '#ffaa00');
+            spawnParticles(tram.x, tram.y, 20, '#ffff00');
             p.score += 100;
             p.wantedLevel = Math.min(5, p.wantedLevel + 1);
           }
@@ -1787,12 +1784,15 @@ function update(dt) {
       for (const rb of gameState.roadblocks) {
         for (const barrier of rb.barriers) {
           if (!barrier.alive) continue;
-          if (Math.hypot(b.x - barrier.x, b.y - barrier.y) < 15) {
-            barrier.hp -= b.weapon === 'cannon' ? 40 : b.weapon === 'flame' ? 8 : 15;
-            spawnParticles(b.x, b.y, 4, '#ffaa00');
+          if (Math.hypot(b.x - barrier.x, b.y - barrier.y) < 20) {
+            const dmg = b.weapon === 'cannon' ? 50 : b.weapon === 'flame' ? 10 : 20;
+            barrier.hp -= dmg;
+            barrier.hitFlash = 0.2;
+            spawnParticles(b.x, b.y, 6, '#ffaa00');
             if (barrier.hp <= 0) {
               barrier.alive = false;
-              spawnParticles(barrier.x, barrier.y, 8, '#888');
+              spawnParticles(barrier.x, barrier.y, 10, '#888');
+              spawnParticles(barrier.x, barrier.y, 6, '#ff6600');
             }
             return false;
           }
@@ -2439,6 +2439,7 @@ function update(dt) {
   // === TRAM UPDATE ===
   gameState.trams.forEach(tram => {
     if (tram.state === 'destroyed') return;
+    if (tram.hitFlash > 0) tram.hitFlash -= dt;
     if (tram.trackStartX !== undefined) {
       tram.x += tram.speed * tram.direction * dt;
       if (tram.x > tram.trackEndX) { tram.direction = -1; }
@@ -4025,7 +4026,7 @@ function drawTrams() {
     ctx.translate(tram.x, tram.y);
     ctx.rotate(tram.angle);
     // Tram body
-    ctx.fillStyle = tram.color;
+    ctx.fillStyle = tram.hitFlash > 0 ? '#ffffff' : tram.color;
     ctx.beginPath();
     ctx.roundRect(-tram.w/2, -tram.h/2, tram.w, tram.h, 6);
     ctx.fill();
@@ -4047,6 +4048,14 @@ function drawTrams() {
     ctx.arc(tram.w/2 - 4, 6, 3, 0, Math.PI*2);
     ctx.fill();
     ctx.restore();
+    // HP bar
+    const hpPct = tram.hp / 200;
+    if (hpPct < 1) {
+      ctx.fillStyle = '#333';
+      ctx.fillRect(tram.x - 40, tram.y - 25, 80, 5);
+      ctx.fillStyle = hpPct > 0.5 ? '#22c55e' : hpPct > 0.25 ? '#eab308' : '#ef4444';
+      ctx.fillRect(tram.x - 40, tram.y - 25, 80 * hpPct, 5);
+    }
     // Tram tracks (rails) - draw only visible portion
     ctx.save();
     ctx.strokeStyle = '#6b7280';
