@@ -69,13 +69,13 @@
   .btn-main:hover { transform: scale(1.05); box-shadow: 0 8px 32px rgba(245,197,24,0.5); }
   .btn-main:active { transform: scale(0.97); }
 
-  /* ====== GARAGE (car selection) ====== */
+  /* ====== GARAGE (car selection carousel) ====== */
   #garage-screen {
-    padding: 20px;
-    gap: 16px;
+    padding: 16px 12px;
+    gap: 14px;
     overflow-y: auto;
     justify-content: flex-start;
-    padding-top: 30px;
+    padding-top: 24px;
   }
   .garage-title {
     font-size: clamp(1.4rem, 4vw, 2rem);
@@ -83,27 +83,77 @@
     color: var(--color-primary);
     text-align: center;
   }
-  .garage-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 14px;
+
+  /* === CAROUSEL WRAPPER === */
+  .car-carousel {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
     width: 100%;
-    max-width: 700px;
+    max-width: 480px;
+    position: relative;
+    user-select: none;
   }
-  .car-card {
-    background: var(--color-surface);
-    border: 2px solid var(--color-border);
-    border-radius: var(--radius);
-    padding: 12px;
+  .carousel-arrow {
+    flex-shrink: 0;
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background: rgba(245,197,24,0.15);
+    border: 2px solid rgba(245,197,24,0.35);
+    color: var(--color-primary);
+    font-size: 1.4rem;
     cursor: pointer;
-    text-align: center;
-    transition: border-color 0.2s, transform 0.15s;
-    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.18s, transform 0.12s;
+    -webkit-tap-highlight-color: transparent;
   }
-  .car-card:hover { transform: translateY(-3px); border-color: rgba(245,197,24,0.4); }
-  .car-card.selected { border-color: var(--color-primary); background: rgba(245,197,24,0.08); }
-  .car-card canvas { border-radius: 6px; }
-  .car-card-name { font-size: 0.85rem; font-weight: 600; color: var(--color-text); }
+  .carousel-arrow:active { transform: scale(0.88); background: rgba(245,197,24,0.3); }
+  .carousel-card {
+    flex: 1;
+    min-width: 0;
+    background: var(--color-surface);
+    border: 2px solid var(--color-primary);
+    border-radius: 18px;
+    padding: 18px 10px 14px;
+    text-align: center;
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    box-shadow: 0 0 28px rgba(245,197,24,0.12);
+    transition: opacity 0.2s, transform 0.2s;
+  }
+  .carousel-card.slide-out-left  { opacity:0; transform:translateX(-40px) scale(0.92); }
+  .carousel-card.slide-out-right { opacity:0; transform:translateX(40px)  scale(0.92); }
+  .carousel-card.slide-in        { opacity:1; transform:translateX(0)      scale(1);    }
+  #carousel-canvas {
+    border-radius: 10px;
+    background: rgba(255,255,255,0.03);
+    display: block;
+    width: 100% !important;
+    max-width: 200px;
+    height: auto !important;
+  }
+  .carousel-name {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--color-primary);
+    letter-spacing: 0.02em;
+  }
+  .carousel-stats {
+    display: flex; gap: 14px;
+    font-size: 0.78rem; color: var(--color-muted);
+  }
+  .carousel-stat { display:flex; flex-direction:column; align-items:center; gap:2px; }
+  .carousel-stat-val { font-size:0.92rem; font-weight:700; color:var(--color-text); }
+  .carousel-dots {
+    display: flex; gap: 6px; justify-content: center;
+  }
+  .carousel-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--color-border);
+    transition: background 0.2s, transform 0.2s;
+    cursor: pointer;
+  }
+  .carousel-dot.active { background: var(--color-primary); transform: scale(1.4); }
 
   /* ====== CUSTOMIZATION ====== */
   .customize-panel {
@@ -257,7 +307,18 @@
 <!-- GARAGE SCREEN -->
 <div id="garage-screen" class="screen hidden">
   <div class="garage-title">🏎️ اختر عربيتك</div>
-  <div class="garage-grid" id="garage-grid"></div>
+
+  <!-- CAR CAROUSEL -->
+  <div class="car-carousel" id="car-carousel">
+    <button class="carousel-arrow" id="carousel-prev" onclick="carouselNav(-1)" aria-label="السابق">&#8249;</button>
+    <div class="carousel-card" id="carousel-card">
+      <canvas id="carousel-canvas" width="180" height="140"></canvas>
+      <div class="carousel-name" id="carousel-name">سيدان</div>
+      <div class="carousel-stats" id="carousel-stats"></div>
+    </div>
+    <button class="carousel-arrow" id="carousel-next" onclick="carouselNav(1)" aria-label="التالي">&#8250;</button>
+  </div>
+  <div class="carousel-dots" id="carousel-dots"></div>
 
   <div class="customize-panel">
     <div style="font-weight:700; font-size:1rem; color:var(--color-primary)">🎨 خصص عربيتك</div>
@@ -501,27 +562,97 @@ function showGarage() {
   document.getElementById('size-slider').addEventListener('input', onSizeChange);
 }
 
+let carouselIndex = 0;
+
+const CAR_STATS = {
+  sedan:     { speed:'★★★☆☆', armor:'★★☆☆☆', size:'متوسطة' },
+  suv:       { speed:'★★☆☆☆', armor:'★★★★☆', size:'كبيرة'  },
+  sport:     { speed:'★★★★☆', armor:'★☆☆☆☆', size:'صغيرة'  },
+  truck:     { speed:'★★☆☆☆', armor:'★★★★★', size:'ضخمة'   },
+  classic:   { speed:'★★★☆☆', armor:'★★★☆☆', size:'متوسطة' },
+  mini:      { speed:'★★★★☆', armor:'★☆☆☆☆', size:'صغيرة'  },
+  ambulance: { speed:'★★★★☆', armor:'★★★☆☆', size:'طويلة'  },
+  firetruck: { speed:'★★☆☆☆', armor:'★★★★★', size:'ضخمة'   },
+  f1:        { speed:'★★★★★', armor:'☆☆☆☆☆', size:'منخفضة' },
+  tesla:     { speed:'★★★★☆', armor:'★★☆☆☆', size:'متوسطة' },
+  limo:      { speed:'★★☆☆☆', armor:'★★★☆☆', size:'طويلة'  },
+  pickup:    { speed:'★★★☆☆', armor:'★★★☆☆', size:'كبيرة'  },
+};
+
 function buildGarageGrid() {
-  const grid = document.getElementById('garage-grid');
-  grid.innerHTML = '';
-  CAR_TYPES.forEach((ct, i) => {
-    const card = document.createElement('div');
-    card.className = 'car-card' + (i===0?' selected':'');
-    const cv = document.createElement('canvas');
-    cv.width = 100; cv.height = 80;
-    drawCarOnCanvas(cv, ct, playerCar.color, 1.0);
-    card.appendChild(cv);
-    const nm = document.createElement('div');
-    nm.className = 'car-card-name'; nm.textContent = ct.name;
-    card.appendChild(nm);
-    card.onclick = () => {
-      document.querySelectorAll('.car-card').forEach(c=>c.classList.remove('selected'));
-      card.classList.add('selected');
-      playerCar.type = ct;
-      updatePreview();
-    };
-    grid.appendChild(card);
+  carouselIndex = 0;
+  renderCarousel();
+  buildCarouselDots();
+  setupCarouselSwipe();
+}
+
+function renderCarousel(direction) {
+  const ct = CAR_TYPES[carouselIndex];
+  playerCar.type = ct;
+
+  const card = document.getElementById('carousel-card');
+  const cv   = document.getElementById('carousel-canvas');
+  const nameEl  = document.getElementById('carousel-name');
+  const statsEl = document.getElementById('carousel-stats');
+
+  // Slide animation
+  if (direction !== undefined) {
+    card.classList.add(direction > 0 ? 'slide-out-left' : 'slide-out-right');
+    setTimeout(() => {
+      card.classList.remove('slide-out-left', 'slide-out-right');
+      card.classList.add('slide-in');
+      _fillCarousel(cv, ct, nameEl, statsEl);
+      setTimeout(() => card.classList.remove('slide-in'), 220);
+    }, 180);
+  } else {
+    _fillCarousel(cv, ct, nameEl, statsEl);
+  }
+
+  // Update dots
+  document.querySelectorAll('.carousel-dot').forEach((d, i) => {
+    d.classList.toggle('active', i === carouselIndex);
   });
+  updatePreview();
+}
+
+function _fillCarousel(cv, ct, nameEl, statsEl) {
+  const scale = Math.min(180 / (ct.w + 20), 140 / (ct.h + 20));
+  cv.width  = Math.round((ct.w + 20) * scale);
+  cv.height = Math.round((ct.h + 20) * scale);
+  drawCarOnCanvas(cv, ct, playerCar.color, 1.0);
+  nameEl.textContent = ct.name;
+  const st = CAR_STATS[ct.id] || {};
+  statsEl.innerHTML = [
+    `<div class="carousel-stat"><div>السرعة</div><div class="carousel-stat-val">${st.speed||'--'}</div></div>`,
+    `<div class="carousel-stat"><div>الدرع</div><div class="carousel-stat-val">${st.armor||'--'}</div></div>`,
+    `<div class="carousel-stat"><div>الحجم</div><div class="carousel-stat-val">${st.size||'--'}</div></div>`,
+  ].join('');
+}
+
+function buildCarouselDots() {
+  const dotsEl = document.getElementById('carousel-dots');
+  dotsEl.innerHTML = '';
+  CAR_TYPES.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'carousel-dot' + (i === 0 ? ' active' : '');
+    d.onclick = () => { carouselIndex = i; renderCarousel(); };
+    dotsEl.appendChild(d);
+  });
+}
+
+function carouselNav(dir) {
+  carouselIndex = (carouselIndex + dir + CAR_TYPES.length) % CAR_TYPES.length;
+  renderCarousel(dir);
+}
+
+function setupCarouselSwipe() {
+  const el = document.getElementById('car-carousel');
+  let startX = 0;
+  el.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive:true });
+  el.addEventListener('touchend',   e => {
+    const dx = e.changedTouches[0].clientX - startX;
+    if (Math.abs(dx) > 40) carouselNav(dx < 0 ? 1 : -1);
+  }, { passive:true });
 }
 
 function buildColorSwatches() {
@@ -536,7 +667,10 @@ function buildColorSwatches() {
       document.querySelectorAll('.color-swatch').forEach(s=>s.classList.remove('active'));
       sw.classList.add('active');
       playerCar.color = c;
-      document.querySelectorAll('.car-card canvas').forEach((cv,idx) => drawCarOnCanvas(cv, CAR_TYPES[idx], c, 1.0));
+      // Refresh the carousel canvas with new color
+      const cv = document.getElementById('carousel-canvas');
+      const ct = CAR_TYPES[carouselIndex];
+      if (cv && ct) drawCarOnCanvas(cv, ct, c, 1.0);
       updatePreview();
     };
     div.appendChild(sw);
