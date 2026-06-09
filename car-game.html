@@ -854,68 +854,145 @@ const WORLD_W = 2400, WORLD_H = 2400;
 const TILE = 80;
 const ROAD_COLOR = '#2a2a2a', SIDEWALK_COLOR = '#3a3530', BUILDING_COLOR = '#1e2535', LINE_COLOR = 'rgba(255,255,200,0.4)';
 
-// World map: 0=building, 1=road, 2=sidewalk
-let worldMap = [];
-let buildings = [];
+// World chunks container
+function seededRandom(x, y) {
+  const sx = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
+  return sx - Math.floor(sx);
+}
 
-function generateWorld() {
-  const cols = WORLD_W/TILE, rows = WORLD_H/TILE;
-  worldMap = Array.from({length:rows}, (_,r) => Array.from({length:cols}, (_,c) => {
-    if (r===0||r===rows-1||c===0||c===cols-1) return 1;
-    // road grid every 8 tiles
-    if (r%8===0 || c%8===0) return 1;
-    if (r%8===1 || c%8===1) return 2;
-    return 0;
-  }));
-  // generate buildings
-  buildings = [];
-  for (let r=2; r<rows-2; r+=8) {
-    for (let c=2; c<cols-2; c+=8) {
-      const bw = 3+Math.floor(Math.random()*3);
-      const bh = 3+Math.floor(Math.random()*3);
-      const wWidth = bw*TILE*0.8;
-      const wHeight = bh*TILE*0.8;
-      const cols2 = Math.floor(wWidth/22);
-      const rows2 = Math.floor(wHeight/18);
-      const windowStates = [];
-      for(let i=0; i<cols2; i++) {
-        const col = [];
-        for(let j=0; j<rows2; j++) {
-          col.push(Math.random() > 0.45);
-        }
-        windowStates.push(col);
+function generateChunk(cx, cy) {
+  const map = Array.from({length: 16}, () => Array(16).fill(0));
+  
+  // Base roads (4 lanes wide: 6, 7, 8, 9)
+  for (let r = 0; r < 16; r++) {
+    for (let c = 0; c < 16; c++) {
+      if ((r >= 6 && r <= 9) || (c >= 6 && c <= 9)) {
+        map[r][c] = 1; // road
+      } else if (r === 5 || r === 10 || c === 5 || c === 10) {
+        map[r][c] = 2; // sidewalk
       }
-      const colors = ['#1e2535','#252535','#2a2040','#1c2020','#20251c'];
-      buildings.push({
-        x: c*TILE+TILE*0.3, y: r*TILE+TILE*0.3,
-        w: wWidth, h: wHeight,
-        color: colors[Math.floor(Math.random()*colors.length)],
-        floors: 2+Math.floor(Math.random()*6),
-        windowStates: windowStates
-      });
     }
   }
+
+  const seed = seededRandom(cx, cy);
+  
+  // Center intersection variation (roundabout, divider island, etc.)
+  if (seed < 0.3) {
+    // Roundabout central park island
+    for (let r = 7; r <= 8; r++) {
+      for (let c = 7; c <= 8; c++) {
+        map[r][c] = 0; // grass
+      }
+    }
+    map[6][7] = 2; map[6][8] = 2;
+    map[9][7] = 2; map[9][8] = 2;
+    map[7][6] = 2; map[8][6] = 2;
+    map[7][9] = 2; map[8][9] = 2;
+  } else if (seed < 0.55) {
+    // Median green strip on highways
+    for (let r = 0; r < 16; r++) {
+      if (r < 5 || r > 10) {
+        map[r][7] = 2; map[r][8] = 2;
+      }
+    }
+    for (let c = 0; c < 16; c++) {
+      if (c < 5 || c > 10) {
+        map[7][c] = 2; map[8][c] = 2;
+      }
+    }
+  }
+
+  const chunkBuildings = [];
+  const chunkParks = [];
+  
+  const quadrants = [
+    { cRange: [0, 4], rRange: [0, 4], doorDir: 'down_right' },
+    { cRange: [11, 15], rRange: [0, 4], doorDir: 'down_left' },
+    { cRange: [0, 4], rRange: [11, 15], doorDir: 'up_right' },
+    { cRange: [11, 15], rRange: [11, 15], doorDir: 'up_left' }
+  ];
+
+  quadrants.forEach((q, idx) => {
+    const qSeed = seededRandom(cx + idx * 7, cy - idx * 13);
+    const qx = cx * 1280 + q.cRange[0] * 80;
+    const qy = cy * 1280 + q.rRange[0] * 80;
+    const qw = 5 * 80;
+    const qh = 5 * 80;
+
+    if (qSeed < 0.38) {
+      // Park / Garden
+      for (let r = q.rRange[0]; r <= q.rRange[1]; r++) {
+        for (let c = q.cRange[0]; c <= q.cRange[1]; c++) {
+          if (r === q.rRange[0] + 2 || c === q.cRange[0] + 2) {
+            map[r][c] = 2; // path
+          } else {
+            map[r][c] = 0; // grass
+          }
+        }
+      }
+      
+      const pondX = qx + 200 + (qSeed - 0.2) * 50;
+      const pondY = qy + 200 + (qSeed - 0.2) * 50;
+      const pondR = 45 + qSeed * 25;
+      
+      const trees = [
+        { x: qx + 60, y: qy + 60 },
+        { x: qx + 340, y: qy + 60 },
+        { x: qx + 60, y: qy + 340 },
+        { x: qx + 340, y: qy + 340 }
+      ];
+      
+      chunkParks.push({
+        pond: { x: pondX, y: pondY, r: pondR },
+        trees: trees
+      });
+    } else {
+      // Realistic Building
+      const bx = qx + 30;
+      const by = qy + 30;
+      const bw = qw - 60;
+      const bh = qh - 60;
+      
+      const floors = 3 + Math.floor(qSeed * 6);
+      const bColor = ['#1e293b', '#334155', '#1c2541', '#2d3748', '#1b263b', '#2c3e50'][Math.floor(qSeed * 6)];
+      
+      let doorX = bx + bw / 2;
+      let doorY = by + bh - 2;
+      let stairsDir = 'down';
+
+      if (q.doorDir.includes('up')) {
+        doorY = by - 4;
+        stairsDir = 'up';
+      }
+
+      chunkBuildings.push({
+        x: bx, y: by, w: bw, h: bh,
+        color: bColor,
+        floors: floors,
+        door: { x: doorX, y: doorY, w: 24, h: 6 },
+        stairsDir: stairsDir,
+        garden: {
+          x: bx - 20, y: by - 20,
+          w: bw + 40, h: bh + 40
+        }
+      });
+    }
+  });
+
+  gameState.chunks[`${cx},${cy}`] = {
+    map: map,
+    buildings: chunkBuildings,
+    parks: chunkParks
+  };
 }
 
 function initGameState() {
-  generateWorld();
   const weapons = playerCar.weapons.length > 0 ? [...playerCar.weapons] : ['pistol'];
-  // Find a road tile near center for player spawn
-  let spawnX = WORLD_W/2, spawnY = WORLD_H/2;
-  const centerCol = Math.floor(spawnX/TILE);
-  const centerRow = Math.floor(spawnY/TILE);
-  let found = false;
-  for (let r = centerRow-4; r <= centerRow+4 && !found; r++) {
-    for (let c = centerCol-4; c <= centerCol+4 && !found; c++) {
-      if (r >= 0 && r < WORLD_H/TILE && c >= 0 && c < WORLD_W/TILE) {
-        if (worldMap[r] && worldMap[r][c] === 1) {
-          spawnX = c * TILE + TILE/2;
-          spawnY = r * TILE + TILE/2;
-          found = true;
-        }
-      }
-    }
-  }
+  
+  // Starting spawn coordinates inside chunk (0,0) road center
+  const spawnX = 600;
+  const spawnY = 600;
+
   gameState = {
     player: {
       x: spawnX, y: spawnY,
@@ -938,55 +1015,97 @@ function initGameState() {
     police: [],
     particles: [],
     powerUps: [],
-    powerUpSpawnTimer: 4, // spawn first power-up after 4 seconds
+    powerUpSpawnTimer: 3, // spawn first power-up after 3 seconds
+    chunks: {},
+    startTime: Date.now(),
     keys: {},
     touchKeys: {},
     phase: 'playing',
   };
+
+  // Generate starting chunk
+  generateChunk(0, 0);
+
   // spawn traffic
-  for (let i=0; i<20; i++) spawnTraffic();
+  for (let i = 0; i < 22; i++) spawnTraffic();
   return gameState;
 }
 
 function spawnTraffic() {
-  const roadTiles = [];
-  const rows = WORLD_H/TILE, cols = WORLD_W/TILE;
-  for(let r=0;r<rows;r++) for(let c=0;c<cols;c++) if(worldMap[r]&&worldMap[r][c]===1) roadTiles.push({r,c});
-  if (!roadTiles.length) return;
-  const t = roadTiles[Math.floor(Math.random()*roadTiles.length)];
-  const typeIdx = Math.floor(Math.random()*CAR_TYPES.length);
-  const tcolor = COLORS[Math.floor(Math.random()*COLORS.length)];
-  gameState.traffic.push({
-    x: t.c*TILE+TILE/2, y: t.r*TILE+TILE/2,
-    angle: (Math.floor(Math.random()*4))*Math.PI/2,
-    speed: 40+Math.random()*60,
-    type: CAR_TYPES[typeIdx],
-    color: tcolor,
-    hp: 100,
-    state: 'driving', // driving, slow, stopped, burning, destroyed
-    size: 0.7+Math.random()*0.4,
-    burnTimer: 0,
-    id: Math.random(),
-  });
-}
-function spawnPolice() {
+  if (!gameState) return;
   const p = gameState.player;
-  const angle = Math.random()*Math.PI*2;
-  const dist = 600+Math.random()*400;
-  const px = p.x + Math.cos(angle)*dist;
-  const py = p.y + Math.sin(angle)*dist;
+  const pChunkX = Math.floor(p.x / 1280);
+  const pChunkY = Math.floor(p.y / 1280);
+  
+  // Spawn in a random chunk within radius 1 around the player
+  const cx = pChunkX + Math.floor(Math.random() * 3 - 1);
+  const cy = pChunkY + Math.floor(Math.random() * 3 - 1);
+  const key = `${cx},${cy}`;
+  
+  if (!gameState.chunks[key]) {
+    generateChunk(cx, cy);
+  }
+  
+  const chunk = gameState.chunks[key];
+  const roadTiles = [];
+  for (let r = 0; r < 16; r++) {
+    for (let c = 0; c < 16; c++) {
+      if (chunk.map[r][c] === 1) roadTiles.push({ r, c });
+    }
+  }
+  
+  if (roadTiles.length > 0) {
+    const tile = roadTiles[Math.floor(Math.random() * roadTiles.length)];
+    const tx = cx * 1280 + tile.c * 80 + 40;
+    const ty = cy * 1280 + tile.r * 80 + 40;
+    
+    // Don't spawn on top of the player
+    if (Math.hypot(tx - p.x, ty - p.y) < 220) return;
+
+    const typeIdx = Math.floor(Math.random() * CAR_TYPES.length);
+    const tcolor = COLORS[Math.floor(Math.random() * COLORS.length)];
+    gameState.traffic.push({
+      x: tx, y: ty,
+      angle: (Math.floor(Math.random() * 4)) * Math.PI / 2,
+      speed: 45 + Math.random() * 65,
+      type: CAR_TYPES[typeIdx],
+      color: tcolor,
+      hp: 100,
+      state: 'driving',
+      size: 0.7 + Math.random() * 0.4,
+      burnTimer: 0,
+      id: Math.random()
+    });
+  }
+}
+
+function spawnPolice() {
+  if (!gameState) return;
+  const p = gameState.player;
+  const angle = Math.random() * Math.PI * 2;
+  const dist = 550 + Math.random() * 350;
+  const px = p.x + Math.cos(angle) * dist;
+  const py = p.y + Math.sin(angle) * dist;
+  
+  // Ensure target chunk is generated
+  const cx = Math.floor(px / 1280);
+  const cy = Math.floor(py / 1280);
+  const key = `${cx},${cy}`;
+  if (!gameState.chunks[key]) {
+    generateChunk(cx, cy);
+  }
+
   gameState.police.push({
-    x: Math.max(50,Math.min(WORLD_W-50,px)),
-    y: Math.max(50,Math.min(WORLD_H-50,py)),
+    x: px, y: py,
     angle: 0,
-    speed: 90+Math.random()*40,
+    speed: 95 + Math.random() * 45,
     type: CAR_TYPES[0],
     color: '#1144ff',
     hp: 100,
     state: 'chasing',
     size: 0.85,
     sirenTimer: 0,
-    id: Math.random(),
+    id: Math.random()
   });
 }
 
