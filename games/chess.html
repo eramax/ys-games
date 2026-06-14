@@ -33,13 +33,15 @@ body{background-image:radial-gradient(circle at 12% 18%,rgba(59,130,246,.07) 0,t
 button{font-family:inherit}
 .svg-sprite{position:absolute;width:0;height:0;overflow:hidden}
 
-/* ===== App layout (flex column, board flexes to fit) ===== */
+/* ===== App layout (responsive, desktop-centered) ===== */
 #app{
   display:flex;flex-direction:column;
   height:100vh;height:100dvh;
-  width:100vw;
-  gap:6px;
-  padding:6px;
+  width:100%;
+  max-width:1100px;
+  margin:0 auto;
+  gap:8px;
+  padding:8px;
   overflow:hidden;
 }
 
@@ -58,7 +60,7 @@ header{
 .title{font-size:1.05rem;font-weight:800;letter-spacing:.5px;display:flex;align-items:center;gap:6px;min-width:0}
 .title-main{background:linear-gradient(135deg,#3b82f6,#8b5cf6);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
 .title-sub{color:var(--text-muted);font-size:.7rem;font-weight:500;display:none}
-.header-actions{display:flex;gap:4px;flex-wrap:wrap}
+.header-actions{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
 .btn{
   background:rgba(59,130,246,.12);
   border:1px solid rgba(59,130,246,.35);
@@ -79,6 +81,19 @@ header{
 .btn.ghost{background:rgba(255,255,255,.04);border-color:var(--border-strong);color:var(--text-muted)}
 .btn.ghost:hover{background:rgba(255,255,255,.1);color:var(--text)}
 .btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.sound-btn{
+  background:rgba(255,255,255,.04);
+  border:1px solid var(--border-strong);
+  color:var(--text);
+  padding:5px 8px;
+  border-radius:8px;
+  font-size:.9rem;
+  cursor:pointer;
+  transition:all .2s;
+  line-height:1;
+}
+.sound-btn:hover{background:rgba(255,255,255,.1);transform:translateY(-1px)}
+.sound-btn.muted{opacity:.45}
 
 /* ===== Player bar ===== */
 .player-bar{
@@ -91,7 +106,7 @@ header{
   display:flex;align-items:center;gap:10px;
   min-width:0;
 }
-.player-info{display:flex;align-items:center;gap:8px;min-width:0;flex:1}
+.player-info{display:flex;align-items:center;gap:8px;min-width:0;flex:1;min-width:0}
 .player-dot{width:14px;height:14px;border-radius:50%;flex-shrink:0;border:2px solid rgba(255,255,255,.25);box-shadow:0 0 0 1px rgba(0,0,0,.4) inset}
 .player-name{flex:1;min-width:0}
 .player-name input{
@@ -114,7 +129,7 @@ header{
   display:flex;flex-wrap:wrap;gap:0;
   font-size:1.1rem;line-height:1;
   min-height:18px;align-items:center;
-  max-width:40%;
+  max-width:35%;
   overflow:hidden;
 }
 .captured svg{width:18px;height:18px;flex-shrink:0;display:block}
@@ -125,7 +140,7 @@ header{
 .material.up{color:#22c55e}
 .material.down{color:#ef4444}
 
-/* ===== Board (flexes to fill remaining space, never overflows) ===== */
+/* ===== Board (truly responsive: bounded by viewport width AND height) ===== */
 .board-container{
   flex:1 1 0;
   min-height:0;
@@ -153,24 +168,29 @@ header{
   height:14px;
   flex-shrink:0;
 }
+.board-stack{display:flex;flex-direction:column;align-items:stretch;min-width:0;max-height:100%}
 .board{
   display:grid;
   grid-template-columns:repeat(8,1fr);
   grid-template-rows:repeat(8,1fr);
-  width:min(100%,calc(100dvh - 200px),640px);
+  /* Responsive: drive size from width, let aspect-ratio enforce square,
+     then bound by max-height so it never overflows on short viewports. */
+  width:min(100%,calc(100dvh - 230px),calc(100vw - 32px),640px);
   max-width:640px;
+  max-height:calc(100dvh - 230px);
   aspect-ratio:1;
   border-radius:6px;
   overflow:hidden;
   box-shadow:0 10px 32px rgba(0,0,0,.55),0 0 0 4px #2c1810,0 0 0 5px #5a3a1f;
   background:#2c1810;
   direction:ltr;
-  flex-shrink:0;
+  flex-shrink:1;
 }
 .square{
   display:flex;align-items:center;justify-content:center;
   position:relative;cursor:pointer;
   transition:background-color .12s;
+  min-width:0;min-height:0;
 }
 .square.light{background:var(--light-sq)}
 .square.dark{background:var(--dark-sq)}
@@ -211,9 +231,9 @@ header{
   display:block;margin:auto;
   z-index:2;
   filter:drop-shadow(0 1.5px 2px rgba(0,0,0,.35));
+  transition:transform .15s;
 }
 .square:hover .piece{transform:scale(1.04)}
-.piece{transition:transform .15s}
 
 /* ===== Status bar ===== */
 .status-bar{
@@ -357,6 +377,7 @@ header{
   #app{padding:12px;gap:10px}
   .btn{padding:7px 12px;font-size:.8rem}
   .timer{font-size:1.55rem}
+  .captured{max-width:30%}
   .captured svg{width:22px;height:22px}
   .player-name input{font-size:1rem}
   .coord-col{font-size:.72rem;width:20px}
@@ -365,6 +386,12 @@ header{
   .header-actions{gap:6px}
   .player-bar{padding:8px 14px;gap:14px}
   .status-bar{font-size:.88rem}
+}
+@media (orientation:landscape) and (max-height:500px){
+  .captured svg{width:16px;height:16px}
+  .timer{font-size:1rem}
+  .player-name input{font-size:.8rem}
+  .board{width:min(100%,calc(100dvh - 160px),calc(100vw - 32px),640px);max-height:calc(100dvh - 160px)}
 }
 </style>
 </head>
@@ -375,13 +402,9 @@ header{
   <defs>
     <!-- ===== WHITE PAWN ===== -->
     <symbol id="wp" viewBox="0 0 100 100">
-      <!-- head -->
       <circle cx="50" cy="28" r="13" fill="white" stroke="#1a1a1a" stroke-width="3.5"/>
-      <!-- collar -->
       <ellipse cx="50" cy="44" rx="14" ry="4" fill="white" stroke="#1a1a1a" stroke-width="3"/>
-      <!-- body -->
       <path d="M34,50 Q30,62 36,70 L64,70 Q70,62 66,50 Q58,46 50,46 Q42,46 34,50 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
-      <!-- base -->
       <path d="M20,70 L80,70 L86,90 L14,90 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
     </symbol>
     <!-- ===== BLACK PAWN ===== -->
@@ -393,13 +416,9 @@ header{
     </symbol>
     <!-- ===== WHITE ROOK ===== -->
     <symbol id="wr" viewBox="0 0 100 100">
-      <!-- crenellated top -->
       <path d="M12,8 L24,8 L24,22 L32,22 L32,8 L46,8 L46,22 L54,22 L54,8 L68,8 L68,22 L76,22 L76,8 L88,8 L88,32 L12,32 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
-      <!-- neck -->
       <path d="M18,32 L82,32 L82,42 L18,42 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
-      <!-- body -->
       <path d="M22,42 L78,42 L82,72 L18,72 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
-      <!-- base -->
       <path d="M10,72 L90,72 L94,90 L6,90 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
     </symbol>
     <!-- ===== BLACK ROOK ===== -->
@@ -409,38 +428,72 @@ header{
       <path d="M22,42 L78,42 L82,72 L18,72 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
       <path d="M10,72 L90,72 L94,90 L6,90 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
     </symbol>
-    <!-- ===== WHITE KNIGHT ===== -->
+    <!-- ===== WHITE KNIGHT (clear horse head, facing right) ===== -->
     <symbol id="wn" viewBox="0 0 100 100">
-      <!-- horse head profile facing right -->
-      <path d="M22,90 L22,80 C22,72 26,66 32,64 L46,60 C54,58 60,52 64,44 L66,38 C66,30 64,22 58,18 L46,14 C40,12 34,14 30,18 L24,26 L18,38 L18,50 L20,60 L20,72 L20,90 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
-      <!-- ear -->
-      <path d="M44,14 L50,4 L52,16 Z" fill="white" stroke="#1a1a1a" stroke-width="3" stroke-linejoin="round"/>
-      <!-- eye -->
-      <circle cx="54" cy="30" r="2" fill="#1a1a1a"/>
-      <!-- mouth detail -->
-      <path d="M58,42 L64,44 L60,48 Z" fill="#1a1a1a"/>
-      <!-- base -->
-      <path d="M14,82 L86,82 L90,92 L10,92 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
+      <!-- Main horse head + neck profile (S-curve) -->
+      <path d="
+        M 18 90
+        L 18 80
+        C 18 72 22 66 28 64
+        L 36 60
+        C 44 56 50 50 54 42
+        L 58 32
+        C 58 24 56 18 50 16
+        L 42 14
+        C 36 14 30 18 28 24
+        L 24 32
+        L 20 42
+        L 16 54
+        L 14 66
+        L 14 78
+        L 16 90
+        Z"
+        fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>
+      <!-- Pointed ear on top of head -->
+      <path d="M 50 18 L 54 4 L 58 18 Z" fill="white" stroke="#1a1a1a" stroke-width="3" stroke-linejoin="round"/>
+      <!-- Eye -->
+      <circle cx="54" cy="30" r="2.8" fill="#1a1a1a"/>
+      <!-- Nostril / mouth detail on snout (right side) -->
+      <path d="M 60 38 L 66 40 L 60 44 Z" fill="#1a1a1a"/>
+      <!-- Mane line on back of neck (zigzag, inside the neck shape) -->
+      <path d="M 26 36 L 30 40 L 26 44 M 22 50 L 26 54 L 22 58 M 20 64 L 24 68 L 20 72"
+            fill="none" stroke="#1a1a1a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <!-- Base -->
+      <path d="M 10 82 L 90 82 L 94 92 L 6 92 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
     </symbol>
     <!-- ===== BLACK KNIGHT ===== -->
     <symbol id="bn" viewBox="0 0 100 100">
-      <path d="M22,90 L22,80 C22,72 26,66 32,64 L46,60 C54,58 60,52 64,44 L66,38 C66,30 64,22 58,18 L46,14 C40,12 34,14 30,18 L24,26 L18,38 L18,50 L20,60 L20,72 L20,90 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
-      <path d="M44,14 L50,4 L52,16 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3" stroke-linejoin="round"/>
-      <circle cx="54" cy="30" r="2" fill="white"/>
-      <path d="M58,42 L64,44 L60,48 Z" fill="white"/>
-      <path d="M14,82 L86,82 L90,92 L10,92 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="
+        M 18 90
+        L 18 80
+        C 18 72 22 66 28 64
+        L 36 60
+        C 44 56 50 50 54 42
+        L 58 32
+        C 58 24 56 18 50 16
+        L 42 14
+        C 36 14 30 18 28 24
+        L 24 32
+        L 20 42
+        L 16 54
+        L 14 66
+        L 14 78
+        L 16 90
+        Z"
+        fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>
+      <path d="M 50 18 L 54 4 L 58 18 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3" stroke-linejoin="round"/>
+      <circle cx="54" cy="30" r="2.8" fill="white"/>
+      <path d="M 60 38 L 66 40 L 60 44 Z" fill="white"/>
+      <path d="M 26 36 L 30 40 L 26 44 M 22 50 L 26 54 L 22 58 M 20 64 L 24 68 L 20 72"
+            fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M 10 82 L 90 82 L 94 92 L 6 92 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
     </symbol>
     <!-- ===== WHITE BISHOP ===== -->
     <symbol id="wb" viewBox="0 0 100 100">
-      <!-- ball top -->
       <circle cx="50" cy="11" r="5" fill="white" stroke="#1a1a1a" stroke-width="3"/>
-      <!-- mitre -->
       <path d="M44,16 L56,16 L60,30 L66,44 L66,60 L34,60 L34,44 L40,30 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
-      <!-- mitre slash -->
       <path d="M42,30 L50,40 L58,30" fill="none" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-      <!-- collar -->
       <path d="M30,60 L70,60 L74,72 L26,72 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
-      <!-- base -->
       <path d="M18,72 L82,72 L86,90 L14,90 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
     </symbol>
     <!-- ===== BLACK BISHOP ===== -->
@@ -453,16 +506,13 @@ header{
     </symbol>
     <!-- ===== WHITE QUEEN ===== -->
     <symbol id="wq" viewBox="0 0 100 100">
-      <!-- crown points (5 spikes with balls) -->
       <path d="M14,12 L20,32 L30,18 L40,32 L50,8 L60,32 L70,18 L80,32 L86,12 L82,40 L18,40 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
       <circle cx="14" cy="10" r="3.5" fill="white" stroke="#1a1a1a" stroke-width="2.5"/>
       <circle cx="50" cy="6" r="4" fill="white" stroke="#1a1a1a" stroke-width="2.5"/>
       <circle cx="86" cy="10" r="3.5" fill="white" stroke="#1a1a1a" stroke-width="2.5"/>
       <circle cx="30" cy="18" r="2.5" fill="white" stroke="#1a1a1a" stroke-width="2"/>
       <circle cx="70" cy="18" r="2.5" fill="white" stroke="#1a1a1a" stroke-width="2"/>
-      <!-- body -->
       <path d="M18,40 L82,40 L86,72 L14,72 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
-      <!-- base -->
       <path d="M10,72 L90,72 L94,90 L6,90 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
     </symbol>
     <!-- ===== BLACK QUEEN ===== -->
@@ -478,15 +528,10 @@ header{
     </symbol>
     <!-- ===== WHITE KING ===== -->
     <symbol id="wk" viewBox="0 0 100 100">
-      <!-- cross on top -->
       <path d="M50,4 L50,20 M42,12 L58,12" stroke="#1a1a1a" stroke-width="4.5" stroke-linecap="round" fill="none"/>
-      <!-- crown body -->
       <path d="M32,20 L68,20 L66,32 L66,46 L34,46 L34,32 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
-      <!-- crown notch -->
       <path d="M40,46 L40,38 L50,44 L60,38 L60,46" fill="white" stroke="#1a1a1a" stroke-width="3" stroke-linejoin="round"/>
-      <!-- body -->
       <path d="M28,46 L72,46 L78,72 L22,72 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
-      <!-- base -->
       <path d="M14,72 L86,72 L90,90 L10,90 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
     </symbol>
     <!-- ===== BLACK KING ===== -->
@@ -513,6 +558,7 @@ header{
       <button class="btn ghost" id="btn-flip" title="اقلب الرقعة"><span>⇅</span><span>قلب</span></button>
       <button class="btn danger" id="btn-resign" title="استسلام"><span>🏳</span><span>استسلام</span></button>
       <button class="btn" id="btn-new" title="لعبة جديدة"><span>↻</span><span>جديد</span></button>
+      <button class="sound-btn" id="btn-sound" title="تشغيل/إيقاف الصوت" aria-label="تشغيل الصوت">🔊</button>
     </div>
   </header>
 
@@ -607,6 +653,65 @@ header{
 'use strict';
 
 const $ = id => document.getElementById(id);
+
+/* ============================================================
+   AUDIO  (Web Audio API — synthesized, no external files)
+============================================================ */
+const audio = {
+  ctx: null,
+  enabled: true,
+  ensure(){
+    if(!this.ctx){
+      try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); }
+      catch(e){ this.enabled = false; return; }
+    }
+    if(this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+  },
+  beep(freq, dur, type, vol, slideTo){
+    if(!this.enabled) return;
+    this.ensure();
+    if(!this.ctx) return;
+    const ctx = this.ctx;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+    if(slideTo != null){
+      osc.frequency.exponentialRampToValueAtTime(slideTo, ctx.currentTime + dur);
+    }
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(vol, ctx.currentTime + 0.005);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + dur + 0.02);
+  },
+  move()    { this.beep(520, 0.08, 'sine', 0.10); },
+  capture() {
+    this.beep(220, 0.10, 'triangle', 0.14, 120);
+    setTimeout(() => this.beep(360, 0.08, 'triangle', 0.10), 50);
+  },
+  castle() {
+    this.beep(300, 0.06, 'sine', 0.10);
+    setTimeout(() => this.beep(420, 0.06, 'sine', 0.10), 50);
+    setTimeout(() => this.beep(560, 0.08, 'sine', 0.10), 100);
+  },
+  promote() {
+    this.beep(523, 0.10, 'sine', 0.12);
+    setTimeout(() => this.beep(784, 0.16, 'sine', 0.14), 90);
+  },
+  check() {
+    this.beep(700, 0.12, 'square', 0.08);
+    setTimeout(() => this.beep(900, 0.10, 'square', 0.08), 90);
+  },
+  checkmate() {
+    this.beep(523, 0.12, 'sine', 0.13);
+    setTimeout(() => this.beep(659, 0.12, 'sine', 0.13), 110);
+    setTimeout(() => this.beep(784, 0.14, 'sine', 0.14), 220);
+    setTimeout(() => this.beep(1047, 0.30, 'sine', 0.16), 360);
+  },
+  gameStart() { this.beep(660, 0.08, 'sine', 0.10); setTimeout(() => this.beep(880, 0.10, 'sine', 0.10), 80); }
+};
 
 /* ============================================================
    CHESS ENGINE
@@ -1249,13 +1354,29 @@ function finalizeMove(fromRow, fromCol, move, promotionPiece){
     const capRow = game.turn === 'w' ? move.to.row + 1 : move.to.row - 1;
     capturedPiece = game.board[capRow][move.to.col];
   }
+
+  // === Play move sound ===
+  if(move.castling)             audio.castle();
+  else if(move.promotion)       audio.promote();
+  else if(capturedPiece)        audio.capture();
+  else                          audio.move();
+
   game.makeMove(fromRow, fromCol, move, promotionPiece);
+
   if(capturedPiece){
     const justMoved = game.turn === 'w' ? 'b' : 'w';
     captured[justMoved].push(game.typeOf(capturedPiece));
   }
   selected = null;
   legalForSelected = [];
+
+  // === Play status sound (check / checkmate) ===
+  if(game.status === 'checkmate'){
+    setTimeout(() => audio.checkmate(), 80);
+  } else if(game.status === 'check'){
+    setTimeout(() => audio.check(), 60);
+  }
+
   if(game.status === 'checkmate' || game.status === 'stalemate') onGameOver();
   switchTimer();
   renderAll();
@@ -1357,6 +1478,7 @@ function newGame(){
   $('btn-undo').disabled = false;
   renderAll();
   if(!window.__tickStarted){ tick(); window.__tickStarted = true; }
+  audio.gameStart();
 }
 
 /* ----- resign ----- */
@@ -1371,6 +1493,7 @@ function resign(){
   if(t.running) t.running = false;
   onGameOver();
   renderAll();
+  audio.checkmate();
 }
 
 /* ----- undo ----- */
@@ -1393,6 +1516,7 @@ function undo(){
   selected = null; legalForSelected = [];
   renderAll();
   showToast('تم التراجع');
+  audio.move();
 }
 
 /* ----- flip ----- */
@@ -1408,6 +1532,19 @@ function flip(){
   renderPlayerMeta();
   renderPlayerDots();
   renderBoard();
+}
+
+/* ----- sound toggle ----- */
+function toggleSound(){
+  audio.enabled = !audio.enabled;
+  const btn = $('btn-sound');
+  btn.textContent = audio.enabled ? '🔊' : '🔇';
+  btn.classList.toggle('muted', !audio.enabled);
+  btn.setAttribute('aria-label', audio.enabled ? 'إيقاف الصوت' : 'تشغيل الصوت');
+  if(audio.enabled){
+    audio.beep(880, 0.08, 'sine', 0.1);
+  }
+  try { localStorage.setItem('chess-sound', audio.enabled ? '1' : '0'); } catch(e){}
 }
 
 /* ----- toast ----- */
@@ -1430,6 +1567,7 @@ $('btn-resign').addEventListener('click', () => {
 });
 $('btn-undo').addEventListener('click', undo);
 $('btn-flip').addEventListener('click', flip);
+$('btn-sound').addEventListener('click', toggleSound);
 $('btn-close-gameover').addEventListener('click', () => {
   $('gameover-modal').classList.remove('active');
 });
@@ -1444,10 +1582,16 @@ document.addEventListener('keydown', (e) => {
   if(e.key === 'n' || e.key === 'N') newGame();
   if(e.key === 'u' || e.key === 'U') undo();
   if(e.key === 'f' || e.key === 'F') flip();
+  if(e.key === 'm' || e.key === 'M') toggleSound();
 });
 
 /* ----- init ----- */
 function init(){
+  // Restore sound preference
+  try {
+    const saved = localStorage.getItem('chess-sound');
+    if(saved === '0'){ audio.enabled = false; $('btn-sound').textContent = '🔇'; $('btn-sound').classList.add('muted'); $('btn-sound').setAttribute('aria-label','تشغيل الصوت'); }
+  } catch(e){}
   $('name-top').value = playerNames[inputColorMap.top];
   $('name-bottom').value = playerNames[inputColorMap.bottom];
   newGame();
