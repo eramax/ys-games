@@ -31,7 +31,7 @@
 html,body{width:100%;height:100%;overflow:hidden;font-family:var(--font-ar);color:var(--text);background:var(--bg);-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
 body{background-image:radial-gradient(circle at 12% 18%,rgba(59,130,246,.07) 0,transparent 45%),radial-gradient(circle at 88% 82%,rgba(139,92,246,.07) 0,transparent 45%);}
 button{font-family:inherit}
-.svg-sprite{position:absolute;width:0;height:0;overflow:hidden}
+.svg-sprite{position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;display:block;pointer-events:none}
 
 /* ===== App layout (flex column on mobile, 3-col grid on desktop) ===== */
 #app{
