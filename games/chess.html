@@ -132,7 +132,7 @@ header{
   max-width:35%;
   overflow:hidden;
 }
-.captured svg{width:18px;height:18px;flex-shrink:0;display:block;filter:drop-shadow(0 0 0.5px rgba(255,255,255,.7)) drop-shadow(0 0 1px rgba(0,0,0,.5))}
+.captured svg{width:18px;height:18px;flex-shrink:0;display:block;filter:drop-shadow(0 1px 1px rgba(0,0,0,.45))}
 .material{
   font-size:.7rem;font-weight:700;color:var(--text-muted);
   letter-spacing:.5px;flex-shrink:0;min-width:22px;text-align:left;
@@ -234,10 +234,10 @@ header{
   pointer-events:none;
   display:block;margin:auto;
   z-index:2;
-  /* Light shadow + subtle white halo so white pieces stay bright on light squares */
-  filter:drop-shadow(0 1px 1px rgba(0,0,0,.25)) drop-shadow(0 0 0.4px rgba(255,255,255,.5));
   transition:transform .15s;
 }
+.piece-w{filter:drop-shadow(0 1px 2px rgba(0,0,0,.4))}
+.piece-b{filter:drop-shadow(0 2px 3px rgba(0,0,0,.55))}
 .square:hover .piece{transform:scale(1.04)}
 
 /* ===== Status bar ===== */
@@ -461,144 +461,150 @@ header{
 </head>
 <body>
 
-<!-- ===== SVG Sprite: 12 chess pieces (thicker stroke on white = clearer on light squares) ===== -->
+<!-- ===== SVG Sprite: 12 chess pieces (real designs, black pieces have visible stroke on dark squares) ===== -->
 <svg class="svg-sprite" aria-hidden="true">
   <defs>
     <!-- ===== WHITE PAWN ===== -->
     <symbol id="wp" viewBox="0 0 100 100">
-      <circle cx="50" cy="28" r="13" fill="#ffffff" stroke="#000000" stroke-width="4.5"/>
-      <ellipse cx="50" cy="44" rx="14" ry="4" fill="#ffffff" stroke="#000000" stroke-width="3.5"/>
-      <path d="M34,50 Q30,62 36,70 L64,70 Q70,62 66,50 Q58,46 50,46 Q42,46 34,50 Z" fill="#ffffff" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
-      <path d="M20,70 L80,70 L86,90 L14,90 Z" fill="#ffffff" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
+      <circle cx="50" cy="26" r="14" fill="#ffffff" stroke="#000000" stroke-width="3.5"/>
+      <ellipse cx="50" cy="44" rx="15" ry="4" fill="#ffffff" stroke="#000000" stroke-width="3"/>
+      <path d="M34,50 Q30,62 36,72 L64,72 Q70,62 66,50 Q58,46 50,46 Q42,46 34,50 Z" fill="#ffffff" stroke="#000000" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M20,72 L80,72 L86,90 L14,90 Z" fill="#ffffff" stroke="#000000" stroke-width="3.5" stroke-linejoin="round"/>
     </symbol>
     <!-- ===== BLACK PAWN ===== -->
     <symbol id="bp" viewBox="0 0 100 100">
-      <circle cx="50" cy="28" r="13" fill="#1a1a1a" stroke="#000000" stroke-width="4.5"/>
-      <ellipse cx="50" cy="44" rx="14" ry="4" fill="#1a1a1a" stroke="#000000" stroke-width="3.5"/>
-      <path d="M34,50 Q30,62 36,70 L64,70 Q70,62 66,50 Q58,46 50,46 Q42,46 34,50 Z" fill="#1a1a1a" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
-      <path d="M20,70 L80,70 L86,90 L14,90 Z" fill="#1a1a1a" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
+      <circle cx="50" cy="26" r="14" fill="#2a2a2a" stroke="#0a0a0a" stroke-width="3.5"/>
+      <ellipse cx="50" cy="44" rx="15" ry="4" fill="#2a2a2a" stroke="#0a0a0a" stroke-width="3"/>
+      <path d="M34,50 Q30,62 36,72 L64,72 Q70,62 66,50 Q58,46 50,46 Q42,46 34,50 Z" fill="#2a2a2a" stroke="#0a0a0a" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M20,72 L80,72 L86,90 L14,90 Z" fill="#2a2a2a" stroke="#0a0a0a" stroke-width="3.5" stroke-linejoin="round"/>
     </symbol>
     <!-- ===== WHITE ROOK ===== -->
     <symbol id="wr" viewBox="0 0 100 100">
-      <path d="M12,8 L24,8 L24,22 L32,22 L32,8 L46,8 L46,22 L54,22 L54,8 L68,8 L68,22 L76,22 L76,8 L88,8 L88,32 L12,32 Z" fill="#ffffff" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
-      <path d="M18,32 L82,32 L82,42 L18,42 Z" fill="#ffffff" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
-      <path d="M22,42 L78,42 L82,72 L18,72 Z" fill="#ffffff" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
-      <path d="M10,72 L90,72 L94,90 L6,90 Z" fill="#ffffff" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
+      <path d="M12,10 L22,10 L22,24 L30,24 L30,10 L42,10 L42,24 L58,24 L58,10 L70,10 L70,24 L78,24 L78,10 L88,10 L88,34 L12,34 Z" fill="#ffffff" stroke="#000000" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M16,34 L84,34 L84,44 L16,44 Z" fill="#ffffff" stroke="#000000" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M22,44 L78,44 L82,72 L18,72 Z" fill="#ffffff" stroke="#000000" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M10,72 L90,72 L94,90 L6,90 Z" fill="#ffffff" stroke="#000000" stroke-width="3.5" stroke-linejoin="round"/>
     </symbol>
     <!-- ===== BLACK ROOK ===== -->
     <symbol id="br" viewBox="0 0 100 100">
-      <path d="M12,8 L24,8 L24,22 L32,22 L32,8 L46,8 L46,22 L54,22 L54,8 L68,8 L68,22 L76,22 L76,8 L88,8 L88,32 L12,32 Z" fill="#1a1a1a" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
-      <path d="M18,32 L82,32 L82,42 L18,42 Z" fill="#1a1a1a" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
-      <path d="M22,42 L78,42 L82,72 L18,72 Z" fill="#1a1a1a" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
-      <path d="M10,72 L90,72 L94,90 L6,90 Z" fill="#1a1a1a" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
+      <path d="M12,10 L22,10 L22,24 L30,24 L30,10 L42,10 L42,24 L58,24 L58,10 L70,10 L70,24 L78,24 L78,10 L88,10 L88,34 L12,34 Z" fill="#2a2a2a" stroke="#0a0a0a" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M16,34 L84,34 L84,44 L16,44 Z" fill="#2a2a2a" stroke="#0a0a0a" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M22,44 L78,44 L82,72 L18,72 Z" fill="#2a2a2a" stroke="#0a0a0a" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M10,72 L90,72 L94,90 L6,90 Z" fill="#2a2a2a" stroke="#0a0a0a" stroke-width="3.5" stroke-linejoin="round"/>
     </symbol>
-    <!-- ===== WHITE KNIGHT (clear horse head) ===== -->
+    <!-- ===== WHITE KNIGHT (proper horse head profile) ===== -->
     <symbol id="wn" viewBox="0 0 100 100">
-      <path d="
-        M 18 90
-        L 18 80
-        C 18 72 22 66 28 64
-        L 36 60
-        C 44 56 50 50 54 42
-        L 58 32
-        C 58 24 56 18 50 16
-        L 42 14
-        C 36 14 30 18 28 24
-        L 24 32
-        L 20 42
-        L 16 54
-        L 14 66
-        L 14 78
-        L 16 90
-        Z"
-        fill="#ffffff" stroke="#000000" stroke-width="4.5" stroke-linejoin="round" stroke-linecap="round"/>
-      <path d="M 50 18 L 54 4 L 58 18 Z" fill="#ffffff" stroke="#000000" stroke-width="3.5" stroke-linejoin="round"/>
-      <circle cx="54" cy="30" r="2.8" fill="#000000"/>
-      <path d="M 60 38 L 66 40 L 60 44 Z" fill="#000000"/>
-      <path d="M 26 36 L 30 40 L 26 44 M 22 50 L 26 54 L 22 58 M 20 64 L 24 68 L 20 72"
-            fill="none" stroke="#000000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M 10 82 L 90 82 L 94 92 L 6 92 Z" fill="#ffffff" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
+      <!-- Base -->
+      <path d="M8,84 L92,84 L96,94 L4,94 Z" fill="#ffffff" stroke="#000000" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M16,76 L84,76 L90,84 L10,84 Z" fill="#ffffff" stroke="#000000" stroke-width="3.5" stroke-linejoin="round"/>
+      <!-- Horse head + neck -->
+      <path d="M28,76
+               L26,60
+               C25,50 27,42 33,36
+               L42,28
+               C48,22 54,16 60,14
+               L66,12
+               C72,11 74,16 72,20
+               C70,24 66,26 62,26
+               L56,28
+               C52,30 50,34 50,40
+               L50,48
+               C50,54 53,58 58,60
+               L68,64
+               C73,66 76,70 74,76
+               Z" fill="#ffffff" stroke="#000000" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>
+      <!-- Ear -->
+      <path d="M60,14 L58,2 L66,11 Z" fill="#ffffff" stroke="#000000" stroke-width="3" stroke-linejoin="round"/>
+      <!-- Eye -->
+      <circle cx="56" cy="22" r="3" fill="#000000"/>
+      <!-- Nostril -->
+      <ellipse cx="67" cy="18" rx="2.2" ry="1.6" fill="#000000"/>
+      <!-- Mane -->
+      <path d="M44,18 C40,28 38,38 36,48 M49,16 C45,28 43,38 41,50 M54,18 C50,30 48,40 46,52" fill="none" stroke="#000000" stroke-width="2.5" stroke-linecap="round"/>
     </symbol>
-    <!-- ===== BLACK KNIGHT ===== -->
+    <!-- ===== BLACK KNIGHT (proper horse head profile) ===== -->
     <symbol id="bn" viewBox="0 0 100 100">
-      <path d="
-        M 18 90
-        L 18 80
-        C 18 72 22 66 28 64
-        L 36 60
-        C 44 56 50 50 54 42
-        L 58 32
-        C 58 24 56 18 50 16
-        L 42 14
-        C 36 14 30 18 28 24
-        L 24 32
-        L 20 42
-        L 16 54
-        L 14 66
-        L 14 78
-        L 16 90
-        Z"
-        fill="#1a1a1a" stroke="#000000" stroke-width="4.5" stroke-linejoin="round" stroke-linecap="round"/>
-      <path d="M 50 18 L 54 4 L 58 18 Z" fill="#1a1a1a" stroke="#000000" stroke-width="3.5" stroke-linejoin="round"/>
-      <circle cx="54" cy="30" r="2.8" fill="#ffffff"/>
-      <path d="M 60 38 L 66 40 L 60 44 Z" fill="#ffffff"/>
-      <path d="M 26 36 L 30 40 L 26 44 M 22 50 L 26 54 L 22 58 M 20 64 L 24 68 L 20 72"
-            fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M 10 82 L 90 82 L 94 92 L 6 92 Z" fill="#1a1a1a" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
+      <!-- Base -->
+      <path d="M8,84 L92,84 L96,94 L4,94 Z" fill="#2a2a2a" stroke="#0a0a0a" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M16,76 L84,76 L90,84 L10,84 Z" fill="#2a2a2a" stroke="#0a0a0a" stroke-width="3.5" stroke-linejoin="round"/>
+      <!-- Horse head + neck -->
+      <path d="M28,76
+               L26,60
+               C25,50 27,42 33,36
+               L42,28
+               C48,22 54,16 60,14
+               L66,12
+               C72,11 74,16 72,20
+               C70,24 66,26 62,26
+               L56,28
+               C52,30 50,34 50,40
+               L50,48
+               C50,54 53,58 58,60
+               L68,64
+               C73,66 76,70 74,76
+               Z" fill="#2a2a2a" stroke="#0a0a0a" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>
+      <!-- Ear -->
+      <path d="M60,14 L58,2 L66,11 Z" fill="#2a2a2a" stroke="#0a0a0a" stroke-width="3" stroke-linejoin="round"/>
+      <!-- Eye -->
+      <circle cx="56" cy="22" r="3" fill="#ffffff"/>
+      <!-- Nostril -->
+      <ellipse cx="67" cy="18" rx="2.2" ry="1.6" fill="#ffffff"/>
+      <!-- Mane -->
+      <path d="M44,18 C40,28 38,38 36,48 M49,16 C45,28 43,38 41,50 M54,18 C50,30 48,40 46,52" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/>
     </symbol>
     <!-- ===== WHITE BISHOP ===== -->
     <symbol id="wb" viewBox="0 0 100 100">
-      <circle cx="50" cy="11" r="5" fill="#ffffff" stroke="#000000" stroke-width="3.5"/>
-      <path d="M44,16 L56,16 L60,30 L66,44 L66,60 L34,60 L34,44 L40,30 Z" fill="#ffffff" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
-      <path d="M42,30 L50,40 L58,30" fill="none" stroke="#000000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M30,60 L70,60 L74,72 L26,72 Z" fill="#ffffff" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
-      <path d="M18,72 L82,72 L86,90 L14,90 Z" fill="#ffffff" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
+      <circle cx="50" cy="10" r="5" fill="#ffffff" stroke="#000000" stroke-width="3"/>
+      <path d="M44,15 L56,15 L60,28 L66,42 L66,58 L34,58 L34,42 L40,28 Z" fill="#ffffff" stroke="#000000" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M44,28 L50,40 L56,28" fill="none" stroke="#000000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M30,58 L70,58 L74,72 L26,72 Z" fill="#ffffff" stroke="#000000" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M18,72 L82,72 L86,90 L14,90 Z" fill="#ffffff" stroke="#000000" stroke-width="3.5" stroke-linejoin="round"/>
     </symbol>
     <!-- ===== BLACK BISHOP ===== -->
     <symbol id="bb" viewBox="0 0 100 100">
-      <circle cx="50" cy="11" r="5" fill="#1a1a1a" stroke="#000000" stroke-width="3.5"/>
-      <path d="M44,16 L56,16 L60,30 L66,44 L66,60 L34,60 L34,44 L40,30 Z" fill="#1a1a1a" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
-      <path d="M42,30 L50,40 L58,30" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M30,60 L70,60 L74,72 L26,72 Z" fill="#1a1a1a" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
-      <path d="M18,72 L82,72 L86,90 L14,90 Z" fill="#1a1a1a" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
+      <circle cx="50" cy="10" r="5" fill="#2a2a2a" stroke="#0a0a0a" stroke-width="3"/>
+      <path d="M44,15 L56,15 L60,28 L66,42 L66,58 L34,58 L34,42 L40,28 Z" fill="#2a2a2a" stroke="#0a0a0a" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M44,28 L50,40 L56,28" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M30,58 L70,58 L74,72 L26,72 Z" fill="#2a2a2a" stroke="#0a0a0a" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M18,72 L82,72 L86,90 L14,90 Z" fill="#2a2a2a" stroke="#0a0a0a" stroke-width="3.5" stroke-linejoin="round"/>
     </symbol>
     <!-- ===== WHITE QUEEN ===== -->
     <symbol id="wq" viewBox="0 0 100 100">
-      <path d="M14,12 L20,32 L30,18 L40,32 L50,8 L60,32 L70,18 L80,32 L86,12 L82,40 L18,40 Z" fill="#ffffff" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
-      <circle cx="14" cy="10" r="3.5" fill="#ffffff" stroke="#000000" stroke-width="3"/>
-      <circle cx="50" cy="6" r="4" fill="#ffffff" stroke="#000000" stroke-width="3"/>
-      <circle cx="86" cy="10" r="3.5" fill="#ffffff" stroke="#000000" stroke-width="3"/>
-      <circle cx="30" cy="18" r="2.5" fill="#ffffff" stroke="#000000" stroke-width="2.5"/>
-      <circle cx="70" cy="18" r="2.5" fill="#ffffff" stroke="#000000" stroke-width="2.5"/>
-      <path d="M18,40 L82,40 L86,72 L14,72 Z" fill="#ffffff" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
-      <path d="M10,72 L90,72 L94,90 L6,90 Z" fill="#ffffff" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
+      <path d="M14,14 L20,34 L30,20 L40,34 L50,10 L60,34 L70,20 L80,34 L86,14 L82,42 L18,42 Z" fill="#ffffff" stroke="#000000" stroke-width="3.5" stroke-linejoin="round"/>
+      <circle cx="14" cy="12" r="3.5" fill="#ffffff" stroke="#000000" stroke-width="2.5"/>
+      <circle cx="50" cy="7" r="4" fill="#ffffff" stroke="#000000" stroke-width="2.5"/>
+      <circle cx="86" cy="12" r="3.5" fill="#ffffff" stroke="#000000" stroke-width="2.5"/>
+      <circle cx="30" cy="20" r="2.5" fill="#ffffff" stroke="#000000" stroke-width="2"/>
+      <circle cx="70" cy="20" r="2.5" fill="#ffffff" stroke="#000000" stroke-width="2"/>
+      <path d="M18,42 L82,42 L86,72 L14,72 Z" fill="#ffffff" stroke="#000000" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M10,72 L90,72 L94,90 L6,90 Z" fill="#ffffff" stroke="#000000" stroke-width="3.5" stroke-linejoin="round"/>
     </symbol>
     <!-- ===== BLACK QUEEN ===== -->
     <symbol id="bq" viewBox="0 0 100 100">
-      <path d="M14,12 L20,32 L30,18 L40,32 L50,8 L60,32 L70,18 L80,32 L86,12 L82,40 L18,40 Z" fill="#1a1a1a" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
-      <circle cx="14" cy="10" r="3.5" fill="#1a1a1a" stroke="#000000" stroke-width="3"/>
-      <circle cx="50" cy="6" r="4" fill="#1a1a1a" stroke="#000000" stroke-width="3"/>
-      <circle cx="86" cy="10" r="3.5" fill="#1a1a1a" stroke="#000000" stroke-width="3"/>
-      <circle cx="30" cy="18" r="2.5" fill="#1a1a1a" stroke="#000000" stroke-width="2.5"/>
-      <circle cx="70" cy="18" r="2.5" fill="#1a1a1a" stroke="#000000" stroke-width="2.5"/>
-      <path d="M18,40 L82,40 L86,72 L14,72 Z" fill="#1a1a1a" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
-      <path d="M10,72 L90,72 L94,90 L6,90 Z" fill="#1a1a1a" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
+      <path d="M14,14 L20,34 L30,20 L40,34 L50,10 L60,34 L70,20 L80,34 L86,14 L82,42 L18,42 Z" fill="#2a2a2a" stroke="#0a0a0a" stroke-width="3.5" stroke-linejoin="round"/>
+      <circle cx="14" cy="12" r="3.5" fill="#2a2a2a" stroke="#0a0a0a" stroke-width="2.5"/>
+      <circle cx="50" cy="7" r="4" fill="#2a2a2a" stroke="#0a0a0a" stroke-width="2.5"/>
+      <circle cx="86" cy="12" r="3.5" fill="#2a2a2a" stroke="#0a0a0a" stroke-width="2.5"/>
+      <circle cx="30" cy="20" r="2.5" fill="#2a2a2a" stroke="#0a0a0a" stroke-width="2"/>
+      <circle cx="70" cy="20" r="2.5" fill="#2a2a2a" stroke="#0a0a0a" stroke-width="2"/>
+      <path d="M18,42 L82,42 L86,72 L14,72 Z" fill="#2a2a2a" stroke="#0a0a0a" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M10,72 L90,72 L94,90 L6,90 Z" fill="#2a2a2a" stroke="#0a0a0a" stroke-width="3.5" stroke-linejoin="round"/>
     </symbol>
     <!-- ===== WHITE KING ===== -->
     <symbol id="wk" viewBox="0 0 100 100">
-      <path d="M50,4 L50,20 M42,12 L58,12" stroke="#000000" stroke-width="5" stroke-linecap="round" fill="none"/>
-      <path d="M32,20 L68,20 L66,32 L66,46 L34,46 L34,32 Z" fill="#ffffff" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
-      <path d="M40,46 L40,38 L50,44 L60,38 L60,46" fill="#ffffff" stroke="#000000" stroke-width="3.5" stroke-linejoin="round"/>
-      <path d="M28,46 L72,46 L78,72 L22,72 Z" fill="#ffffff" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
-      <path d="M14,72 L86,72 L90,90 L10,90 Z" fill="#ffffff" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
+      <path d="M50,3 L50,20 M42,11 L58,11" stroke="#000000" stroke-width="5" stroke-linecap="round" fill="none"/>
+      <path d="M32,20 L68,20 L66,32 L66,48 L34,48 L34,32 Z" fill="#ffffff" stroke="#000000" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M40,48 L40,40 L50,46 L60,40 L60,48" fill="#ffffff" stroke="#000000" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M28,48 L72,48 L78,72 L22,72 Z" fill="#ffffff" stroke="#000000" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M14,72 L86,72 L90,90 L10,90 Z" fill="#ffffff" stroke="#000000" stroke-width="3.5" stroke-linejoin="round"/>
     </symbol>
     <!-- ===== BLACK KING ===== -->
     <symbol id="bk" viewBox="0 0 100 100">
-      <path d="M50,4 L50,20 M42,12 L58,12" stroke="#000000" stroke-width="5" stroke-linecap="round" fill="none"/>
-      <path d="M32,20 L68,20 L66,32 L66,46 L34,46 L34,32 Z" fill="#1a1a1a" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
-      <path d="M40,46 L40,38 L50,44 L60,38 L60,46" fill="#1a1a1a" stroke="#000000" stroke-width="3.5" stroke-linejoin="round"/>
-      <path d="M28,46 L72,46 L78,72 L22,72 Z" fill="#1a1a1a" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
-      <path d="M14,72 L86,72 L90,90 L10,90 Z" fill="#1a1a1a" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
+      <path d="M50,3 L50,20 M42,11 L58,11" stroke="#0a0a0a" stroke-width="5" stroke-linecap="round" fill="none"/>
+      <path d="M32,20 L68,20 L66,32 L66,48 L34,48 L34,32 Z" fill="#2a2a2a" stroke="#0a0a0a" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M40,48 L40,40 L50,46 L60,40 L60,48" fill="#2a2a2a" stroke="#0a0a0a" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M28,48 L72,48 L78,72 L22,72 Z" fill="#2a2a2a" stroke="#0a0a0a" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M14,72 L86,72 L90,90 L10,90 Z" fill="#2a2a2a" stroke="#0a0a0a" stroke-width="3.5" stroke-linejoin="round"/>
     </symbol>
   </defs>
 </svg>
@@ -1207,6 +1213,7 @@ function renderBoard(){
         const svg = document.createElementNS(SVG_NS, 'svg');
         svg.setAttribute('viewBox', '0 0 100 100');
         svg.classList.add('piece');
+        svg.classList.add(piece === piece.toUpperCase() ? 'piece-w' : 'piece-b');
         const use = document.createElementNS(SVG_NS, 'use');
         use.setAttribute('href', '#' + pieceToSymbolId(piece));
         svg.appendChild(use);
@@ -1251,6 +1258,7 @@ function renderCaptured(){
       for(const p of sorted){
         const svg = document.createElementNS(SVG_NS, 'svg');
         svg.setAttribute('viewBox', '0 0 100 100');
+        svg.classList.add(color === 'w' ? 'piece-b' : 'piece-w');
         const use = document.createElementNS(SVG_NS, 'use');
         use.setAttribute('href', '#' + (color === 'w' ? 'b' : 'w') + p);
         svg.appendChild(use);
@@ -1464,6 +1472,7 @@ function showPromotionModal(color){
     const btn = document.createElement('button');
     const svg = document.createElementNS(SVG_NS, 'svg');
     svg.setAttribute('viewBox', '0 0 100 100');
+    svg.classList.add(color === 'w' ? 'piece-w' : 'piece-b');
     const use = document.createElementNS(SVG_NS, 'use');
     use.setAttribute('href', '#' + color + p);
     svg.appendChild(use);
