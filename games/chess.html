@@ -33,7 +33,7 @@ body{background-image:radial-gradient(circle at 12% 18%,rgba(59,130,246,.07) 0,t
 button{font-family:inherit}
 .svg-sprite{position:absolute;width:0;height:0;overflow:hidden}
 
-/* ===== App layout (responsive, desktop-centered) ===== */
+/* ===== App layout (flex column on mobile, 3-col grid on desktop) ===== */
 #app{
   display:flex;flex-direction:column;
   height:100vh;height:100dvh;
@@ -95,7 +95,7 @@ header{
 .sound-btn:hover{background:rgba(255,255,255,.1);transform:translateY(-1px)}
 .sound-btn.muted{opacity:.45}
 
-/* ===== Player bar ===== */
+/* ===== Player bar (horizontal on mobile, vertical on desktop) ===== */
 .player-bar{
   flex:0 0 auto;
   background:var(--panel);
@@ -140,7 +140,7 @@ header{
 .material.up{color:#22c55e}
 .material.down{color:#ef4444}
 
-/* ===== Board (truly responsive: bounded by viewport width AND height) ===== */
+/* ===== Board ===== */
 .board-container{
   flex:1 1 0;
   min-height:0;
@@ -173,8 +173,6 @@ header{
   display:grid;
   grid-template-columns:repeat(8,1fr);
   grid-template-rows:repeat(8,1fr);
-  /* Responsive: drive size from width, let aspect-ratio enforce square,
-     then bound by max-height so it never overflows on short viewports. */
   width:min(100%,calc(100dvh - 230px),calc(100vw - 32px),640px);
   max-width:640px;
   max-height:calc(100dvh - 230px);
@@ -207,19 +205,23 @@ header{
   pointer-events:none;z-index:1;
 }
 @keyframes checkPulse{0%,100%{opacity:.85}50%{opacity:1}}
+/* Legal-move dot: dark center with a white ring so it's visible on both light and dark squares */
 .square.legal-target::after{
   content:"";position:absolute;
   top:50%;left:50%;
-  width:28%;height:28%;
+  width:30%;height:30%;
   border-radius:50%;
-  background:var(--valid-move);
+  background:rgba(20,20,30,.78);
   transform:translate(-50%,-50%);
   pointer-events:none;z-index:1;
+  box-shadow:0 0 0 2px rgba(255,255,255,.55), 0 1px 3px rgba(0,0,0,.3);
 }
+/* Legal-capture ring: dark border with a white inner glow so it pops on both square colors */
 .square.legal-capture::after{
   content:"";position:absolute;inset:5%;
   border-radius:50%;
-  border:4px solid var(--valid-capture);
+  border:4px solid rgba(20,20,30,.82);
+  box-shadow:0 0 0 1px rgba(255,255,255,.5), inset 0 0 0 1px rgba(255,255,255,.25);
   pointer-events:none;z-index:1;
   box-sizing:border-box;
 }
@@ -230,7 +232,8 @@ header{
   pointer-events:none;
   display:block;margin:auto;
   z-index:2;
-  filter:drop-shadow(0 1.5px 2px rgba(0,0,0,.35));
+  /* Light shadow + subtle white halo so white pieces stay bright on light squares */
+  filter:drop-shadow(0 1px 1px rgba(0,0,0,.25)) drop-shadow(0 0 0.4px rgba(255,255,255,.5));
   transition:transform .15s;
 }
 .square:hover .piece{transform:scale(1.04)}
@@ -393,44 +396,102 @@ header{
   .player-name input{font-size:.8rem}
   .board{width:min(100%,calc(100dvh - 160px),calc(100vw - 32px),640px);max-height:calc(100dvh - 160px)}
 }
+
+/* ===== DESKTOP: side-bar layout (board in center, player bars on left & right) ===== */
+@media (min-width:960px){
+  #app{
+    display:grid;
+    grid-template-columns:minmax(190px,230px) 1fr minmax(190px,230px);
+    grid-template-rows:auto 1fr auto auto;
+    grid-template-areas:
+      "header header header"
+      "top    board  bottom"
+      "status status status"
+      "history history history";
+    gap:12px;
+    padding:14px;
+    max-width:1500px;
+  }
+  header{grid-area:header}
+  #bar-top{grid-area:top}
+  .board-container{grid-area:board}
+  #bar-bottom{grid-area:bottom}
+  .status-bar{grid-area:status}
+  .history{grid-area:history}
+
+  /* Vertical player cards */
+  .player-bar{
+    flex-direction:column;
+    align-items:center;
+    padding:18px 14px;
+    gap:14px;
+    overflow-y:auto;
+    min-height:0;
+  }
+  .player-bar .player-info{
+    flex-direction:column;
+    align-items:center;
+    gap:8px;
+    width:100%;
+  }
+  .player-bar .player-name{
+    text-align:center;
+    width:100%;
+  }
+  .player-bar .player-name input{text-align:center;font-size:1rem}
+  .player-bar .player-meta{text-align:center}
+  .player-bar .player-dot{width:22px;height:22px}
+  .player-bar .timer{font-size:1.85rem}
+  .player-bar .captured{
+    max-width:100%;
+    justify-content:center;
+    flex-wrap:wrap;
+    gap:2px;
+  }
+  .player-bar .captured svg{width:24px;height:24px}
+  .player-bar .material{
+    text-align:center;
+    min-width:0;
+    font-size:.78rem;
+  }
+}
 </style>
 </head>
 <body>
 
-<!-- ===== SVG Sprite: 12 chess pieces (clean, recognizable) ===== -->
+<!-- ===== SVG Sprite: 12 chess pieces (thicker stroke on white = clearer on light squares) ===== -->
 <svg class="svg-sprite" aria-hidden="true">
   <defs>
     <!-- ===== WHITE PAWN ===== -->
     <symbol id="wp" viewBox="0 0 100 100">
-      <circle cx="50" cy="28" r="13" fill="white" stroke="#1a1a1a" stroke-width="3.5"/>
-      <ellipse cx="50" cy="44" rx="14" ry="4" fill="white" stroke="#1a1a1a" stroke-width="3"/>
-      <path d="M34,50 Q30,62 36,70 L64,70 Q70,62 66,50 Q58,46 50,46 Q42,46 34,50 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
-      <path d="M20,70 L80,70 L86,90 L14,90 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
+      <circle cx="50" cy="28" r="13" fill="#ffffff" stroke="#000000" stroke-width="4.5"/>
+      <ellipse cx="50" cy="44" rx="14" ry="4" fill="#ffffff" stroke="#000000" stroke-width="3.5"/>
+      <path d="M34,50 Q30,62 36,70 L64,70 Q70,62 66,50 Q58,46 50,46 Q42,46 34,50 Z" fill="#ffffff" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
+      <path d="M20,70 L80,70 L86,90 L14,90 Z" fill="#ffffff" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
     </symbol>
     <!-- ===== BLACK PAWN ===== -->
     <symbol id="bp" viewBox="0 0 100 100">
-      <circle cx="50" cy="28" r="13" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5"/>
-      <ellipse cx="50" cy="44" rx="14" ry="4" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3"/>
-      <path d="M34,50 Q30,62 36,70 L64,70 Q70,62 66,50 Q58,46 50,46 Q42,46 34,50 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
-      <path d="M20,70 L80,70 L86,90 L14,90 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
+      <circle cx="50" cy="28" r="13" fill="#1a1a1a" stroke="#000000" stroke-width="4.5"/>
+      <ellipse cx="50" cy="44" rx="14" ry="4" fill="#1a1a1a" stroke="#000000" stroke-width="3.5"/>
+      <path d="M34,50 Q30,62 36,70 L64,70 Q70,62 66,50 Q58,46 50,46 Q42,46 34,50 Z" fill="#1a1a1a" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
+      <path d="M20,70 L80,70 L86,90 L14,90 Z" fill="#1a1a1a" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
     </symbol>
     <!-- ===== WHITE ROOK ===== -->
     <symbol id="wr" viewBox="0 0 100 100">
-      <path d="M12,8 L24,8 L24,22 L32,22 L32,8 L46,8 L46,22 L54,22 L54,8 L68,8 L68,22 L76,22 L76,8 L88,8 L88,32 L12,32 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
-      <path d="M18,32 L82,32 L82,42 L18,42 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
-      <path d="M22,42 L78,42 L82,72 L18,72 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
-      <path d="M10,72 L90,72 L94,90 L6,90 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M12,8 L24,8 L24,22 L32,22 L32,8 L46,8 L46,22 L54,22 L54,8 L68,8 L68,22 L76,22 L76,8 L88,8 L88,32 L12,32 Z" fill="#ffffff" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
+      <path d="M18,32 L82,32 L82,42 L18,42 Z" fill="#ffffff" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
+      <path d="M22,42 L78,42 L82,72 L18,72 Z" fill="#ffffff" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
+      <path d="M10,72 L90,72 L94,90 L6,90 Z" fill="#ffffff" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
     </symbol>
     <!-- ===== BLACK ROOK ===== -->
     <symbol id="br" viewBox="0 0 100 100">
-      <path d="M12,8 L24,8 L24,22 L32,22 L32,8 L46,8 L46,22 L54,22 L54,8 L68,8 L68,22 L76,22 L76,8 L88,8 L88,32 L12,32 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
-      <path d="M18,32 L82,32 L82,42 L18,42 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
-      <path d="M22,42 L78,42 L82,72 L18,72 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
-      <path d="M10,72 L90,72 L94,90 L6,90 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M12,8 L24,8 L24,22 L32,22 L32,8 L46,8 L46,22 L54,22 L54,8 L68,8 L68,22 L76,22 L76,8 L88,8 L88,32 L12,32 Z" fill="#1a1a1a" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
+      <path d="M18,32 L82,32 L82,42 L18,42 Z" fill="#1a1a1a" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
+      <path d="M22,42 L78,42 L82,72 L18,72 Z" fill="#1a1a1a" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
+      <path d="M10,72 L90,72 L94,90 L6,90 Z" fill="#1a1a1a" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
     </symbol>
-    <!-- ===== WHITE KNIGHT (clear horse head, facing right) ===== -->
+    <!-- ===== WHITE KNIGHT (clear horse head) ===== -->
     <symbol id="wn" viewBox="0 0 100 100">
-      <!-- Main horse head + neck profile (S-curve) -->
       <path d="
         M 18 90
         L 18 80
@@ -448,18 +509,13 @@ header{
         L 14 78
         L 16 90
         Z"
-        fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>
-      <!-- Pointed ear on top of head -->
-      <path d="M 50 18 L 54 4 L 58 18 Z" fill="white" stroke="#1a1a1a" stroke-width="3" stroke-linejoin="round"/>
-      <!-- Eye -->
-      <circle cx="54" cy="30" r="2.8" fill="#1a1a1a"/>
-      <!-- Nostril / mouth detail on snout (right side) -->
-      <path d="M 60 38 L 66 40 L 60 44 Z" fill="#1a1a1a"/>
-      <!-- Mane line on back of neck (zigzag, inside the neck shape) -->
+        fill="#ffffff" stroke="#000000" stroke-width="4.5" stroke-linejoin="round" stroke-linecap="round"/>
+      <path d="M 50 18 L 54 4 L 58 18 Z" fill="#ffffff" stroke="#000000" stroke-width="3.5" stroke-linejoin="round"/>
+      <circle cx="54" cy="30" r="2.8" fill="#000000"/>
+      <path d="M 60 38 L 66 40 L 60 44 Z" fill="#000000"/>
       <path d="M 26 36 L 30 40 L 26 44 M 22 50 L 26 54 L 22 58 M 20 64 L 24 68 L 20 72"
-            fill="none" stroke="#1a1a1a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      <!-- Base -->
-      <path d="M 10 82 L 90 82 L 94 92 L 6 92 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
+            fill="none" stroke="#000000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M 10 82 L 90 82 L 94 92 L 6 92 Z" fill="#ffffff" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
     </symbol>
     <!-- ===== BLACK KNIGHT ===== -->
     <symbol id="bn" viewBox="0 0 100 100">
@@ -480,67 +536,67 @@ header{
         L 14 78
         L 16 90
         Z"
-        fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>
-      <path d="M 50 18 L 54 4 L 58 18 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3" stroke-linejoin="round"/>
-      <circle cx="54" cy="30" r="2.8" fill="white"/>
-      <path d="M 60 38 L 66 40 L 60 44 Z" fill="white"/>
+        fill="#1a1a1a" stroke="#000000" stroke-width="4.5" stroke-linejoin="round" stroke-linecap="round"/>
+      <path d="M 50 18 L 54 4 L 58 18 Z" fill="#1a1a1a" stroke="#000000" stroke-width="3.5" stroke-linejoin="round"/>
+      <circle cx="54" cy="30" r="2.8" fill="#ffffff"/>
+      <path d="M 60 38 L 66 40 L 60 44 Z" fill="#ffffff"/>
       <path d="M 26 36 L 30 40 L 26 44 M 22 50 L 26 54 L 22 58 M 20 64 L 24 68 L 20 72"
-            fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M 10 82 L 90 82 L 94 92 L 6 92 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
+            fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M 10 82 L 90 82 L 94 92 L 6 92 Z" fill="#1a1a1a" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
     </symbol>
     <!-- ===== WHITE BISHOP ===== -->
     <symbol id="wb" viewBox="0 0 100 100">
-      <circle cx="50" cy="11" r="5" fill="white" stroke="#1a1a1a" stroke-width="3"/>
-      <path d="M44,16 L56,16 L60,30 L66,44 L66,60 L34,60 L34,44 L40,30 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
-      <path d="M42,30 L50,40 L58,30" fill="none" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M30,60 L70,60 L74,72 L26,72 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
-      <path d="M18,72 L82,72 L86,90 L14,90 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
+      <circle cx="50" cy="11" r="5" fill="#ffffff" stroke="#000000" stroke-width="3.5"/>
+      <path d="M44,16 L56,16 L60,30 L66,44 L66,60 L34,60 L34,44 L40,30 Z" fill="#ffffff" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
+      <path d="M42,30 L50,40 L58,30" fill="none" stroke="#000000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M30,60 L70,60 L74,72 L26,72 Z" fill="#ffffff" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
+      <path d="M18,72 L82,72 L86,90 L14,90 Z" fill="#ffffff" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
     </symbol>
     <!-- ===== BLACK BISHOP ===== -->
     <symbol id="bb" viewBox="0 0 100 100">
-      <circle cx="50" cy="11" r="5" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3"/>
-      <path d="M44,16 L56,16 L60,30 L66,44 L66,60 L34,60 L34,44 L40,30 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
-      <path d="M42,30 L50,40 L58,30" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M30,60 L70,60 L74,72 L26,72 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
-      <path d="M18,72 L82,72 L86,90 L14,90 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
+      <circle cx="50" cy="11" r="5" fill="#1a1a1a" stroke="#000000" stroke-width="3.5"/>
+      <path d="M44,16 L56,16 L60,30 L66,44 L66,60 L34,60 L34,44 L40,30 Z" fill="#1a1a1a" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
+      <path d="M42,30 L50,40 L58,30" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M30,60 L70,60 L74,72 L26,72 Z" fill="#1a1a1a" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
+      <path d="M18,72 L82,72 L86,90 L14,90 Z" fill="#1a1a1a" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
     </symbol>
     <!-- ===== WHITE QUEEN ===== -->
     <symbol id="wq" viewBox="0 0 100 100">
-      <path d="M14,12 L20,32 L30,18 L40,32 L50,8 L60,32 L70,18 L80,32 L86,12 L82,40 L18,40 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
-      <circle cx="14" cy="10" r="3.5" fill="white" stroke="#1a1a1a" stroke-width="2.5"/>
-      <circle cx="50" cy="6" r="4" fill="white" stroke="#1a1a1a" stroke-width="2.5"/>
-      <circle cx="86" cy="10" r="3.5" fill="white" stroke="#1a1a1a" stroke-width="2.5"/>
-      <circle cx="30" cy="18" r="2.5" fill="white" stroke="#1a1a1a" stroke-width="2"/>
-      <circle cx="70" cy="18" r="2.5" fill="white" stroke="#1a1a1a" stroke-width="2"/>
-      <path d="M18,40 L82,40 L86,72 L14,72 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
-      <path d="M10,72 L90,72 L94,90 L6,90 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M14,12 L20,32 L30,18 L40,32 L50,8 L60,32 L70,18 L80,32 L86,12 L82,40 L18,40 Z" fill="#ffffff" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
+      <circle cx="14" cy="10" r="3.5" fill="#ffffff" stroke="#000000" stroke-width="3"/>
+      <circle cx="50" cy="6" r="4" fill="#ffffff" stroke="#000000" stroke-width="3"/>
+      <circle cx="86" cy="10" r="3.5" fill="#ffffff" stroke="#000000" stroke-width="3"/>
+      <circle cx="30" cy="18" r="2.5" fill="#ffffff" stroke="#000000" stroke-width="2.5"/>
+      <circle cx="70" cy="18" r="2.5" fill="#ffffff" stroke="#000000" stroke-width="2.5"/>
+      <path d="M18,40 L82,40 L86,72 L14,72 Z" fill="#ffffff" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
+      <path d="M10,72 L90,72 L94,90 L6,90 Z" fill="#ffffff" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
     </symbol>
     <!-- ===== BLACK QUEEN ===== -->
     <symbol id="bq" viewBox="0 0 100 100">
-      <path d="M14,12 L20,32 L30,18 L40,32 L50,8 L60,32 L70,18 L80,32 L86,12 L82,40 L18,40 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
-      <circle cx="14" cy="10" r="3.5" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="2.5"/>
-      <circle cx="50" cy="6" r="4" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="2.5"/>
-      <circle cx="86" cy="10" r="3.5" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="2.5"/>
-      <circle cx="30" cy="18" r="2.5" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="2"/>
-      <circle cx="70" cy="18" r="2.5" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="2"/>
-      <path d="M18,40 L82,40 L86,72 L14,72 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
-      <path d="M10,72 L90,72 L94,90 L6,90 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M14,12 L20,32 L30,18 L40,32 L50,8 L60,32 L70,18 L80,32 L86,12 L82,40 L18,40 Z" fill="#1a1a1a" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
+      <circle cx="14" cy="10" r="3.5" fill="#1a1a1a" stroke="#000000" stroke-width="3"/>
+      <circle cx="50" cy="6" r="4" fill="#1a1a1a" stroke="#000000" stroke-width="3"/>
+      <circle cx="86" cy="10" r="3.5" fill="#1a1a1a" stroke="#000000" stroke-width="3"/>
+      <circle cx="30" cy="18" r="2.5" fill="#1a1a1a" stroke="#000000" stroke-width="2.5"/>
+      <circle cx="70" cy="18" r="2.5" fill="#1a1a1a" stroke="#000000" stroke-width="2.5"/>
+      <path d="M18,40 L82,40 L86,72 L14,72 Z" fill="#1a1a1a" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
+      <path d="M10,72 L90,72 L94,90 L6,90 Z" fill="#1a1a1a" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
     </symbol>
     <!-- ===== WHITE KING ===== -->
     <symbol id="wk" viewBox="0 0 100 100">
-      <path d="M50,4 L50,20 M42,12 L58,12" stroke="#1a1a1a" stroke-width="4.5" stroke-linecap="round" fill="none"/>
-      <path d="M32,20 L68,20 L66,32 L66,46 L34,46 L34,32 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
-      <path d="M40,46 L40,38 L50,44 L60,38 L60,46" fill="white" stroke="#1a1a1a" stroke-width="3" stroke-linejoin="round"/>
-      <path d="M28,46 L72,46 L78,72 L22,72 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
-      <path d="M14,72 L86,72 L90,90 L10,90 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M50,4 L50,20 M42,12 L58,12" stroke="#000000" stroke-width="5" stroke-linecap="round" fill="none"/>
+      <path d="M32,20 L68,20 L66,32 L66,46 L34,46 L34,32 Z" fill="#ffffff" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
+      <path d="M40,46 L40,38 L50,44 L60,38 L60,46" fill="#ffffff" stroke="#000000" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M28,46 L72,46 L78,72 L22,72 Z" fill="#ffffff" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
+      <path d="M14,72 L86,72 L90,90 L10,90 Z" fill="#ffffff" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
     </symbol>
     <!-- ===== BLACK KING ===== -->
     <symbol id="bk" viewBox="0 0 100 100">
-      <path d="M50,4 L50,20 M42,12 L58,12" stroke="#1a1a1a" stroke-width="4.5" stroke-linecap="round" fill="none"/>
-      <path d="M32,20 L68,20 L66,32 L66,46 L34,46 L34,32 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
-      <path d="M40,46 L40,38 L50,44 L60,38 L60,46" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3" stroke-linejoin="round"/>
-      <path d="M28,46 L72,46 L78,72 L22,72 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
-      <path d="M14,72 L86,72 L90,90 L10,90 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M50,4 L50,20 M42,12 L58,12" stroke="#000000" stroke-width="5" stroke-linecap="round" fill="none"/>
+      <path d="M32,20 L68,20 L66,32 L66,46 L34,46 L34,32 Z" fill="#1a1a1a" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
+      <path d="M40,46 L40,38 L50,44 L60,38 L60,46" fill="#1a1a1a" stroke="#000000" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M28,46 L72,46 L78,72 L22,72 Z" fill="#1a1a1a" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
+      <path d="M14,72 L86,72 L90,90 L10,90 Z" fill="#1a1a1a" stroke="#000000" stroke-width="4.5" stroke-linejoin="round"/>
     </symbol>
   </defs>
 </svg>
@@ -655,7 +711,7 @@ header{
 const $ = id => document.getElementById(id);
 
 /* ============================================================
-   AUDIO  (Web Audio API — synthesized, no external files)
+   AUDIO
 ============================================================ */
 const audio = {
   ctx: null,
@@ -1122,7 +1178,6 @@ function formatTime(ms){
   return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
 }
 
-/* ----- rendering ----- */
 function renderBoard(){
   boardEl.innerHTML = '';
   for(let r=0; r<8; r++){
@@ -1316,7 +1371,6 @@ function tick(){
   requestAnimationFrame(tick);
 }
 
-/* ----- game flow ----- */
 function onSquareClick(r, c){
   if(gameEnded) return;
   const piece = game.board[r][c];
@@ -1355,7 +1409,6 @@ function finalizeMove(fromRow, fromCol, move, promotionPiece){
     capturedPiece = game.board[capRow][move.to.col];
   }
 
-  // === Play move sound ===
   if(move.castling)             audio.castle();
   else if(move.promotion)       audio.promote();
   else if(capturedPiece)        audio.capture();
@@ -1370,7 +1423,6 @@ function finalizeMove(fromRow, fromCol, move, promotionPiece){
   selected = null;
   legalForSelected = [];
 
-  // === Play status sound (check / checkmate) ===
   if(game.status === 'checkmate'){
     setTimeout(() => audio.checkmate(), 80);
   } else if(game.status === 'check'){
@@ -1401,7 +1453,6 @@ function onGameOver(){
   showGameOverModal();
 }
 
-/* ----- promotion ----- */
 function showPromotionModal(color){
   const modal = $('promotion-modal');
   const choices = $('promotion-choices');
@@ -1427,7 +1478,6 @@ function showPromotionModal(color){
   modal.classList.add('active');
 }
 
-/* ----- game over modal ----- */
 function showGameOverModal(){
   const modal = $('gameover-modal');
   const title = $('gameover-title');
@@ -1464,7 +1514,6 @@ function showGameOverModal(){
   modal.classList.add('active');
 }
 
-/* ----- new game ----- */
 function newGame(){
   game.reset();
   selected = null; legalForSelected = []; pendingPromotion = null;
@@ -1481,7 +1530,6 @@ function newGame(){
   audio.gameStart();
 }
 
-/* ----- resign ----- */
 function resign(){
   if(gameEnded) return;
   const loser = game.turn;
@@ -1496,7 +1544,6 @@ function resign(){
   audio.checkmate();
 }
 
-/* ----- undo ----- */
 function undo(){
   if(gameEnded) return;
   if(game.history.length === 0){ showToast('لا توجد نقلات للتراجع'); return; }
@@ -1519,7 +1566,6 @@ function undo(){
   audio.move();
 }
 
-/* ----- flip ----- */
 function flip(){
   flipped = !flipped;
   const oldTop = inputColorMap.top;
@@ -1534,7 +1580,6 @@ function flip(){
   renderBoard();
 }
 
-/* ----- sound toggle ----- */
 function toggleSound(){
   audio.enabled = !audio.enabled;
   const btn = $('btn-sound');
@@ -1547,7 +1592,6 @@ function toggleSound(){
   try { localStorage.setItem('chess-sound', audio.enabled ? '1' : '0'); } catch(e){}
 }
 
-/* ----- toast ----- */
 let toastTimer = null;
 function showToast(msg){
   const t = $('toast');
@@ -1557,7 +1601,6 @@ function showToast(msg){
   toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
 }
 
-/* ----- event bindings ----- */
 $('btn-new').addEventListener('click', newGame);
 $('btn-new-2').addEventListener('click', newGame);
 $('btn-resign').addEventListener('click', () => {
@@ -1585,9 +1628,7 @@ document.addEventListener('keydown', (e) => {
   if(e.key === 'm' || e.key === 'M') toggleSound();
 });
 
-/* ----- init ----- */
 function init(){
-  // Restore sound preference
   try {
     const saved = localStorage.getItem('chess-sound');
     if(saved === '0'){ audio.enabled = false; $('btn-sound').textContent = '🔇'; $('btn-sound').classList.add('muted'); $('btn-sound').setAttribute('aria-label','تشغيل الصوت'); }
