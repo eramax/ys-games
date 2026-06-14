@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0a0e17">
 <title>شطرنج · لاعبين</title>
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Noto+Sans+Symbols+2&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#0a0e17;
@@ -17,12 +17,11 @@
   --text-muted:#9ca3af;
   --accent:#3b82f6;
   --accent-2:#8b5cf6;
-  --accent-glow:rgba(59,130,246,.45);
   --light-sq:#f0d9b5;
   --dark-sq:#b58863;
   --selected:#cdd26b;
-  --last-move:rgba(205,210,107,.45);
-  --check:rgba(239,68,68,.75);
+  --last-move:rgba(205,210,107,.5);
+  --check:rgba(239,68,68,.78);
   --valid-move:rgba(0,0,0,.38);
   --valid-capture:rgba(0,0,0,.5);
   --win:#fbbf24;
@@ -32,46 +31,45 @@
 html,body{width:100%;height:100%;overflow:hidden;font-family:var(--font-ar);color:var(--text);background:var(--bg);-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
 body{background-image:radial-gradient(circle at 12% 18%,rgba(59,130,246,.07) 0,transparent 45%),radial-gradient(circle at 88% 82%,rgba(139,92,246,.07) 0,transparent 45%);}
 button{font-family:inherit}
-
-/* Sprite container is hidden but kept in the DOM for the <use> references */
 .svg-sprite{position:absolute;width:0;height:0;overflow:hidden}
 
+/* ===== App layout (flex column, board flexes to fit) ===== */
 #app{
-  display:grid;
-  grid-template-rows:auto auto 1fr auto auto auto;
+  display:flex;flex-direction:column;
   height:100vh;height:100dvh;
   width:100vw;
-  gap:8px;
-  padding:8px;
-  min-height:0;
+  gap:6px;
+  padding:6px;
+  overflow:hidden;
 }
 
 /* ===== Header ===== */
 header{
+  flex:0 0 auto;
   display:flex;justify-content:space-between;align-items:center;
-  padding:8px 12px;
+  padding:6px 10px;
   background:var(--panel);
   border:1px solid var(--border);
   border-radius:12px;
   backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-  gap:8px;
+  gap:6px;
   flex-wrap:wrap;
 }
-.title{font-size:1.2rem;font-weight:800;letter-spacing:.5px;display:flex;align-items:center;gap:8px}
+.title{font-size:1.05rem;font-weight:800;letter-spacing:.5px;display:flex;align-items:center;gap:6px;min-width:0}
 .title-main{background:linear-gradient(135deg,#3b82f6,#8b5cf6);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
-.title-sub{color:var(--text-muted);font-size:.78rem;font-weight:500;display:none}
-.header-actions{display:flex;gap:5px;flex-wrap:wrap}
+.title-sub{color:var(--text-muted);font-size:.7rem;font-weight:500;display:none}
+.header-actions{display:flex;gap:4px;flex-wrap:wrap}
 .btn{
   background:rgba(59,130,246,.12);
   border:1px solid rgba(59,130,246,.35);
   color:#93c5fd;
-  padding:7px 11px;
+  padding:5px 9px;
   border-radius:8px;
   font-weight:700;
-  font-size:.78rem;
+  font-size:.72rem;
   cursor:pointer;
   transition:all .2s;
-  display:inline-flex;align-items:center;gap:5px;
+  display:inline-flex;align-items:center;gap:4px;
   white-space:nowrap;
 }
 .btn:hover{background:rgba(59,130,246,.25);transform:translateY(-1px)}
@@ -84,28 +82,29 @@ header{
 
 /* ===== Player bar ===== */
 .player-bar{
+  flex:0 0 auto;
   background:var(--panel);
   border:1px solid var(--border);
   border-radius:12px;
   backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-  padding:8px 12px;
-  display:flex;align-items:center;gap:12px;
+  padding:6px 10px;
+  display:flex;align-items:center;gap:10px;
   min-width:0;
 }
-.player-info{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
-.player-dot{width:16px;height:16px;border-radius:50%;flex-shrink:0;border:2px solid rgba(255,255,255,.25);box-shadow:0 0 0 1px rgba(0,0,0,.4) inset}
+.player-info{display:flex;align-items:center;gap:8px;min-width:0;flex:1}
+.player-dot{width:14px;height:14px;border-radius:50%;flex-shrink:0;border:2px solid rgba(255,255,255,.25);box-shadow:0 0 0 1px rgba(0,0,0,.4) inset}
 .player-name{flex:1;min-width:0}
 .player-name input{
   width:100%;background:transparent;border:none;color:var(--text);
-  font-weight:700;font-size:.95rem;outline:none;padding:2px 0;
+  font-weight:700;font-size:.85rem;outline:none;padding:2px 0;
   border-bottom:1px solid transparent;transition:border-color .2s;
   font-family:inherit;
 }
 .player-name input:focus{border-bottom-color:var(--accent)}
 .player-name input::placeholder{color:var(--text-muted)}
-.player-meta{font-size:.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-top:1px}
+.player-meta{font-size:.6rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-top:1px}
 .timer{
-  font-size:1.35rem;font-weight:800;font-variant-numeric:tabular-nums;
+  font-size:1.15rem;font-weight:800;font-variant-numeric:tabular-nums;
   letter-spacing:1px;color:var(--text);
   font-family:'Cairo','Courier New',monospace;
   line-height:1;
@@ -114,49 +113,59 @@ header{
 .captured{
   display:flex;flex-wrap:wrap;gap:0;
   font-size:1.1rem;line-height:1;
-  min-height:20px;align-items:center;
-  max-width:50%;
+  min-height:18px;align-items:center;
+  max-width:40%;
   overflow:hidden;
 }
 .captured svg{width:18px;height:18px;flex-shrink:0;display:block}
 .material{
   font-size:.7rem;font-weight:700;color:var(--text-muted);
-  letter-spacing:.5px;flex-shrink:0;min-width:24px;text-align:left;
+  letter-spacing:.5px;flex-shrink:0;min-width:22px;text-align:left;
 }
 .material.up{color:#22c55e}
 .material.down{color:#ef4444}
 
-/* ===== Board ===== */
+/* ===== Board (flexes to fill remaining space, never overflows) ===== */
 .board-container{
+  flex:1 1 0;
+  min-height:0;
   display:flex;align-items:center;justify-content:center;
-  min-height:0;min-width:0;
-  padding:4px 0;
+  overflow:hidden;
+  padding:2px 0;
 }
-.board-wrapper{display:flex;align-items:stretch;justify-content:center;gap:4px}
+.board-wrapper{
+  display:flex;align-items:stretch;justify-content:center;gap:3px;
+  max-width:100%;max-height:100%;
+}
 .coord-col{
   display:flex;flex-direction:column;justify-content:space-around;
-  font-size:.7rem;color:var(--text-muted);font-weight:700;
+  font-size:.65rem;color:var(--text-muted);font-weight:700;
   letter-spacing:0;font-family:inherit;
-  width:18px;text-align:center;
+  width:16px;text-align:center;
+  flex-shrink:0;
 }
 .coord-row{
   display:grid;grid-template-columns:repeat(8,1fr);justify-items:center;
-  font-size:.7rem;color:var(--text-muted);font-weight:700;
-  letter-spacing:0;margin-top:4px;
+  font-size:.65rem;color:var(--text-muted);font-weight:700;
+  letter-spacing:0;margin-top:3px;
   font-family:inherit;
-  direction:ltr; /* keep a-h left-to-right for clarity */
+  direction:ltr;
+  height:14px;
+  flex-shrink:0;
 }
 .board{
   display:grid;
   grid-template-columns:repeat(8,1fr);
   grid-template-rows:repeat(8,1fr);
-  width:min(96vw,calc(100dvh - 320px),640px);
+  width:min(100%,calc(100dvh - 200px),640px);
+  max-width:640px;
   aspect-ratio:1;
   border-radius:6px;
   overflow:hidden;
-  box-shadow:0 12px 40px rgba(0,0,0,.55),0 0 0 4px #2c1810,0 0 0 5px #5a3a1f;
+  box-shadow:0 10px 32px rgba(0,0,0,.55),0 0 0 4px #2c1810,0 0 0 5px #5a3a1f;
   background:#2c1810;
-  direction:ltr; /* chess board is always LTR */
+  direction:ltr;
+  flex-shrink:0;
 }
 .square{
   display:flex;align-items:center;justify-content:center;
@@ -197,36 +206,37 @@ header{
 .square:hover{filter:brightness(1.05)}
 
 .piece{
-  width:86%;height:86%;
+  width:92%;height:92%;
   pointer-events:none;
   display:block;margin:auto;
   z-index:2;
-  filter:drop-shadow(0 1px 1px rgba(0,0,0,.25));
-  transition:transform .15s;
+  filter:drop-shadow(0 1.5px 2px rgba(0,0,0,.35));
 }
-.square:hover .piece{transform:scale(1.05)}
+.square:hover .piece{transform:scale(1.04)}
+.piece{transition:transform .15s}
 
 /* ===== Status bar ===== */
 .status-bar{
-  padding:9px 14px;
+  flex:0 0 auto;
+  padding:6px 12px;
   background:var(--panel);
   border:1px solid var(--border);
   border-radius:12px;
   text-align:center;
-  font-size:.88rem;font-weight:700;
+  font-size:.82rem;font-weight:700;
   color:var(--text-muted);
   backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-  display:flex;align-items:center;justify-content:center;gap:8px;
-  min-height:42px;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  min-height:34px;
 }
-.status-bar .dot{width:7px;height:7px;border-radius:50%;background:currentColor;animation:statusPulse 1.6s ease-in-out infinite}
+.status-bar .dot{width:6px;height:6px;border-radius:50%;background:currentColor;animation:statusPulse 1.6s ease-in-out infinite}
 @keyframes statusPulse{0%,100%{opacity:.5;transform:scale(.9)}50%{opacity:1;transform:scale(1.1)}}
 .status-bar.check{color:#f87171}
-.status-bar.checkmate,.status-bar.stalemate,.status-bar.resigned{color:var(--win);font-size:.95rem}
-
+.status-bar.checkmate,.status-bar.stalemate,.status-bar.resigned{color:var(--win);font-size:.9rem}
 
 /* ===== Move history (collapsible) ===== */
 .history{
+  flex:0 0 auto;
   background:var(--panel);
   border:1px solid var(--border);
   border-radius:12px;
@@ -236,32 +246,32 @@ header{
 .history summary{
   list-style:none;
   cursor:pointer;
-  padding:9px 14px;
-  font-size:.8rem;font-weight:700;color:var(--text-muted);
+  padding:6px 12px;
+  font-size:.75rem;font-weight:700;color:var(--text-muted);
   display:flex;justify-content:space-between;align-items:center;
   letter-spacing:.5px;
   user-select:none;
 }
 .history summary::-webkit-details-marker{display:none}
-.history summary::after{content:"▾";transition:transform .2s;font-size:.8rem}
+.history summary::after{content:"▾";transition:transform .2s;font-size:.75rem}
 .history[open] summary::after{transform:rotate(180deg)}
-.history .pill{font-size:.65rem;background:rgba(59,130,246,.15);color:#93c5fd;padding:2px 8px;border-radius:99px;font-weight:700;margin-right:8px}
+.history .pill{font-size:.6rem;background:rgba(59,130,246,.15);color:#93c5fd;padding:2px 7px;border-radius:99px;font-weight:700;margin-right:6px}
 .move-history{
-  max-height:140px;overflow-y:auto;
+  max-height:120px;overflow-y:auto;
   display:flex;flex-direction:column;gap:1px;
-  padding:0 8px 8px;
+  padding:0 6px 6px;
   direction:ltr;
 }
-.move-history::-webkit-scrollbar{width:5px}
+.move-history::-webkit-scrollbar{width:4px}
 .move-history::-webkit-scrollbar-track{background:transparent}
 .move-history::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:3px}
 .mh-row{
-  display:grid;grid-template-columns:24px 1fr 1fr;
-  align-items:center;padding:2px 4px;border-radius:4px;
-  font-family:'Cairo',monospace;font-size:.78rem;gap:4px;
+  display:grid;grid-template-columns:22px 1fr 1fr;
+  align-items:center;padding:1px 3px;border-radius:3px;
+  font-family:'Cairo',monospace;font-size:.72rem;gap:3px;
 }
-.mh-num{color:var(--text-muted);font-size:.68rem}
-.mh-move{padding:1px 5px;border-radius:3px;color:var(--text)}
+.mh-num{color:var(--text-muted);font-size:.62rem}
+.mh-move{padding:1px 4px;border-radius:3px;color:var(--text)}
 .mh-move.current{background:rgba(59,130,246,.2);color:#93c5fd;font-weight:700}
 .mh-move.empty{color:rgba(255,255,255,.12);font-style:italic}
 
@@ -279,7 +289,7 @@ header{
   background:linear-gradient(160deg,#1e293b 0%,#0f172a 100%);
   border:1px solid var(--border-strong);
   border-radius:18px;
-  padding:22px;max-width:92%;width:380px;
+  padding:20px;max-width:92%;width:360px;
   text-align:center;
   transform:scale(.88) translateY(20px);
   transition:transform .3s cubic-bezier(.34,1.56,.64,1);
@@ -287,15 +297,15 @@ header{
 }
 .modal-overlay.active .modal{transform:scale(1) translateY(0)}
 .modal h2{
-  font-size:1.5rem;margin-bottom:6px;
+  font-size:1.4rem;margin-bottom:6px;
   background:linear-gradient(135deg,#3b82f6,#8b5cf6,#ec4899);
   -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
   font-weight:800;letter-spacing:.5px;
 }
 .modal h2.win{background:linear-gradient(135deg,#fbbf24,#f59e0b);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
 .modal h2.draw{background:linear-gradient(135deg,#9ca3af,#d1d5db);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
-.modal-sub{color:var(--text-muted);font-size:.85rem;margin-bottom:12px}
-.promotion-choices{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}
+.modal-sub{color:var(--text-muted);font-size:.82rem;margin-bottom:10px}
+.promotion-choices{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0}
 .promotion-choices button{
   aspect-ratio:1;font-size:0;background:rgba(255,255,255,.04);
   border:2px solid var(--border-strong);border-radius:10px;
@@ -303,28 +313,28 @@ header{
   display:flex;align-items:center;justify-content:center;
 }
 .promotion-choices button:hover{background:rgba(59,130,246,.2);border-color:var(--accent);transform:translateY(-3px) scale(1.05);box-shadow:0 8px 20px rgba(59,130,246,.3)}
-.promotion-choices svg{width:75%;height:75%;display:block}
-.modal-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0;text-align:right}
-.modal-stat{background:rgba(255,255,255,.04);border:1px solid var(--border);padding:9px 11px;border-radius:10px}
+.promotion-choices svg{width:80%;height:80%;display:block}
+.modal-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0;text-align:right}
+.modal-stat{background:rgba(255,255,255,.04);border:1px solid var(--border);padding:8px 10px;border-radius:10px}
 .modal-stat.win{background:linear-gradient(135deg,rgba(251,191,36,.15),rgba(245,158,11,.08));border-color:rgba(251,191,36,.4)}
-.modal-stat-name{font-size:.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:700;display:flex;align-items:center;gap:6px;justify-content:flex-end}
-.modal-stat-time{font-size:1.2rem;font-weight:800;font-family:monospace;margin-top:3px;letter-spacing:1px;direction:ltr;text-align:right}
-.modal-stat-moves{font-size:.65rem;color:var(--text-muted);margin-top:1px;font-weight:600}
+.modal-stat-name{font-size:.68rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:700;display:flex;align-items:center;gap:6px;justify-content:flex-end}
+.modal-stat-time{font-size:1.1rem;font-weight:800;font-family:monospace;margin-top:3px;letter-spacing:1px;direction:ltr;text-align:right}
+.modal-stat-moves{font-size:.62rem;color:var(--text-muted);margin-top:1px;font-weight:600}
 .btn-group{display:flex;gap:8px;justify-content:center;margin-top:8px;flex-wrap:wrap}
 .btn-primary{
   background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;
-  border:none;padding:10px 20px;border-radius:10px;
+  border:none;padding:9px 18px;border-radius:10px;
   font-weight:700;cursor:pointer;
   box-shadow:0 4px 16px rgba(59,130,246,.35);
-  transition:all .2s;font-size:.88rem;font-family:inherit;
+  transition:all .2s;font-size:.85rem;font-family:inherit;
 }
 .btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(59,130,246,.5)}
 .btn-primary:active{transform:translateY(0) scale(.97)}
 .btn-secondary{
   background:rgba(255,255,255,.06);color:var(--text);
   border:1px solid var(--border-strong);
-  padding:10px 16px;border-radius:10px;
-  font-weight:600;cursor:pointer;transition:all .2s;font-size:.88rem;font-family:inherit;
+  padding:9px 14px;border-radius:10px;
+  font-weight:600;cursor:pointer;transition:all .2s;font-size:.85rem;font-family:inherit;
 }
 .btn-secondary:hover{background:rgba(255,255,255,.12)}
 
@@ -333,114 +343,159 @@ header{
   transform:translateX(-50%) translateY(-20px);
   background:rgba(15,23,42,.95);color:var(--text);
   border:1px solid var(--border-strong);
-  padding:9px 16px;border-radius:10px;
-  font-weight:600;font-size:.85rem;
+  padding:8px 14px;border-radius:10px;
+  font-weight:600;font-size:.82rem;
   z-index:2000;opacity:0;pointer-events:none;
   transition:all .3s;backdrop-filter:blur(8px);
   box-shadow:0 8px 30px rgba(0,0,0,.4);
-  display:flex;align-items:center;gap:8px;
+  display:flex;align-items:center;gap:6px;
 }
 .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
 
 @media (min-width:720px){
   .title-sub{display:inline}
-  #app{padding:14px;gap:12px}
-  .btn{padding:8px 14px;font-size:.85rem}
-  .timer{font-size:1.7rem}
+  #app{padding:12px;gap:10px}
+  .btn{padding:7px 12px;font-size:.8rem}
+  .timer{font-size:1.55rem}
   .captured svg{width:22px;height:22px}
-  .player-name input{font-size:1.05rem}
-  .board{width:min(70vh,calc(100vw - 480px),640px)}
-  .coord-col{font-size:.78rem;width:22px}
-  .coord-row{font-size:.78rem}
+  .player-name input{font-size:1rem}
+  .coord-col{font-size:.72rem;width:20px}
+  .coord-row{font-size:.72rem;height:16px}
+  .title{font-size:1.2rem}
+  .header-actions{gap:6px}
+  .player-bar{padding:8px 14px;gap:14px}
+  .status-bar{font-size:.88rem}
 }
 </style>
 </head>
 <body>
 
-<!-- ===== SVG Sprite: 12 chess pieces ===== -->
+<!-- ===== SVG Sprite: 12 chess pieces (clean, recognizable) ===== -->
 <svg class="svg-sprite" aria-hidden="true">
   <defs>
-    <!-- White Pawn -->
+    <!-- ===== WHITE PAWN ===== -->
     <symbol id="wp" viewBox="0 0 100 100">
-      <circle cx="50" cy="30" r="14" fill="white" stroke="black" stroke-width="4"/>
-      <path d="M38,44 L62,44 L66,64 L34,64 Z" fill="white" stroke="black" stroke-width="4" stroke-linejoin="round"/>
-      <path d="M22,64 L78,64 L84,90 L16,90 Z" fill="white" stroke="black" stroke-width="4" stroke-linejoin="round"/>
+      <!-- head -->
+      <circle cx="50" cy="28" r="13" fill="white" stroke="#1a1a1a" stroke-width="3.5"/>
+      <!-- collar -->
+      <ellipse cx="50" cy="44" rx="14" ry="4" fill="white" stroke="#1a1a1a" stroke-width="3"/>
+      <!-- body -->
+      <path d="M34,50 Q30,62 36,70 L64,70 Q70,62 66,50 Q58,46 50,46 Q42,46 34,50 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
+      <!-- base -->
+      <path d="M20,70 L80,70 L86,90 L14,90 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
     </symbol>
-    <!-- Black Pawn -->
+    <!-- ===== BLACK PAWN ===== -->
     <symbol id="bp" viewBox="0 0 100 100">
-      <circle cx="50" cy="30" r="14" fill="black"/>
-      <path d="M38,44 L62,44 L66,64 L34,64 Z" fill="black"/>
-      <path d="M22,64 L78,64 L84,90 L16,90 Z" fill="black"/>
+      <circle cx="50" cy="28" r="13" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5"/>
+      <ellipse cx="50" cy="44" rx="14" ry="4" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3"/>
+      <path d="M34,50 Q30,62 36,70 L64,70 Q70,62 66,50 Q58,46 50,46 Q42,46 34,50 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M20,70 L80,70 L86,90 L14,90 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
     </symbol>
-    <!-- White Rook -->
+    <!-- ===== WHITE ROOK ===== -->
     <symbol id="wr" viewBox="0 0 100 100">
-      <path d="M14,10 L26,10 L26,24 L34,24 L34,10 L48,10 L48,24 L58,24 L58,10 L72,10 L72,24 L80,24 L80,10 L86,10 L86,72 L14,72 Z" fill="white" stroke="black" stroke-width="4" stroke-linejoin="round"/>
-      <path d="M8,72 L92,72 L96,90 L4,90 Z" fill="white" stroke="black" stroke-width="4" stroke-linejoin="round"/>
+      <!-- crenellated top -->
+      <path d="M12,8 L24,8 L24,22 L32,22 L32,8 L46,8 L46,22 L54,22 L54,8 L68,8 L68,22 L76,22 L76,8 L88,8 L88,32 L12,32 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
+      <!-- neck -->
+      <path d="M18,32 L82,32 L82,42 L18,42 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
+      <!-- body -->
+      <path d="M22,42 L78,42 L82,72 L18,72 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
+      <!-- base -->
+      <path d="M10,72 L90,72 L94,90 L6,90 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
     </symbol>
-    <!-- Black Rook -->
+    <!-- ===== BLACK ROOK ===== -->
     <symbol id="br" viewBox="0 0 100 100">
-      <path d="M14,10 L26,10 L26,24 L34,24 L34,10 L48,10 L48,24 L58,24 L58,10 L72,10 L72,24 L80,24 L80,10 L86,10 L86,72 L14,72 Z" fill="black"/>
-      <path d="M8,72 L92,72 L96,90 L4,90 Z" fill="black"/>
+      <path d="M12,8 L24,8 L24,22 L32,22 L32,8 L46,8 L46,22 L54,22 L54,8 L68,8 L68,22 L76,22 L76,8 L88,8 L88,32 L12,32 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M18,32 L82,32 L82,42 L18,42 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M22,42 L78,42 L82,72 L18,72 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M10,72 L90,72 L94,90 L6,90 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
     </symbol>
-    <!-- White Knight -->
+    <!-- ===== WHITE KNIGHT ===== -->
     <symbol id="wn" viewBox="0 0 100 100">
-      <path d="M28,88 L28,72 L18,60 L28,50 L24,36 L32,20 L46,10 L62,10 L74,22 L78,38 L72,46 L62,44 L56,36 L50,42 L46,52 L42,62 L38,72 L34,82 L30,88 Z" fill="white" stroke="black" stroke-width="4" stroke-linejoin="round"/>
-      <path d="M30,42 L36,46 L34,52 L28,50 Z" fill="white" stroke="black" stroke-width="3" stroke-linejoin="round"/>
-      <path d="M14,82 L86,82 L92,92 L8,92 Z" fill="white" stroke="black" stroke-width="4" stroke-linejoin="round"/>
+      <!-- horse head profile facing right -->
+      <path d="M22,90 L22,80 C22,72 26,66 32,64 L46,60 C54,58 60,52 64,44 L66,38 C66,30 64,22 58,18 L46,14 C40,12 34,14 30,18 L24,26 L18,38 L18,50 L20,60 L20,72 L20,90 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
+      <!-- ear -->
+      <path d="M44,14 L50,4 L52,16 Z" fill="white" stroke="#1a1a1a" stroke-width="3" stroke-linejoin="round"/>
+      <!-- eye -->
+      <circle cx="54" cy="30" r="2" fill="#1a1a1a"/>
+      <!-- mouth detail -->
+      <path d="M58,42 L64,44 L60,48 Z" fill="#1a1a1a"/>
+      <!-- base -->
+      <path d="M14,82 L86,82 L90,92 L10,92 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
     </symbol>
-    <!-- Black Knight -->
+    <!-- ===== BLACK KNIGHT ===== -->
     <symbol id="bn" viewBox="0 0 100 100">
-      <path d="M28,88 L28,72 L18,60 L28,50 L24,36 L32,20 L46,10 L62,10 L74,22 L78,38 L72,46 L62,44 L56,36 L50,42 L46,52 L42,62 L38,72 L34,82 L30,88 Z" fill="black"/>
-      <path d="M30,42 L36,46 L34,52 L28,50 Z" fill="black"/>
-      <path d="M14,82 L86,82 L92,92 L8,92 Z" fill="black"/>
+      <path d="M22,90 L22,80 C22,72 26,66 32,64 L46,60 C54,58 60,52 64,44 L66,38 C66,30 64,22 58,18 L46,14 C40,12 34,14 30,18 L24,26 L18,38 L18,50 L20,60 L20,72 L20,90 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M44,14 L50,4 L52,16 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3" stroke-linejoin="round"/>
+      <circle cx="54" cy="30" r="2" fill="white"/>
+      <path d="M58,42 L64,44 L60,48 Z" fill="white"/>
+      <path d="M14,82 L86,82 L90,92 L10,92 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
     </symbol>
-    <!-- White Bishop -->
+    <!-- ===== WHITE BISHOP ===== -->
     <symbol id="wb" viewBox="0 0 100 100">
-      <circle cx="50" cy="12" r="5" fill="white" stroke="black" stroke-width="3"/>
-      <path d="M50,19 L34,55 L34,72 L66,72 L66,55 Z" fill="white" stroke="black" stroke-width="4" stroke-linejoin="round"/>
-      <path d="M40,40 L60,40" stroke="black" stroke-width="2.5" stroke-linecap="round"/>
-      <path d="M22,72 L78,72 L84,90 L16,90 Z" fill="white" stroke="black" stroke-width="4" stroke-linejoin="round"/>
+      <!-- ball top -->
+      <circle cx="50" cy="11" r="5" fill="white" stroke="#1a1a1a" stroke-width="3"/>
+      <!-- mitre -->
+      <path d="M44,16 L56,16 L60,30 L66,44 L66,60 L34,60 L34,44 L40,30 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
+      <!-- mitre slash -->
+      <path d="M42,30 L50,40 L58,30" fill="none" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <!-- collar -->
+      <path d="M30,60 L70,60 L74,72 L26,72 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
+      <!-- base -->
+      <path d="M18,72 L82,72 L86,90 L14,90 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
     </symbol>
-    <!-- Black Bishop -->
+    <!-- ===== BLACK BISHOP ===== -->
     <symbol id="bb" viewBox="0 0 100 100">
-      <circle cx="50" cy="12" r="5" fill="black"/>
-      <path d="M50,19 L34,55 L34,72 L66,72 L66,55 Z" fill="black"/>
-      <path d="M40,40 L60,40" stroke="black" stroke-width="2.5" stroke-linecap="round"/>
-      <path d="M22,72 L78,72 L84,90 L16,90 Z" fill="black"/>
+      <circle cx="50" cy="11" r="5" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3"/>
+      <path d="M44,16 L56,16 L60,30 L66,44 L66,60 L34,60 L34,44 L40,30 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M42,30 L50,40 L58,30" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M30,60 L70,60 L74,72 L26,72 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M18,72 L82,72 L86,90 L14,90 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
     </symbol>
-    <!-- White Queen -->
+    <!-- ===== WHITE QUEEN ===== -->
     <symbol id="wq" viewBox="0 0 100 100">
-      <path d="M12,10 L20,32 L30,16 L40,32 L50,6 L60,32 L70,16 L80,32 L88,10 L84,72 L16,72 Z" fill="white" stroke="black" stroke-width="4" stroke-linejoin="round"/>
-      <circle cx="50" cy="6" r="3" fill="white" stroke="black" stroke-width="2"/>
-      <circle cx="20" cy="10" r="2.5" fill="white" stroke="black" stroke-width="2"/>
-      <circle cx="80" cy="10" r="2.5" fill="white" stroke="black" stroke-width="2"/>
-      <circle cx="30" cy="16" r="2" fill="white" stroke="black" stroke-width="2"/>
-      <circle cx="70" cy="16" r="2" fill="white" stroke="black" stroke-width="2"/>
-      <path d="M10,72 L90,72 L94,90 L6,90 Z" fill="white" stroke="black" stroke-width="4" stroke-linejoin="round"/>
+      <!-- crown points (5 spikes with balls) -->
+      <path d="M14,12 L20,32 L30,18 L40,32 L50,8 L60,32 L70,18 L80,32 L86,12 L82,40 L18,40 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
+      <circle cx="14" cy="10" r="3.5" fill="white" stroke="#1a1a1a" stroke-width="2.5"/>
+      <circle cx="50" cy="6" r="4" fill="white" stroke="#1a1a1a" stroke-width="2.5"/>
+      <circle cx="86" cy="10" r="3.5" fill="white" stroke="#1a1a1a" stroke-width="2.5"/>
+      <circle cx="30" cy="18" r="2.5" fill="white" stroke="#1a1a1a" stroke-width="2"/>
+      <circle cx="70" cy="18" r="2.5" fill="white" stroke="#1a1a1a" stroke-width="2"/>
+      <!-- body -->
+      <path d="M18,40 L82,40 L86,72 L14,72 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
+      <!-- base -->
+      <path d="M10,72 L90,72 L94,90 L6,90 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
     </symbol>
-    <!-- Black Queen -->
+    <!-- ===== BLACK QUEEN ===== -->
     <symbol id="bq" viewBox="0 0 100 100">
-      <path d="M12,10 L20,32 L30,16 L40,32 L50,6 L60,32 L70,16 L80,32 L88,10 L84,72 L16,72 Z" fill="black"/>
-      <circle cx="50" cy="6" r="3" fill="black"/>
-      <circle cx="20" cy="10" r="2.5" fill="black"/>
-      <circle cx="80" cy="10" r="2.5" fill="black"/>
-      <circle cx="30" cy="16" r="2" fill="black"/>
-      <circle cx="70" cy="16" r="2" fill="black"/>
-      <path d="M10,72 L90,72 L94,90 L6,90 Z" fill="black"/>
+      <path d="M14,12 L20,32 L30,18 L40,32 L50,8 L60,32 L70,18 L80,32 L86,12 L82,40 L18,40 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
+      <circle cx="14" cy="10" r="3.5" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="2.5"/>
+      <circle cx="50" cy="6" r="4" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="2.5"/>
+      <circle cx="86" cy="10" r="3.5" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="2.5"/>
+      <circle cx="30" cy="18" r="2.5" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="2"/>
+      <circle cx="70" cy="18" r="2.5" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="2"/>
+      <path d="M18,40 L82,40 L86,72 L14,72 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M10,72 L90,72 L94,90 L6,90 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
     </symbol>
-    <!-- White King -->
+    <!-- ===== WHITE KING ===== -->
     <symbol id="wk" viewBox="0 0 100 100">
-      <path d="M50,2 L50,18 M41,10 L59,10" stroke="black" stroke-width="5" stroke-linecap="round" fill="none"/>
-      <path d="M28,20 L72,20 L66,36 L66,72 L34,72 L34,36 Z" fill="white" stroke="black" stroke-width="4" stroke-linejoin="round"/>
-      <path d="M40,42 L60,42" stroke="black" stroke-width="2.5" stroke-linecap="round"/>
-      <path d="M20,72 L80,72 L86,90 L14,90 Z" fill="white" stroke="black" stroke-width="4" stroke-linejoin="round"/>
+      <!-- cross on top -->
+      <path d="M50,4 L50,20 M42,12 L58,12" stroke="#1a1a1a" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+      <!-- crown body -->
+      <path d="M32,20 L68,20 L66,32 L66,46 L34,46 L34,32 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
+      <!-- crown notch -->
+      <path d="M40,46 L40,38 L50,44 L60,38 L60,46" fill="white" stroke="#1a1a1a" stroke-width="3" stroke-linejoin="round"/>
+      <!-- body -->
+      <path d="M28,46 L72,46 L78,72 L22,72 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
+      <!-- base -->
+      <path d="M14,72 L86,72 L90,90 L10,90 Z" fill="white" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
     </symbol>
-    <!-- Black King -->
+    <!-- ===== BLACK KING ===== -->
     <symbol id="bk" viewBox="0 0 100 100">
-      <path d="M50,2 L50,18 M41,10 L59,10" stroke="black" stroke-width="5" stroke-linecap="round" fill="none"/>
-      <path d="M28,20 L72,20 L66,36 L66,72 L34,72 L34,36 Z" fill="black"/>
-      <path d="M40,42 L60,42" stroke="black" stroke-width="2.5" stroke-linecap="round"/>
-      <path d="M20,72 L80,72 L86,90 L14,90 Z" fill="black"/>
+      <path d="M50,4 L50,20 M42,12 L58,12" stroke="#1a1a1a" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+      <path d="M32,20 L68,20 L66,32 L66,46 L34,46 L34,32 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M40,46 L40,38 L50,44 L60,38 L60,46" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M28,46 L72,46 L78,72 L22,72 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
+      <path d="M14,72 L86,72 L90,90 L10,90 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="3.5" stroke-linejoin="round"/>
     </symbol>
   </defs>
 </svg>
@@ -449,7 +504,7 @@ header{
 
   <header>
     <div class="title">
-      <span style="font-size:1.4rem">♛</span>
+      <span style="font-size:1.2rem">♛</span>
       <span class="title-main">شطرنج</span>
       <span class="title-sub">— لاعبان · نفس الجهاز</span>
     </div>
@@ -466,7 +521,7 @@ header{
       <div class="player-dot" id="dot-top" style="background:#1a1a1a"></div>
       <div class="player-name">
         <input type="text" id="name-top" placeholder="اسم اللاعب">
-        <div class="player-meta" id="meta-top">الأسود · 0 نقلة</div>
+        <div class="player-meta" id="meta-top">الأسود · 0 نقلات</div>
       </div>
     </div>
     <div class="captured" id="captured-top"></div>
@@ -489,7 +544,7 @@ header{
       <div class="player-dot" id="dot-bottom" style="background:#fff"></div>
       <div class="player-name">
         <input type="text" id="name-bottom" placeholder="اسم اللاعب">
-        <div class="player-meta" id="meta-bottom">الأبيض · 0 نقلة</div>
+        <div class="player-meta" id="meta-bottom">الأبيض · 0 نقلات</div>
       </div>
     </div>
     <div class="captured" id="captured-bottom"></div>
@@ -507,7 +562,7 @@ header{
       <span><span class="pill" id="move-count-pill">0 نقلات</span>سجل النقلات</span>
     </summary>
     <div class="move-history" id="move-history">
-      <div style="color:var(--text-muted);font-size:.78rem;text-align:center;padding:10px 0;font-style:italic;direction:rtl">لا توجد نقلات بعد</div>
+      <div style="color:var(--text-muted);font-size:.72rem;text-align:center;padding:8px 0;font-style:italic;direction:rtl">لا توجد نقلات بعد</div>
     </div>
   </details>
 
@@ -557,7 +612,6 @@ const $ = id => document.getElementById(id);
    CHESS ENGINE
 ============================================================ */
 const PIECE_VALUE = { p:1, n:3, b:3, r:5, q:9, k:0 };
-const PIECE_NAME = { k:'King', q:'Queen', r:'Rook', b:'Bishop', n:'Knight', p:'Pawn' };
 
 function initialBoard(){
   return [
@@ -914,7 +968,6 @@ function bindNameInput(position){
     playerNames[color] = v || (color === 'w' ? 'الأبيض' : 'الأسود');
     renderStatus();
     renderPlayerMeta();
-    renderCaptured();
   });
 }
 bindNameInput('top');
@@ -1008,11 +1061,8 @@ function renderCoordinates(){
   const rowBottom = $('coord-row');
   colLeft.innerHTML = '';
   rowBottom.innerHTML = '';
-  // Use Arabic-Indic numerals for ranks (١٢٣٤٥٦٧٨)
   const ARABIC_DIGITS = ['١','٢','٣','٤','٥','٦','٧','٨'];
-  // Standard orientation: rank 8 at top, rank 1 at bottom
   const ranksDisplay = flipped ? [...ARABIC_DIGITS].reverse() : ARABIC_DIGITS.slice().reverse();
-  // Files a-h left to right always (chess is universal)
   const files = 'abcdefgh';
   for(const ch of ranksDisplay){
     const d = document.createElement('div');
@@ -1032,7 +1082,7 @@ function renderCaptured(){
     const list = captured[color];
     el.captured.innerHTML = '';
     if(list.length === 0){
-      el.captured.innerHTML = '<span style="color:rgba(255,255,255,.2);font-size:.7rem;font-style:italic">—</span>';
+      el.captured.innerHTML = '<span style="color:rgba(255,255,255,.2);font-size:.65rem;font-style:italic">—</span>';
     } else {
       const order = { q:0, r:1, b:2, n:3, p:4 };
       const sorted = list.slice().sort((a,b) => (order[a]-order[b]));
@@ -1110,10 +1160,9 @@ function renderMoveHistory(){
   const pill = $('move-count-pill');
   pill.textContent = `${game.history.length} ${game.history.length === 1 ? 'نقلة' : 'نقلات'}`;
   if(game.history.length === 0){
-    list.innerHTML = '<div style="color:var(--text-muted);font-size:.78rem;text-align:center;padding:10px 0;font-style:italic;direction:rtl">لا توجد نقلات بعد</div>';
+    list.innerHTML = '<div style="color:var(--text-muted);font-size:.72rem;text-align:center;padding:8px 0;font-style:italic;direction:rtl">لا توجد نقلات بعد</div>';
     return;
   }
-  // Build SAN as we go (simple)
   let html = '';
   for(let i=0; i<game.history.length; i++){
     const num = Math.floor(i/2) + 1;
@@ -1201,7 +1250,6 @@ function finalizeMove(fromRow, fromCol, move, promotionPiece){
     capturedPiece = game.board[capRow][move.to.col];
   }
   game.makeMove(fromRow, fromCol, move, promotionPiece);
-  // After makeMove, game.turn has switched. The player who just moved is the opposite.
   if(capturedPiece){
     const justMoved = game.turn === 'w' ? 'b' : 'w';
     captured[justMoved].push(game.typeOf(capturedPiece));
@@ -1238,10 +1286,8 @@ function showPromotionModal(color){
   const choices = $('promotion-choices');
   choices.innerHTML = '';
   const pieces = ['q','r','b','n'];
-  const labels = { q:'Queen', r:'Rook', b:'Bishop', n:'Knight' };
   for(const p of pieces){
     const btn = document.createElement('button');
-    btn.title = labels[p];
     const svg = document.createElementNS(SVG_NS, 'svg');
     svg.setAttribute('viewBox', '0 0 100 100');
     const use = document.createElementNS(SVG_NS, 'use');
