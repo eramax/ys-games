@@ -160,6 +160,33 @@ body { font-family:'Cairo',sans-serif; overflow:hidden; background:#0a1628; colo
 .inv-item .dish-svg, #drag-ghost .dish-svg { width:30px; height:30px; }
 .activity .act-svg { width:var(--tile-fish-w); height:var(--tile-fish-w); }
 .inv-item.drop-target { border-color:var(--ok); box-shadow:0 0 12px rgba(46,204,113,0.45); }
+@keyframes invPop {
+  0% { box-shadow:0 0 0 0 rgba(46,204,113,0); border-color:var(--border); }
+  45% { box-shadow:0 0 16px rgba(46,204,113,0.55); border-color:var(--ok); background:rgba(46,204,113,0.14); }
+  100% { box-shadow:none; border-color:var(--border); background:rgba(255,255,255,0.06); }
+}
+@keyframes invPopGold {
+  0% { box-shadow:0 0 0 0 rgba(245,200,66,0); border-color:var(--border); }
+  45% { box-shadow:0 0 16px rgba(245,200,66,0.6); border-color:var(--gold); background:rgba(245,200,66,0.14); }
+  100% { box-shadow:none; border-color:var(--border); background:rgba(255,255,255,0.06); }
+}
+@keyframes cntPop {
+  0%, 100% { transform:scale(1); }
+  50% { transform:scale(1.4); background:var(--ok); }
+}
+@keyframes cntPopGold {
+  0%, 100% { transform:scale(1); }
+  50% { transform:scale(1.4); background:var(--gold); color:#222; }
+}
+@keyframes hudPop {
+  0%, 100% { transform:scale(1); box-shadow:none; }
+  50% { transform:scale(1.06); box-shadow:0 0 14px rgba(245,200,66,0.5); border-color:var(--gold); }
+}
+.inv-item.inv-pop { animation:invPop 0.55s ease; }
+.inv-item.inv-pop-gold { animation:invPopGold 0.55s ease; }
+.inv-count.cnt-pop { animation:cntPop 0.55s ease; }
+.inv-count.cnt-pop-gold { animation:cntPopGold 0.55s ease; }
+.hud-item.hud-pop { animation:hudPop 0.55s ease; }
 
 /* BOTTOM: activities */
 .activity:hover { border-color:rgba(245,200,66,0.45); }
@@ -423,6 +450,24 @@ let modalMode = 'order';
 let pendingOrder = { grilled:0, fried:0, rice:0, juice:0 };
 let pendingShop = { dishes:0, rawFish:0, rice:0, tahini:0, salad:0, juice:0, cups:0 };
 let spawnIv, tickIv, scene, camera, renderer, seaMesh;
+let prevInvCounts = {};
+
+function flashClass(el, cls) {
+  if (!el) return;
+  el.classList.remove(cls);
+  void el.offsetWidth;
+  el.classList.add(cls);
+  el.addEventListener('animationend', () => el.classList.remove(cls), { once: true });
+}
+
+function pulseInvItem(key) {
+  const gold = key === 'money';
+  const box = document.getElementById('inv-' + key);
+  const badge = document.getElementById('cnt-' + key);
+  flashClass(box, gold ? 'inv-pop-gold' : 'inv-pop');
+  flashClass(badge, gold ? 'cnt-pop-gold' : 'cnt-pop');
+  if (gold) flashClass(document.getElementById('hud-money')?.closest('.hud-item'), 'hud-pop');
+}
 
 function fishIcon(type) {
   const colors = { raw:'#2E86C1', grilled:'#5D4037', fried:'#F9A825' };
@@ -1225,6 +1270,9 @@ function renderInventory() {
   const keys = ['cleanDish','dirtyDish','cleanCup','dirtyCup','rawFish','grilled','fried','rice','salad','tahini','juice','money'];
   keys.forEach(k => {
     const cnt = invCount(k);
+    const prev = prevInvCounts[k];
+    if (prev !== undefined && cnt > prev) pulseInvItem(k);
+    prevInvCounts[k] = cnt;
     const el = document.getElementById('cnt-' + k);
     const box = document.getElementById('inv-' + k);
     if (el) { el.textContent = cnt; el.classList.toggle('zero', cnt <= 0); }
