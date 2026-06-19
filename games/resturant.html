@@ -46,8 +46,10 @@ body { font-family:'Cairo',sans-serif; overflow:hidden; background:#0a1628; colo
 
 .game-row {
   margin:0 8px 6px; background:var(--panel2); border:1px solid var(--border);
-  border-radius:14px; overflow:hidden; backdrop-filter:blur(10px);
+  border-radius:14px; backdrop-filter:blur(10px);
 }
+#row-inventory.game-row { overflow:visible; }
+#row-activities.game-row { overflow:hidden; flex:1; min-height:0; display:flex; flex-direction:column; margin-bottom:8px; }
 .row-label {
   padding:6px 12px; font-size:12px; font-weight:700; color:var(--gold);
   background:rgba(255,255,255,0.04); border-bottom:1px solid var(--border);
@@ -71,10 +73,13 @@ body { font-family:'Cairo',sans-serif; overflow:hidden; background:#0a1628; colo
 .order-tab.st-cleanup { border-top:3px solid #9b59b6; }
 .order-tab.st-payable { border-top:3px solid var(--ok); }
 .order-tab.st-done { border-top:3px solid var(--ok); background:rgba(46,204,113,0.2); }
-.tab-close {
-  margin-top:6px; width:100%; padding:5px; border:none; border-radius:6px;
-  background:var(--gold); color:#222; font-family:inherit; font-size:10px; font-weight:700; cursor:pointer;
+.tab-close { display:none; }
+.tray-close-order {
+  margin-top:8px; width:100%; padding:9px; border:none; border-radius:10px;
+  background:var(--gold); color:#222; font-family:inherit; font-weight:700;
+  font-size:12px; cursor:pointer; display:none;
 }
+.tray-close-order.show { display:block; }
 
 #new-customers { display:flex; gap:6px; flex-wrap:wrap; padding-bottom:8px; flex-shrink:0; }
 .new-chip {
@@ -103,6 +108,8 @@ body { font-family:'Cairo',sans-serif; overflow:hidden; background:#0a1628; colo
 .tray-slot .slot-emoji { font-size:var(--tray-icon); line-height:1; }
 .tray-slot .slot-label { margin-top:4px; text-align:center; line-height:1.3; }
 .tray-slot .fish-svg { width:var(--tray-fish-w); height:var(--tray-fish-h); }
+.tray-slot .cup-svg { width:36px; height:44px; }
+.tray-slot .dish-svg { width:40px; height:40px; }
 .tray-slot .slot-ghost-icon { font-size:var(--tray-icon); opacity:0.35; line-height:1; }
 .tray-slot .slot-ghost-icon .fish-svg { width:var(--tray-fish-w); height:var(--tray-fish-h); }
 .tray-deliver {
@@ -119,18 +126,19 @@ body { font-family:'Cairo',sans-serif; overflow:hidden; background:#0a1628; colo
 #inventory-grid,
 #activities-grid {
   display:grid; grid-template-columns:repeat(auto-fill, var(--tile-cell-min));
-  grid-auto-rows:var(--tile-cell-min); gap:6px; padding:8px 10px 10px;
+  grid-auto-rows:var(--tile-cell-min); gap:6px; padding:12px 10px 10px;
   align-content:start; justify-content:start;
 }
 #activities-grid { overflow-y:auto; flex:1; }
 .inv-item,
 .activity {
   background:rgba(255,255,255,0.06); border:2px solid var(--border); border-radius:10px;
-  padding:6px 4px; text-align:center; transition:all .15s; position:relative;
-  height:100%; box-sizing:border-box; overflow:hidden;
+  padding:6px 4px; text-align:center; transition:border-color .15s, transform .15s, box-shadow .15s;
+  position:relative; height:100%; box-sizing:border-box;
   display:flex; flex-direction:column; align-items:center; justify-content:center;
 }
-.inv-item { cursor:grab; }
+.inv-item { cursor:grab; overflow:visible; }
+.activity { overflow:hidden; }
 .activity {
   background:linear-gradient(145deg,rgba(255,255,255,0.08),rgba(0,0,0,0.25));
   cursor:pointer; transition:all .2s;
@@ -142,14 +150,18 @@ body { font-family:'Cairo',sans-serif; overflow:hidden; background:#0a1628; colo
 .inv-item .inv-icon .fish-svg { width:var(--tile-fish-w); height:var(--tile-fish-h); }
 .inv-item .inv-name { font-size:9px; margin-top:4px; color:#bbb; }
 .inv-item .inv-count {
-  position:absolute; top:-6px; left:-6px; background:var(--danger); color:#fff;
-  border-radius:50%; min-width:22px; height:22px; font-size:11px; font-weight:700;
+  position:absolute; top:2px; right:2px; background:var(--danger); color:#fff;
+  border-radius:50%; min-width:20px; height:20px; font-size:10px; font-weight:700;
   display:flex; align-items:center; justify-content:center; padding:0 4px;
+  z-index:2; box-shadow:0 2px 6px rgba(0,0,0,0.45);
 }
+.inv-item .inv-count.zero { display:none; }
+.inv-item .cup-svg, #drag-ghost .cup-svg { width:26px; height:32px; }
+.inv-item .dish-svg, #drag-ghost .dish-svg { width:30px; height:30px; }
+.activity .act-svg { width:var(--tile-fish-w); height:var(--tile-fish-w); }
 .inv-item.drop-target { border-color:var(--ok); box-shadow:0 0 12px rgba(46,204,113,0.45); }
 
 /* BOTTOM: activities */
-#row-activities { flex:1; min-height:0; display:flex; flex-direction:column; margin-bottom:8px; }
 .activity:hover { border-color:rgba(245,200,66,0.45); }
 .activity.busy { border-color:var(--warn); cursor:wait; }
 .activity.busy.drop-locked { cursor:not-allowed; opacity:0.85; }
@@ -198,7 +210,14 @@ body { font-family:'Cairo',sans-serif; overflow:hidden; background:#0a1628; colo
 }
 #order-modal h3 { text-align:center; margin-bottom:12px; }
 .order-row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border); font-size:13px; gap:8px; }
-.order-row > span { flex:1; line-height:1.4; }
+.order-row > span { flex:1; line-height:1.4; display:flex; align-items:center; gap:6px; }
+.order-row .row-icon {
+  display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;
+  width:22px; height:22px;
+}
+.order-row .row-icon .fish-svg { width:22px; height:12px; }
+.order-row .row-icon .cup-svg { width:14px; height:17px; }
+.order-row .row-icon .dish-svg { width:18px; height:18px; }
 .qty-btn { width:28px; height:28px; border:none; border-radius:6px; background:#2980b9; color:#fff; font-size:16px; cursor:pointer; font-family:inherit; flex-shrink:0; }
 .modal-total {
   padding:10px; background:rgba(245,200,66,0.1); border-radius:8px; margin-top:10px;
@@ -247,6 +266,7 @@ body { font-family:'Cairo',sans-serif; overflow:hidden; background:#0a1628; colo
       </div>
       <div id="tray-content"></div>
       <button class="tray-deliver" id="tray-deliver-btn">🍽️ قدّم للزبون</button>
+      <button type="button" class="tray-close-order" id="tray-close-btn">✅ إغلاق الطلب</button>
     </div>
   </div>
 
@@ -282,6 +302,7 @@ const CFG = {
   prices: { grilled: 20, fried: 25, rice: 5, juice: 5 },
   startDishes: 20, startCups: 10,
   batchCook: 5,
+  startSupplyBatches: 1,
   shop: { dishes: 5, rawFish: 8, rice: 10, tahini: 5, salad: 3, juice: 10, cups: 5 }
 };
 
@@ -298,8 +319,8 @@ const FEMALE_AVATARS = ['👩','👱‍♀️','👧'];
 const ITEMS = {
   cleanDish:  { emoji:'🍽️', label:'صحون نظيفة', inv:'cleanDishes' },
   dirtyDish:  { emoji:'🍽️', label:'صحون متسخة', inv:'dirtyDishes' },
-  cleanCup:   { emoji:'🥤', label:'كاسات نظيفة', inv:'cleanCups' },
-  dirtyCup:   { emoji:'🥤', label:'كاسات متسخة', inv:'dirtyCups' },
+  cleanCup:   { emoji:'cup', label:'كاسات نظيفة', inv:'cleanCups' },
+  dirtyCup:   { emoji:'cup', label:'كاسات متسخة', inv:'dirtyCups' },
   rawFish:    { emoji:'fish', label:'سمك نيء', inv:'rawFish', fish:'raw' },
   grilled:    { emoji:'fish', label:'سمك مشوي', inv:'grilled', fish:'grilled' },
   fried:      { emoji:'fish', label:'سمك مقلي', inv:'fried', fish:'fried' },
@@ -309,8 +330,44 @@ const ITEMS = {
   juice:      { emoji:'🍊', label:'عصير جاهز', inv:'juice' },
   money:      { emoji:'💰', label:'الكاشير', inv:'money' },
   dish:       { emoji:'🍽️', label:'طبق' },
-  cup:        { emoji:'🥤', label:'كاس' }
+  cup:        { emoji:'cup', label:'كاس' }
 };
+
+function dishIcon() {
+  return `<svg class="dish-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" aria-hidden="true">
+    <ellipse cx="20" cy="24" rx="16" ry="6" fill="#e8e8e8" stroke="#bbb" stroke-width="1.5"/>
+    <ellipse cx="20" cy="22" rx="12" ry="4" fill="#f5f5f5"/>
+  </svg>`;
+}
+
+function cupIcon() {
+  return `<svg class="cup-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 40" aria-hidden="true">
+    <path d="M7 10h18l-2.5 24a5 5 0 0 1-5 4H14a5 5 0 0 1-5-4Z" fill="#3498db" stroke="#2980b9" stroke-width="1"/>
+    <rect x="9" y="5" width="14" height="6" rx="2" fill="#5dade2"/>
+    <path d="M25 14h5" stroke="#5dade2" stroke-width="2.5" stroke-linecap="round"/>
+  </svg>`;
+}
+
+function grillIcon() {
+  return `<svg class="act-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" aria-hidden="true">
+    <rect x="10" y="40" width="44" height="10" rx="3" fill="#3d3d3d"/>
+    <ellipse cx="22" cy="44" rx="6" ry="3" fill="#1a1a1a"/><ellipse cx="32" cy="42" rx="7" ry="4" fill="#111"/>
+    <ellipse cx="42" cy="44" rx="6" ry="3" fill="#1a1a1a"/>
+    <path d="M22 34 Q32 12 42 34" fill="none" stroke="#ff6b35" stroke-width="3" stroke-linecap="round"/>
+    <path d="M26 36 Q32 20 38 36" fill="none" stroke="#ffd54f" stroke-width="2"/>
+    <circle cx="32" cy="26" r="5" fill="#ff9800" opacity="0.85"/>
+  </svg>`;
+}
+
+function fryIcon() {
+  return `<svg class="act-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" aria-hidden="true">
+    <ellipse cx="32" cy="46" rx="24" ry="7" fill="#444"/>
+    <ellipse cx="32" cy="42" rx="20" ry="5" fill="#2c2c2c"/>
+    <ellipse cx="32" cy="40" rx="16" ry="3.5" fill="#f9a825" opacity="0.75"/>
+    <path d="M46 18 L50 38" stroke="#aaa" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="46" cy="15" r="5" fill="#ddd" stroke="#999" stroke-width="1"/>
+  </svg>`;
+}
 
 const ACTS = [
   { id:'fishing', icon:'🎣', name:'صيد السمك' },
@@ -327,12 +384,14 @@ const ACTS = [
 const SHOP_ITEMS = [
   { k:'dishes', inv:'cleanDishes', l:'طبق', priceKey:'dishes', unit:'للواحد', icon:'🍽️', perUnit:1 },
   { k:'rawFish', inv:'rawFish', l:'سمكة نيئة', priceKey:'rawFish', unit:'للواحد', fish:'raw', perUnit:1 },
-  { k:'rice', inv:'rice', l:'أرز', priceKey:'rice', unit:'يكفي 5 أطباق', icon:'🍚', perBatch:true },
-  { k:'tahini', inv:'tahini', l:'طحينة', priceKey:'tahini', unit:'يكفي 5 أطباق', icon:'🫙', perBatch:true },
-  { k:'salad', inv:'salad', l:'سلطة', priceKey:'salad', unit:'يكفي 5 أطباق', icon:'🥗', perBatch:true },
-  { k:'juice', inv:'juice', l:'عصير', priceKey:'juice', unit:'يكفي 5 أكواب', icon:'🍊', perBatch:true },
-  { k:'cups', inv:'cleanCups', l:'كاس', priceKey:'cups', unit:'للواحد', icon:'🥤', perUnit:1 }
+  { k:'rice', inv:'supplyRice', l:'أرز خام', priceKey:'rice', unit:'يكفي طبخ 5 أطباق', icon:'🍚', perUnit:1 },
+  { k:'tahini', inv:'supplyTahini', l:'طحينة خام', priceKey:'tahini', unit:'يكفي تحضير 5 أطباق', icon:'🫙', perUnit:1 },
+  { k:'salad', inv:'supplySalad', l:'سلطة خام', priceKey:'salad', unit:'يكفي تحضير 5 أطباق', icon:'🥗', perUnit:1 },
+  { k:'juice', inv:'supplyJuice', l:'برتقال خام', priceKey:'juice', unit:'يكفي عصر 5 أكواب', icon:'🍊', perUnit:1 },
+  { k:'cups', inv:'cleanCups', l:'كاس', priceKey:'cups', unit:'للواحد', icon:'cup', perUnit:1 }
 ];
+
+const COOK_SUPPLY = { rice:'supplyRice', juice:'supplyJuice', salad:'supplySalad', tahini:'supplyTahini' };
 
 const STATE_LABELS = {
   waiting: 'منتظر',
@@ -349,6 +408,8 @@ const S = {
   cleanCups: CFG.startCups, dirtyCups: 0,
   rawFish: 0, grilled: 0, fried: 0,
   rice: 0, salad: 0, tahini: 0, juice: 0,
+  supplyRice: CFG.startSupplyBatches, supplySalad: CFG.startSupplyBatches,
+  supplyTahini: CFG.startSupplyBatches, supplyJuice: CFG.startSupplyBatches,
   acts: {},
   orders: [], activeOrderId: null,
   customers: [], nextId: 1, nextOrderId: 1,
@@ -381,10 +442,12 @@ function pickPerson() {
   return { name: base.name, avatar: avatars[Math.floor(Math.random() * avatars.length)], g: base.g };
 }
 
-function itemHtml(type, size) {
+function itemHtml(type) {
   const it = ITEMS[type];
   if (!it) return '❓';
   if (it.fish) return fishIcon(it.fish);
+  if (it.emoji === 'cup' || type === 'cup') return cupIcon();
+  if (type === 'cleanDish' || type === 'dish' || type === 'dirtyDish') return dishIcon();
   return it.emoji;
 }
 
@@ -472,8 +535,19 @@ function animate3D() {
 }
 
 function actIconHtml(a) {
-  if (a.id === 'grill' || a.id === 'fry') return fishIcon('raw');
+  if (a.id === 'grill') return grillIcon();
+  if (a.id === 'fry') return fryIcon();
   return a.icon;
+}
+
+function shopItemIcon(item) {
+  if (item.fish) return fishIcon(item.fish);
+  if (item.icon === 'cup') return cupIcon();
+  return item.icon;
+}
+
+function shopItemAmount(item) {
+  return item.perUnit || 1;
 }
 
 // ============ BUILD UI ============
@@ -498,7 +572,7 @@ function buildUI() {
 }
 
 // ============ DRAG ============
-function startDrag(type, extra) {
+function startDrag(type, extra, e) {
   if (S.drag) return;
   if (type === 'dish' || type === 'cup') {
     if (type === 'dish' && S.cleanDishes <= 0) { msg('❌ لا صحون نظيفة!'); return; }
@@ -515,7 +589,13 @@ function startDrag(type, extra) {
   S.drag = { type, extra: extra || {} };
   const g = document.getElementById('drag-ghost');
   g.innerHTML = itemHtml(type === 'dish' ? 'cleanDish' : type === 'cup' ? 'cleanCup' : type);
+  g.classList.toggle('drag-cup', type === 'cup' || type === 'dirtyCup');
+  g.classList.toggle('drag-dish', type === 'dish' || type === 'dirtyDish');
   g.classList.add('show');
+  if (e) {
+    g.style.left = e.clientX + 'px';
+    g.style.top = e.clientY + 'px';
+  }
   if (type !== 'money') renderInventory();
 }
 
@@ -537,7 +617,8 @@ function endDrag(restore) {
     }
   }
   S.drag = null;
-  document.getElementById('drag-ghost').classList.remove('show');
+  const g = document.getElementById('drag-ghost');
+  g.classList.remove('show', 'drag-cup', 'drag-dish');
   document.querySelectorAll('.drop-over').forEach(e => e.classList.remove('drop-over'));
   renderAll();
 }
@@ -637,19 +718,24 @@ document.getElementById('inventory-grid').addEventListener('pointerdown', e => {
   const id = el.dataset.inv;
   e.preventDefault();
   if (id === 'money') return;
-  if (id === 'cleanDish' && S.cleanDishes > 0) startDrag('dish');
-  else if (id === 'cleanCup' && S.cleanCups > 0) startDrag('cup');
+  let started = false;
+  if (id === 'cleanDish' && S.cleanDishes > 0) { startDrag('dish', {}, e); started = true; }
+  else if (id === 'cleanCup' && S.cleanCups > 0) { startDrag('cup', {}, e); started = true; }
   else if (id === 'dirtyDish' && S.dirtyDishes > 0) {
     S.dirtyDishes--;
-    startDrag('dirtyDish');
+    startDrag('dirtyDish', {}, e);
     renderInventory();
+    started = true;
   } else if (id === 'dirtyCup' && S.dirtyCups > 0) {
     S.dirtyCups--;
-    startDrag('dirtyCup');
+    startDrag('dirtyCup', {}, e);
     renderInventory();
+    started = true;
   } else if (['rawFish','grilled','fried','rice','salad','tahini','juice'].includes(id) && invCount(id) > 0) {
-    startDrag(id);
+    startDrag(id, {}, e);
+    started = true;
   }
+  if (started) el.setPointerCapture(e.pointerId);
 });
 
 document.getElementById('activities-grid').addEventListener('pointerdown', e => {
@@ -707,12 +793,19 @@ function startFry() {
 function startCook(actId, give) {
   const a = S.acts[actId];
   if (a.busy) { msg('⏳ مشغول!'); return; }
+  const supplyKey = COOK_SUPPLY[actId];
+  if (!supplyKey || S[supplyKey] <= 0) {
+    msg('❌ لا مواد خام! اشترِ من المتجر 🛒');
+    return;
+  }
+  S[supplyKey]--;
   a.busy = true; a.prog = 0; a.start = Date.now();
   a.give = give;
   const times = { rice: 30, juice: 8, salad: 5, tahini: 5 };
   const n = CFG.batchCook;
-  msg(`${ACTS.find(x=>x.id===actId).icon} جارٍ التحضير... ${times[actId]||10}ث (يكفي ${n} أطباق)`);
+  msg(`${ACTS.find(x=>x.id===actId).icon} جارٍ التحضير... ${times[actId]||10}ث (يكفي ${n})`);
   renderActivities();
+  renderInventory();
 }
 
 function startWash(actId, kind) {
@@ -965,10 +1058,6 @@ function openShop() {
   document.getElementById('order-modal').style.display = 'block';
 }
 
-function shopItemAmount(item) {
-  return item.perBatch ? CFG.batchCook : item.perUnit;
-}
-
 function shopItemPrice(item) {
   return CFG.shop[item.priceKey];
 }
@@ -979,10 +1068,6 @@ function shopTotal() {
 
 function shopItemCount() {
   return SHOP_ITEMS.reduce((sum, i) => sum + (pendingShop[i.k] || 0), 0);
-}
-
-function shopItemIcon(item) {
-  return item.fish ? fishIcon(item.fish) : item.icon;
 }
 
 function updateShopTotal() {
@@ -997,7 +1082,7 @@ function updateShopTotal() {
 function renderModalItems() {
   if (modalMode === 'shop') {
     document.getElementById('modal-items').innerHTML = SHOP_ITEMS.map(i => `
-      <div class="order-row"><span>${shopItemIcon(i)} ${i.l} — ${shopItemPrice(i)} kr (${i.unit})</span>
+      <div class="order-row"><span><span class="row-icon">${shopItemIcon(i)}</span>${i.l} — ${shopItemPrice(i)} kr (${i.unit})</span>
       <div><button class="qty-btn" data-q="${i.k}" data-d="-1">-</button>
       <span style="min-width:24px;display:inline-block;text-align:center" id="mq-${i.k}">0</span>
       <button class="qty-btn" data-q="${i.k}" data-d="1">+</button></div></div>`).join('') +
@@ -1012,7 +1097,7 @@ function renderModalItems() {
     { k:'juice', l:'عصير', p:5, icon:'🍊' }
   ];
   document.getElementById('modal-items').innerHTML = items.map(i => `
-    <div class="order-row"><span>${i.icon} ${i.l} (${i.p} kr)</span>
+    <div class="order-row"><span><span class="row-icon">${i.icon}</span>${i.l} (${i.p} kr)</span>
     <div><button class="qty-btn" data-q="${i.k}" data-d="-1">-</button>
     <span style="min-width:24px;display:inline-block;text-align:center" id="mq-${i.k}">0</span>
     <button class="qty-btn" data-q="${i.k}" data-d="1">+</button></div></div>`).join('') +
@@ -1177,7 +1262,11 @@ function renderActivities() {
       else if (a.id === 'washCups') status.textContent = S.dirtyCups + ' متسخ';
       else if (['rice','juice','salad','tahini'].includes(a.id)) {
         const stock = S[a.id];
-        status.textContent = stock > 0 ? `${stock} جاهز` : `اضغط (×${CFG.batchCook})`;
+        const sup = S[COOK_SUPPLY[a.id]] || 0;
+        if (st.busy) status.textContent = Math.floor(st.prog * 100) + '%';
+        else if (stock > 0) status.textContent = `${stock} جاهز · خام ${sup}`;
+        else if (sup > 0) status.textContent = `خام: ${sup} — اضغط`;
+        else status.textContent = 'اشترِ خام 🛒';
       }
       else status.textContent = 'اضغط للبدء';
     }
@@ -1216,21 +1305,15 @@ function renderOrders() {
   tabs.innerHTML = S.orders.map(o => {
     const active = o.id === S.activeOrderId ? 'active' : '';
     const stCls = 'st-' + (o.status === 'waiting' || o.status === 'preparing' ? 'preparing' : o.status);
-    const closeBtn = o.status === 'done'
-      ? `<button class="tab-close" data-close="${o.id}">إغلاق الطلب</button>` : '';
     return `<div class="order-tab ${stCls} ${active}" data-oid="${o.id}">
       <span class="tab-name">${o.avatar} ${o.customerName} #${o.id}</span>
-      <span class="tab-state">${orderStateLabel(o)}</span>${closeBtn}</div>`;
+      <span class="tab-state">${orderStateLabel(o)}</span></div>`;
   }).join('');
   tabs.querySelectorAll('.order-tab').forEach(t => {
     t.onpointerdown = e => {
-      if (e.target.closest('.tab-close')) return;
       e.preventDefault();
       switchOrder(+t.dataset.oid);
     };
-  });
-  tabs.querySelectorAll('.tab-close').forEach(b => {
-    b.onclick = e => { e.stopPropagation(); closeOrder(+b.dataset.close); };
   });
 }
 
@@ -1238,11 +1321,13 @@ function renderTray() {
   const area = document.getElementById('tray-area');
   const content = document.getElementById('tray-content');
   const btn = document.getElementById('tray-deliver-btn');
+  const closeBtn = document.getElementById('tray-close-btn');
   const order = S.orders.find(o => o.id === S.activeOrderId);
 
   if (!order) {
     area.classList.remove('show');
     btn.classList.remove('show');
+    closeBtn.classList.remove('show');
     return;
   }
 
@@ -1254,6 +1339,7 @@ function renderTray() {
     const left = c?.eatEnd ? Math.max(0, Math.ceil((c.eatEnd - Date.now()) / 1000)) : 0;
     content.innerHTML = `<div class="tray-eating">🍽️ ${order.customerName} يأكل... ${left} ثانية</div>`;
     btn.classList.remove('show');
+    closeBtn.classList.remove('show');
     return;
   }
 
@@ -1277,22 +1363,27 @@ function renderTray() {
       }
     }
     btn.classList.remove('show');
+    closeBtn.classList.remove('show');
     return;
   }
 
   if (order.status === 'done') {
-    content.innerHTML = `<div class="tray-eating">✅ تم — اضغط «إغلاق الطلب» على التبويب</div>`;
+    content.innerHTML = `<div class="tray-eating">✅ تم الطلب بنجاح</div>`;
     btn.classList.remove('show');
+    closeBtn.classList.add('show');
+    closeBtn.onclick = () => closeOrder(order.id);
     return;
   }
+
+  closeBtn.classList.remove('show');
 
   if (order.status === 'cleanup') {
     const slotsHtml = order.slots.map((slot, i) => {
       if (!slot.dirty) return '';
       const label = slot.dirty === 'dirtyCup' ? 'كاس متسخ' : 'طبق متسخ';
-      const emoji = slot.dirty === 'dirtyCup' ? '🥤' : '🍽️';
+      const icon = slot.dirty === 'dirtyCup' ? cupIcon() : dishIcon();
       return `<div class="tray-slot dirty" data-slot="1" data-order-id="${order.id}" data-slot-idx="${i}">
-        <span class="slot-emoji">${emoji}</span><span class="slot-label">${label}</span></div>`;
+        <span class="slot-emoji">${icon}</span><span class="slot-label">${label}</span></div>`;
     }).join('') || '<div class="tray-eating">لا صحون متبقية</div>';
     content.innerHTML = `<div class="tray-slots">${slotsHtml}</div>`;
     btn.classList.remove('show');
@@ -1305,7 +1396,8 @@ function renderTray() {
         if (!slot?.dirty) return;
         const dtype = slot.dirty;
         slot.dirty = null;
-        startDrag(dtype, { orderId: order.id, slotIdx: idx });
+        startDrag(dtype, { orderId: order.id, slotIdx: idx }, e);
+        el.setPointerCapture(e.pointerId);
         renderTray();
       };
     });
@@ -1328,11 +1420,11 @@ function renderTray() {
     }
     let mid;
     if (isJuice) {
-      mid = slot.hasBase ? '<span class="slot-emoji">🥤</span><span style="font-size:8px;color:#f39c12">+ عصير؟</span>'
-        : '<span class="slot-ghost-icon">🥤</span><span style="font-size:8px">كاس؟</span>';
+      mid = slot.hasBase ? `<span class="slot-emoji">${cupIcon()}</span><span style="font-size:8px;color:#f39c12">+ عصير؟</span>`
+        : `<span class="slot-ghost-icon">${cupIcon()}</span><span style="font-size:8px">كاس؟</span>`;
     } else {
       const ghost = info.fish ? fishIcon(info.fish) : info.emoji;
-      mid = slot.hasBase ? '<span class="slot-emoji">🍽️</span><span style="font-size:8px;color:#f39c12">+ طعام؟</span>'
+      mid = slot.hasBase ? `<span class="slot-emoji">${dishIcon()}</span><span style="font-size:8px;color:#f39c12">+ طعام؟</span>`
         : `<span class="slot-ghost-icon">${ghost}</span><span style="font-size:8px">طبق؟</span>`;
     }
   const cls = slot.hasBase ? 'has-base' : '';
