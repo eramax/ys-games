@@ -334,6 +334,8 @@ body.dragging { touch-action:none; }
   font-size:13px; text-align:center; border:1px solid rgba(245,200,66,0.25);
 }
 .modal-total b { color:var(--gold); }
+.order-row-readonly { border-bottom:1px solid var(--border); }
+.order-row-readonly > span { width:100%; }
 .modal-btns { display:flex; gap:8px; margin-top:16px; }
 .modal-btns button { flex:1; padding:10px; border:none; border-radius:8px; font-family:inherit; font-weight:700; cursor:pointer; font-size:14px; }
 .btn-ok { background:var(--ok); color:#fff; }
@@ -399,8 +401,8 @@ body.dragging { touch-action:none; }
   <h3 id="modal-title">طلب الزبون</h3>
   <div id="modal-items"></div>
   <div class="modal-btns">
-    <button class="btn-ok" id="modal-confirm">✅ تأكيد الطلب</button>
-    <button class="btn-cancel" id="modal-cancel">❌ إلغاء</button>
+    <button class="btn-ok" id="modal-confirm">✅ قبول الطلب</button>
+    <button class="btn-cancel" id="modal-cancel">↩️ رجوع</button>
   </div>
 </div>
 
@@ -416,6 +418,54 @@ const CFG = {
   maxOrders: 4,
   shop: { dishes: 5, rawFish: 8, rice: 10, tahini: 5, salad: 3, juice: 10, cups: 5 }
 };
+
+const ORDER_TEMPLATES = [
+  { grilled: 1, fried: 0, rice: 1, juice: 0, salad: 1, tahini: 1 },
+  { grilled: 1, fried: 0, rice: 1, juice: 1, salad: 1, tahini: 1 },
+  { grilled: 0, fried: 1, rice: 1, juice: 0, salad: 1, tahini: 1 },
+  { grilled: 1, fried: 1, rice: 1, juice: 0, salad: 1, tahini: 1 },
+  { grilled: 2, fried: 0, rice: 1, juice: 0, salad: 1, tahini: 1 },
+  { grilled: 1, fried: 0, rice: 2, juice: 0, salad: 1, tahini: 1 },
+  { grilled: 0, fried: 2, rice: 1, juice: 0, salad: 1, tahini: 1 },
+  { grilled: 2, fried: 1, rice: 1, juice: 0, salad: 1, tahini: 1 },
+  { grilled: 1, fried: 1, rice: 1, juice: 1, salad: 1, tahini: 1 },
+  { grilled: 1, fried: 0, rice: 2, juice: 1, salad: 1, tahini: 1 },
+  { grilled: 1, fried: 0, rice: 1, juice: 1, salad: 0, tahini: 1 },
+  { grilled: 0, fried: 1, rice: 1, juice: 1, salad: 1, tahini: 0 },
+];
+
+function pickCustomerOrder() {
+  const t = ORDER_TEMPLATES[Math.floor(Math.random() * ORDER_TEMPLATES.length)];
+  return { grilled: t.grilled, fried: t.fried, rice: t.rice, juice: t.juice, salad: t.salad, tahini: t.tahini };
+}
+
+function calcOrderPrice(order) {
+  return (order.grilled || 0) * CFG.prices.grilled +
+    (order.fried || 0) * CFG.prices.fried +
+    (order.rice || 0) * CFG.prices.rice +
+    (order.juice || 0) * CFG.prices.juice;
+}
+
+function startCustomerWaitTimer(customer) {
+  const cid = customer.id;
+  customer.waitIv = setInterval(() => {
+    const c = S.customers.find(x => x.id === cid);
+    if (!c || c.status !== 'waiting') return;
+    c.timeLeft--;
+    if (c.timeLeft <= 0) {
+      clearInterval(c.waitIv);
+      c.status = 'left';
+      S.fail++;
+      msg(`😞 ${c.name} غادر!`);
+      const oid = c.orderId;
+      if (oid) S.orders = S.orders.filter(o => o.id !== oid);
+      S.customers = S.customers.filter(x => x.id !== cid);
+      if (!S.orders.find(o => o.id === S.activeOrderId)) S.activeOrderId = S.orders[0]?.id || null;
+      renderAll();
+    }
+    renderOrders();
+  }, 1000);
+}
 
 const PEOPLE = [
   { name:'محمد', avatar:'👨', g:'m' }, { name:'أحمد', avatar:'👦', g:'m' }, { name:'علي', avatar:'🧔', g:'m' },
@@ -544,7 +594,6 @@ ACTS.forEach(a => { S.acts[a.id] = { busy: false, prog: 0, start: 0, queue: 0 };
 
 let modalCustomer = null;
 let modalMode = 'order';
-let pendingOrder = { grilled:0, fried:0, rice:0, juice:0 };
 let pendingShop = { dishes:0, rawFish:0, rice:0, tahini:0, salad:0, juice:0, cups:0 };
 let spawnIv, tickIv, scene, camera, renderer, seaMesh;
 let prevInvCounts = {};
@@ -1077,8 +1126,8 @@ function buildSlots(order) {
   for (let i = 0; i < (order.fried || 0); i++) slots.push({ need:'fried', hasBase:false, filled:null, dirty:null });
   for (let i = 0; i < (order.rice || 0); i++) slots.push({ need:'rice', hasBase:false, filled:null, dirty:null });
   for (let i = 0; i < (order.juice || 0); i++) slots.push({ need:'juice', hasBase:false, filled:null, dirty:null });
-  slots.push({ need:'salad', hasBase:false, filled:null, dirty:null });
-  slots.push({ need:'tahini', hasBase:false, filled:null, dirty:null });
+  for (let i = 0; i < (order.salad || 0); i++) slots.push({ need:'salad', hasBase:false, filled:null, dirty:null });
+  for (let i = 0; i < (order.tahini || 0); i++) slots.push({ need:'tahini', hasBase:false, filled:null, dirty:null });
   return slots;
 }
 
@@ -1241,10 +1290,12 @@ function orderSlotsUsed() {
 function spawnCustomer() {
   if (orderSlotsUsed() >= CFG.maxOrders) return;
   const person = pickPerson();
+  const order = pickCustomerOrder();
   const id = S.nextId++;
   S.customers.push({
     id, name: person.name, avatar: person.avatar,
-    order: null, price: 0, status: 'arrived', timeLeft: CFG.waitTime,
+    order, price: calcOrderPrice(order),
+    status: 'arrived', timeLeft: CFG.waitTime,
     waitIv: null, eatEnd: 0, orderId: null
   });
   msg(`📋 ${person.avatar} ${person.name} وصل!`);
@@ -1253,12 +1304,12 @@ function spawnCustomer() {
 
 function openModal(cid) {
   const c = S.customers.find(x => x.id === cid);
-  if (!c || c.status !== 'arrived') return;
+  if (!c || c.status !== 'arrived' || !c.order) return;
   modalMode = 'order';
   modalCustomer = c;
-  pendingOrder = { grilled:0, fried:0, rice:0, juice:0 };
   document.getElementById('modal-title').textContent = `${c.avatar} طلب ${c.name}`;
-  document.getElementById('modal-confirm').textContent = '✅ تأكيد الطلب';
+  document.getElementById('modal-confirm').textContent = '✅ قبول الطلب';
+  document.getElementById('modal-cancel').textContent = '↩️ رجوع';
   renderModalItems();
   document.getElementById('modal-bg').style.display = 'block';
   document.getElementById('order-modal').style.display = 'block';
@@ -1271,6 +1322,7 @@ function openShop() {
   pendingShop = { dishes:0, rawFish:0, rice:0, tahini:0, salad:0, juice:0, cups:0 };
   document.getElementById('modal-title').textContent = '🛒 شراء مستلزمات';
   document.getElementById('modal-confirm').textContent = '✅ تأكيد الشراء';
+  document.getElementById('modal-cancel').textContent = '❌ إلغاء';
   renderModalItems();
   document.getElementById('modal-bg').style.display = 'block';
   document.getElementById('order-modal').style.display = 'block';
@@ -1308,32 +1360,37 @@ function renderModalItems() {
     updateShopTotal();
     return;
   }
-  const items = [
-    { k:'grilled', l:'سمكة مشوية', p:20, icon: fishIcon('grilled') },
-    { k:'fried', l:'سمكة مقلية', p:25, icon: fishIcon('fried') },
-    { k:'rice', l:'أرز', p:5, icon:'🍚' },
-    { k:'juice', l:'عصير', p:5, icon:'🍊' }
+  const o = modalCustomer?.order;
+  if (!o) return;
+  const rows = [
+    { k:'grilled', l:'سمكة مشوية', p: CFG.prices.grilled, icon: fishIcon('grilled') },
+    { k:'fried', l:'سمكة مقلية', p: CFG.prices.fried, icon: fishIcon('fried') },
+    { k:'rice', l:'طبق أرز', p: CFG.prices.rice, icon: '🍚' },
+    { k:'juice', l:'عصير', p: CFG.prices.juice, icon: '🍊' },
+    { k:'salad', l:'سلطة', p: 0, icon: '🥗', free: true },
+    { k:'tahini', l:'طحينة', p: 0, icon: tahiniIcon(), free: true },
   ];
-  document.getElementById('modal-items').innerHTML = items.map(i => `
-    <div class="order-row"><span><span class="row-icon">${i.icon}</span>${i.l} (${i.p} kr)</span>
-    <div><button class="qty-btn" data-q="${i.k}" data-d="-1">-</button>
-    <span style="min-width:24px;display:inline-block;text-align:center" id="mq-${i.k}">0</span>
-    <button class="qty-btn" data-q="${i.k}" data-d="1">+</button></div></div>`).join('') +
-    '<div style="padding:8px;background:rgba(255,255,255,0.05);border-radius:8px;margin-top:8px;font-size:12px">🥗 السلطة والطحينة مجاناً مع كل وجبة</div>';
+  document.getElementById('modal-items').innerHTML = rows
+    .filter(i => (o[i.k] || 0) > 0)
+    .map(i => {
+      const qty = o[i.k];
+      const sub = i.free ? 'مجاناً' : `${qty * i.p} kr`;
+      const label = `${qty} ${i.l}`;
+      return `<div class="order-row order-row-readonly">
+        <span><span class="row-icon">${i.icon}</span>${label} — ${sub}</span>
+      </div>`;
+    }).join('') +
+    `<div class="modal-total">المجموع: <b>${modalCustomer.price}</b> kr</div>`;
 }
 
 document.getElementById('modal-items').addEventListener('click', e => {
+  if (modalMode !== 'shop') return;
   const btn = e.target.closest('.qty-btn');
   if (!btn) return;
   const k = btn.dataset.q, d = +btn.dataset.d;
-  if (modalMode === 'shop') {
-    pendingShop[k] = Math.max(0, (pendingShop[k] || 0) + d);
-    document.getElementById('mq-' + k).textContent = pendingShop[k];
-    updateShopTotal();
-    return;
-  }
-  pendingOrder[k] = Math.max(0, pendingOrder[k] + d);
-  document.getElementById('mq-' + k).textContent = pendingOrder[k];
+  pendingShop[k] = Math.max(0, (pendingShop[k] || 0) + d);
+  document.getElementById('mq-' + k).textContent = pendingShop[k];
+  updateShopTotal();
 });
 
 function confirmShop() {
@@ -1353,33 +1410,11 @@ function confirmShop() {
 
 document.getElementById('modal-confirm').onclick = () => {
   if (modalMode === 'shop') { confirmShop(); return; }
-  if (!modalCustomer) return;
-  const total = pendingOrder.grilled + pendingOrder.fried + pendingOrder.rice + pendingOrder.juice;
-  if (total === 0) { msg('❌ الطلب فارغ!'); return; }
+  if (!modalCustomer?.order) return;
   const customer = modalCustomer;
-  customer.order = { ...pendingOrder };
-  customer.price = pendingOrder.grilled * CFG.prices.grilled + pendingOrder.fried * CFG.prices.fried +
-    pendingOrder.rice * CFG.prices.rice + pendingOrder.juice * CFG.prices.juice;
   customer.status = 'waiting';
   customer.timeLeft = CFG.waitTime;
-  const cid = customer.id;
-  customer.waitIv = setInterval(() => {
-    const c = S.customers.find(x => x.id === cid);
-    if (!c || c.status !== 'waiting') return;
-    c.timeLeft--;
-    if (c.timeLeft <= 0) {
-      clearInterval(c.waitIv);
-      c.status = 'left';
-      S.fail++;
-      msg(`😞 ${c.name} غادر!`);
-      const oid = c.orderId;
-      if (oid) S.orders = S.orders.filter(o => o.id !== oid);
-      S.customers = S.customers.filter(x => x.id !== cid);
-      if (!S.orders.find(o => o.id === S.activeOrderId)) S.activeOrderId = S.orders[0]?.id || null;
-      renderAll();
-    }
-    renderOrders();
-  }, 1000);
+  startCustomerWaitTimer(customer);
   createOrder(customer);
   closeModal();
   msg(`✅ طلب ${customer.name} — جهّزه سريعاً!`);
@@ -1391,7 +1426,8 @@ function closeModal() {
   document.getElementById('order-modal').style.display = 'none';
   modalCustomer = null;
   modalMode = 'order';
-  document.getElementById('modal-confirm').textContent = '✅ تأكيد الطلب';
+  document.getElementById('modal-confirm').textContent = '✅ قبول الطلب';
+  document.getElementById('modal-cancel').textContent = '↩️ رجوع';
 }
 document.getElementById('modal-cancel').onclick = closeModal;
 document.getElementById('modal-bg').onclick = closeModal;
@@ -1500,7 +1536,10 @@ function renderNewCustomers() {
     `<div class="new-chip" data-cid="${c.id}">📋 زبون جديد — ${c.avatar} ${c.name}</div>`
   ).join('');
   el.querySelectorAll('.new-chip').forEach(chip => {
-    chip.onclick = () => openModal(+chip.dataset.cid);
+    chip.onclick = e => {
+      e.stopPropagation();
+      openModal(+chip.dataset.cid);
+    };
   });
 }
 
