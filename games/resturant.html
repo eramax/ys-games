@@ -652,8 +652,9 @@ function shopItemAmount(item) {
 function buildUI() {
   const inv = document.getElementById('inventory-grid');
   const invKeys = ['cleanDish','dirtyDish','cleanCup','dirtyCup','rawFish','grilled','fried','rice','salad','tahini','juice','money'];
+  const invDropKeys = new Set(['dirtyDish','dirtyCup','money']);
   inv.innerHTML = invKeys.map(k => `
-    <div class="inv-item" data-inv="${k}" id="inv-${k}">
+    <div class="inv-item" data-inv="${k}" id="inv-${k}"${invDropKeys.has(k) ? ` data-inv-drop="${k}"` : ''}>
       <span class="inv-count" id="cnt-${k}">0</span>
       <div class="inv-icon">${itemHtml(k)}</div>
       <div class="inv-name">${ITEMS[k].label}</div>
@@ -734,7 +735,15 @@ function canDropOnAct(actId, dragType) {
 }
 
 function getDropTarget(x, y) {
-  for (const el of document.elementsFromPoint(x, y)) {
+  const els = document.elementsFromPoint(x, y);
+  if (S.drag?.type === 'money') {
+    for (const el of els) {
+      const cash = el.closest?.('[data-inv="money"]');
+      if (cash) return { kind: 'invDrop', id: 'money', el: cash };
+    }
+    return null;
+  }
+  for (const el of els) {
     const act = el.closest?.('[data-act]');
     if (act) return { kind: 'act', id: act.dataset.act, el: act };
     const invDrop = el.closest?.('[data-inv-drop]');
@@ -747,6 +756,14 @@ function getDropTarget(x, y) {
   return null;
 }
 
+function canDropTarget(dragType, target) {
+  if (dragType === 'money') {
+    return (target.kind === 'invDrop' || target.kind === 'inv') && target.id === 'money';
+  }
+  if (target.kind === 'act') return canDropOnAct(target.id, dragType);
+  return target.kind === 'invDrop' || target.kind === 'inv' || target.kind === 'slot';
+}
+
 document.addEventListener('pointermove', e => {
   if (!S.drag) return;
   e.preventDefault();
@@ -756,10 +773,7 @@ document.addEventListener('pointermove', e => {
   document.querySelectorAll('.drop-over').forEach(x => x.classList.remove('drop-over'));
   const t = getDropTarget(e.clientX, e.clientY);
   if (!t?.el) return;
-  const canDrop = t.kind === 'act'
-    ? canDropOnAct(t.id, S.drag.type)
-    : t.kind === 'invDrop' || t.kind === 'inv' || t.kind === 'slot';
-  if (canDrop) t.el.classList.add('drop-over');
+  if (canDropTarget(S.drag.type, t)) t.el.classList.add('drop-over');
 });
 
 document.addEventListener('pointerup', e => {
@@ -820,12 +834,28 @@ function handleDrop(drag, target) {
   return false;
 }
 
+document.getElementById('inventory-grid').addEventListener('pointerup', e => {
+  if (S.drag?.type !== 'money') return;
+  const cash = e.target.closest('[data-inv="money"]');
+  if (!cash) return;
+  const handled = collectMoney(S.drag.extra.orderId);
+  if (handled) {
+    endDrag(false);
+    e.preventDefault();
+    e.stopPropagation();
+  }
+});
+
 document.getElementById('inventory-grid').addEventListener('pointerdown', e => {
   const el = e.target.closest('[data-inv]');
   if (!el || S.drag) return;
   const id = el.dataset.inv;
   e.preventDefault();
-  if (id === 'money') return;
+  if (id === 'money') {
+    const order = S.orders.find(o => o.id === S.activeOrderId && o.status === 'payable' && o.moneyOnTray);
+    if (order) collectMoney(order.id);
+    return;
+  }
   if (id === 'cleanDish' && S.cleanDishes > 0) startDrag('dish', {}, e);
   else if (id === 'cleanCup' && S.cleanCups > 0) startDrag('cup', {}, e);
   else if (id === 'dirtyDish' && S.dirtyDishes > 0) {
@@ -1511,8 +1541,9 @@ function renderTray() {
       if (moneyEl) {
         moneyEl.onpointerdown = e => {
           e.preventDefault();
+          e.stopPropagation();
           if (S.drag) return;
-          startDrag('money', { orderId: order.id });
+          startDrag('money', { orderId: order.id }, e);
           renderTray();
         };
       }
