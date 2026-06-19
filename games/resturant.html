@@ -160,7 +160,9 @@ body { font-family:'Cairo',sans-serif; overflow:hidden; background:#0a1628; colo
   grid-auto-rows:var(--tile-cell-min); gap:6px; padding:12px 10px 10px;
   align-content:start; justify-content:start;
 }
-#activities-grid { overflow-y:auto; flex:1; }
+#activities-grid { overflow-y:auto; flex:1; touch-action:pan-y; }
+body.dragging #activities-grid { overflow:hidden; touch-action:none; }
+body.dragging { touch-action:none; }
 .inv-item,
 .activity {
   background:rgba(255,255,255,0.06); border:2px solid var(--border); border-radius:10px;
@@ -364,6 +366,7 @@ const CFG = {
   startDishes: 20, startCups: 10,
   batchCook: 5,
   startSupplyBatches: 1,
+  maxOrders: 4,
   shop: { dishes: 5, rawFish: 8, rice: 10, tahini: 5, salad: 3, juice: 10, cups: 5 }
 };
 
@@ -692,6 +695,10 @@ function startDrag(type, extra, e) {
     g.style.top = e.clientY + 'px';
   }
   if (type !== 'money') renderInventory();
+  document.body.classList.add('dragging');
+  if (e?.pointerId != null) {
+    try { document.getElementById('ui').setPointerCapture(e.pointerId); } catch (_) {}
+  }
 }
 
 function endDrag(restore) {
@@ -712,6 +719,7 @@ function endDrag(restore) {
     }
   }
   S.drag = null;
+  document.body.classList.remove('dragging');
   const g = document.getElementById('drag-ghost');
   g.classList.remove('show', 'drag-cup', 'drag-dish');
   document.querySelectorAll('.drop-over').forEach(e => e.classList.remove('drop-over'));
@@ -727,16 +735,21 @@ function canDropOnAct(actId, dragType) {
 
 function getDropTarget(x, y) {
   for (const el of document.elementsFromPoint(x, y)) {
-    if (el.dataset?.act) return { kind: 'act', id: el.dataset.act, el };
-    if (el.dataset?.invDrop) return { kind: 'invDrop', id: el.dataset.invDrop, el };
-    if (el.dataset?.inv) return { kind: 'inv', id: el.dataset.inv, el };
-    if (el.dataset?.slot) return { kind: 'slot', orderId: +el.dataset.orderId, slotIdx: +el.dataset.slotIdx, el };
+    const act = el.closest?.('[data-act]');
+    if (act) return { kind: 'act', id: act.dataset.act, el: act };
+    const invDrop = el.closest?.('[data-inv-drop]');
+    if (invDrop) return { kind: 'invDrop', id: invDrop.dataset.invDrop, el: invDrop };
+    const inv = el.closest?.('[data-inv]');
+    if (inv) return { kind: 'inv', id: inv.dataset.inv, el: inv };
+    const slot = el.closest?.('[data-slot]');
+    if (slot) return { kind: 'slot', orderId: +slot.dataset.orderId, slotIdx: +slot.dataset.slotIdx, el: slot };
   }
   return null;
 }
 
 document.addEventListener('pointermove', e => {
   if (!S.drag) return;
+  e.preventDefault();
   const g = document.getElementById('drag-ghost');
   g.style.left = e.clientX + 'px';
   g.style.top = e.clientY + 'px';
@@ -757,8 +770,9 @@ document.addEventListener('pointerup', e => {
   if (t) handled = handleDrop(d, t);
   if (!handled) endDrag(true);
   else endDrag(false);
+  e.preventDefault();
 });
-document.addEventListener('pointercancel', () => endDrag(true));
+document.addEventListener('pointercancel', e => { if (S.drag) endDrag(true); });
 
 function handleDrop(drag, target) {
   const { type, extra } = drag;
@@ -812,24 +826,19 @@ document.getElementById('inventory-grid').addEventListener('pointerdown', e => {
   const id = el.dataset.inv;
   e.preventDefault();
   if (id === 'money') return;
-  let started = false;
-  if (id === 'cleanDish' && S.cleanDishes > 0) { startDrag('dish', {}, e); started = true; }
-  else if (id === 'cleanCup' && S.cleanCups > 0) { startDrag('cup', {}, e); started = true; }
+  if (id === 'cleanDish' && S.cleanDishes > 0) startDrag('dish', {}, e);
+  else if (id === 'cleanCup' && S.cleanCups > 0) startDrag('cup', {}, e);
   else if (id === 'dirtyDish' && S.dirtyDishes > 0) {
     S.dirtyDishes--;
     startDrag('dirtyDish', {}, e);
     renderInventory();
-    started = true;
   } else if (id === 'dirtyCup' && S.dirtyCups > 0) {
     S.dirtyCups--;
     startDrag('dirtyCup', {}, e);
     renderInventory();
-    started = true;
   } else if (['rawFish','grilled','fried','rice','salad','tahini','juice'].includes(id) && invCount(id) > 0) {
     startDrag(id, {}, e);
-    started = true;
   }
-  if (started) el.setPointerCapture(e.pointerId);
 });
 
 document.getElementById('activities-grid').addEventListener('pointerdown', e => {
@@ -1121,10 +1130,13 @@ function switchOrder(id) {
 }
 
 // ============ CUSTOMERS ============
+function orderSlotsUsed() {
+  const arrived = S.customers.filter(c => c.status === 'arrived').length;
+  return S.orders.length + arrived;
+}
+
 function spawnCustomer() {
-  const active = S.customers.filter(c => c.status === 'arrived').length;
-  const open = S.orders.filter(o => o.status !== 'done').length;
-  if (active + open >= 5) return;
+  if (orderSlotsUsed() >= CFG.maxOrders) return;
   const person = pickPerson();
   const id = S.nextId++;
   S.customers.push({
@@ -1540,7 +1552,6 @@ function renderTray() {
         const dtype = slot.dirty;
         slot.dirty = null;
         startDrag(dtype, { orderId: order.id, slotIdx: idx }, e);
-        el.setPointerCapture(e.pointerId);
         renderTray();
       };
     });
