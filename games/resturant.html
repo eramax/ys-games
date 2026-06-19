@@ -99,9 +99,40 @@ body { font-family:'Cairo',sans-serif; overflow:hidden; background:#0a1628; colo
   display:flex; flex-direction:column; align-items:center; justify-content:center;
   font-size:9px; color:#888; background:rgba(0,0,0,0.3); padding:6px; transition:all .2s;
 }
-.tray-slot.has-base { border-color:rgba(255,255,255,0.45); }
+.tray-slot.has-base { border-color:rgba(245,200,66,0.55); background:rgba(245,200,66,0.06); }
 .tray-slot.filled { border-style:solid; border-color:var(--ok); background:rgba(46,204,113,0.12); color:#fff; }
 .tray-slot.dirty { border-color:#9b59b6; background:rgba(155,89,182,0.12); }
+.tray-slot .slot-stack {
+  position:relative; display:flex; align-items:center; justify-content:center;
+  width:100%; min-height:54px; margin-bottom:2px;
+}
+.tray-slot .slot-need-icon {
+  font-size:var(--tray-icon); line-height:1; display:flex; align-items:center; justify-content:center;
+}
+.tray-slot .slot-need-icon.slot-ghost-icon { opacity:0.38; }
+.tray-slot .slot-need-icon.waiting-food { opacity:0.92; }
+.tray-slot.has-base .slot-need-icon.waiting-food {
+  animation:needPulse 1.6s ease-in-out infinite;
+}
+@keyframes needPulse {
+  0%, 100% { opacity:0.75; transform:scale(1); }
+  50% { opacity:1; transform:scale(1.05); }
+}
+.tray-slot .slot-base-icon {
+  position:absolute; bottom:-2px; left:50%; transform:translateX(-50%);
+  display:flex; align-items:center; justify-content:center; line-height:1;
+  transition:opacity .2s;
+}
+.tray-slot .slot-base-icon.ghost { opacity:0.28; }
+.tray-slot .slot-base-icon.active { opacity:1; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.35)); }
+.tray-slot .slot-base-icon .dish-svg { width:22px; height:22px; }
+.tray-slot .slot-base-icon .cup-svg { width:17px; height:21px; }
+.tray-slot .slot-need-icon .fish-svg { width:var(--tray-fish-w); height:var(--tray-fish-h); }
+.tray-slot .slot-need-icon .tahini-svg { width:38px; height:38px; }
+.order-row .row-icon .tahini-svg { width:20px; height:20px; }
+.tray-slot .slot-hint { font-size:8px; color:#888; line-height:1.2; margin-top:1px; }
+.tray-slot.has-base .slot-hint { color:var(--warn); font-weight:600; }
+.tray-slot.filled .slot-hint { display:none; }
 .tray-slot.dirty .slot-emoji { filter:sepia(0.35) hue-rotate(165deg) brightness(0.9); }
 .inv-item.dirty-item .inv-icon { filter:sepia(0.35) hue-rotate(165deg) brightness(0.9); }
 .tray-slot.drop-over { border-color:var(--ok); box-shadow:0 0 12px rgba(46,204,113,0.45); transform:scale(1.04); }
@@ -157,6 +188,7 @@ body { font-family:'Cairo',sans-serif; overflow:hidden; background:#0a1628; colo
 }
 .inv-item .inv-count.zero { display:none; }
 .inv-item .cup-svg, #drag-ghost .cup-svg { width:26px; height:32px; }
+.inv-item .tahini-svg, #drag-ghost .tahini-svg { width:28px; height:28px; }
 .inv-item .dish-svg, #drag-ghost .dish-svg { width:30px; height:30px; }
 .activity .act-svg { width:var(--tile-fish-w); height:var(--tile-fish-w); }
 .inv-item.drop-target { border-color:var(--ok); box-shadow:0 0 12px rgba(46,204,113,0.45); }
@@ -196,6 +228,8 @@ body { font-family:'Cairo',sans-serif; overflow:hidden; background:#0a1628; colo
 .activity.drop-over { border-color:var(--ok); box-shadow:0 0 14px rgba(46,204,113,0.45); }
 .activity .act-icon { font-size:var(--tile-icon); line-height:1; display:flex; align-items:center; justify-content:center; min-height:var(--tile-icon); }
 .activity .act-icon .fish-svg { width:var(--tile-fish-w); height:var(--tile-fish-h); }
+.activity .act-icon .act-svg,
+.activity .act-icon .tahini-svg { width:var(--tile-fish-w); height:var(--tile-fish-w); }
 .activity .act-name { font-size:9px; font-weight:600; margin-top:3px; text-align:center; color:#bbb; }
 .activity .act-status { font-size:7px; color:#aaa; margin-top:1px; line-height:1.2; }
 .activity .act-progress {
@@ -212,8 +246,8 @@ body { font-family:'Cairo',sans-serif; overflow:hidden; background:#0a1628; colo
 #drag-ghost.show { display:flex; align-items:center; justify-content:center; }
 #drag-ghost .fish-svg { width:var(--tile-fish-w); height:var(--tile-fish-h); }
 
-#msgs { position:fixed; top:50px; left:50%; transform:translateX(-50%); z-index:100; pointer-events:none; display:flex; flex-direction:column; gap:4px; align-items:center; }
-.msg { background:rgba(0,0,0,0.88); padding:8px 16px; border-radius:10px; font-size:12px; animation:msgFade 3s forwards; border:1px solid var(--border); max-width:90vw; text-align:center; }
+#msgs { position:fixed; top:50px; left:12px; right:auto; z-index:100; pointer-events:none; display:flex; flex-direction:column; gap:4px; align-items:flex-start; }
+.msg { background:rgba(0,0,0,0.88); padding:8px 16px; border-radius:10px; font-size:12px; animation:msgFade 3s forwards; border:1px solid var(--border); max-width:min(320px, calc(100vw - 24px)); text-align:right; }
 @keyframes msgFade { 0%,70%{opacity:1} 100%{opacity:0;transform:translateY(-12px)} }
 
 #intro {
@@ -353,7 +387,7 @@ const ITEMS = {
   fried:      { emoji:'fish', label:'سمك مقلي', inv:'fried', fish:'fried' },
   rice:       { emoji:'🍚', label:'أرز جاهز', inv:'rice' },
   salad:      { emoji:'🥗', label:'سلطة جاهزة', inv:'salad' },
-  tahini:     { emoji:'🫙', label:'طحينة جاهزة', inv:'tahini' },
+  tahini:     { emoji:'tahini', label:'طحينة جاهزة', inv:'tahini' },
   juice:      { emoji:'🍊', label:'عصير جاهز', inv:'juice' },
   money:      { emoji:'💰', label:'الكاشير', inv:'money' },
   dish:       { emoji:'🍽️', label:'طبق' },
@@ -372,6 +406,19 @@ function cupIcon() {
     <path d="M7 10h18l-2.5 24a5 5 0 0 1-5 4H14a5 5 0 0 1-5-4Z" fill="#3498db" stroke="#2980b9" stroke-width="1"/>
     <rect x="9" y="5" width="14" height="6" rx="2" fill="#5dade2"/>
     <path d="M25 14h5" stroke="#5dade2" stroke-width="2.5" stroke-linecap="round"/>
+  </svg>`;
+}
+
+function tahiniIcon() {
+  return `<svg class="tahini-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" aria-hidden="true">
+    <ellipse cx="20" cy="31" rx="14" ry="3.5" fill="#000" opacity="0.12"/>
+    <ellipse cx="20" cy="27" rx="15" ry="5" fill="#d4a017" stroke="#b8860b" stroke-width="1"/>
+    <ellipse cx="20" cy="24" rx="12" ry="8" fill="#f7dc6f"/>
+    <ellipse cx="20" cy="23" rx="10" ry="6.5" fill="#f9e27d"/>
+    <path d="M12 23 Q20 27 28 23" stroke="#e8c547" stroke-width="1.2" fill="none" opacity="0.7"/>
+    <ellipse cx="17" cy="21.5" rx="3" ry="1.8" fill="#fff9c4" opacity="0.55"/>
+    <circle cx="23" cy="24" r="0.9" fill="#fffde7" opacity="0.6"/>
+    <circle cx="19" cy="25" r="0.6" fill="#fffde7" opacity="0.45"/>
   </svg>`;
 }
 
@@ -403,7 +450,7 @@ const ACTS = [
   { id:'rice', icon:'🍚', name:'طبخ أرز' },
   { id:'juice', icon:'🍊', name:'عصير برتقال' },
   { id:'salad', icon:'🥗', name:'تحضير سلطة' },
-  { id:'tahini', icon:'🫙', name:'تحضير طحينة' },
+  { id:'tahini', icon:'tahini', name:'تحضير طحينة' },
   { id:'grill', icon:'🔥', name:'شوي سمك' },
   { id:'fry', icon:'🍳', name:'قلي سمك' }
 ];
@@ -412,7 +459,7 @@ const SHOP_ITEMS = [
   { k:'dishes', inv:'cleanDishes', l:'طبق', priceKey:'dishes', unit:'للواحد', icon:'🍽️', perUnit:1 },
   { k:'rawFish', inv:'rawFish', l:'سمكة نيئة', priceKey:'rawFish', unit:'للواحد', fish:'raw', perUnit:1 },
   { k:'rice', inv:'supplyRice', l:'أرز خام', priceKey:'rice', unit:'يكفي طبخ 5 أطباق', icon:'🍚', perUnit:1 },
-  { k:'tahini', inv:'supplyTahini', l:'طحينة خام', priceKey:'tahini', unit:'يكفي تحضير 5 أطباق', icon:'🫙', perUnit:1 },
+  { k:'tahini', inv:'supplyTahini', l:'طحينة خام', priceKey:'tahini', unit:'يكفي تحضير 5 أطباق', icon:'tahini', perUnit:1 },
   { k:'salad', inv:'supplySalad', l:'سلطة خام', priceKey:'salad', unit:'يكفي تحضير 5 أطباق', icon:'🥗', perUnit:1 },
   { k:'juice', inv:'supplyJuice', l:'برتقال خام', priceKey:'juice', unit:'يكفي عصر 5 أكواب', icon:'🍊', perUnit:1 },
   { k:'cups', inv:'cleanCups', l:'كاس', priceKey:'cups', unit:'للواحد', icon:'cup', perUnit:1 }
@@ -492,6 +539,7 @@ function itemHtml(type) {
   if (!it) return '❓';
   if (it.fish) return fishIcon(it.fish);
   if (it.emoji === 'cup' || type === 'cup') return cupIcon();
+  if (it.emoji === 'tahini' || type === 'tahini') return tahiniIcon();
   if (type === 'cleanDish' || type === 'dish' || type === 'dirtyDish') return dishIcon();
   return it.emoji;
 }
@@ -582,12 +630,14 @@ function animate3D() {
 function actIconHtml(a) {
   if (a.id === 'grill') return grillIcon();
   if (a.id === 'fry') return fryIcon();
+  if (a.id === 'tahini' || a.icon === 'tahini') return tahiniIcon();
   return a.icon;
 }
 
 function shopItemIcon(item) {
   if (item.fish) return fishIcon(item.fish);
   if (item.icon === 'cup') return cupIcon();
+  if (item.icon === 'tahini') return tahiniIcon();
   return item.icon;
 }
 
@@ -848,7 +898,8 @@ function startCook(actId, give) {
   a.give = give;
   const times = { rice: 30, juice: 8, salad: 5, tahini: 5 };
   const n = CFG.batchCook;
-  msg(`${ACTS.find(x=>x.id===actId).icon} جارٍ التحضير... ${times[actId]||10}ث (يكفي ${n})`);
+  const cookMsgs = { rice:'🍚 طبخ الأرز', juice:'🍊 عصر البرتقال', salad:'🥗 تحضير السلطة', tahini:'🥣 تحضير الطحينة' };
+  msg(`${cookMsgs[actId] || 'جارٍ التحضير'}... ${times[actId]||10}ث (يكفي ${n})`);
   renderActivities();
   renderInventory();
 }
@@ -1365,6 +1416,44 @@ function renderOrders() {
   });
 }
 
+function trayNeedIcon(slot) {
+  return itemHtml(slot.need);
+}
+
+function trayBaseIcon(isJuice) {
+  return isJuice ? cupIcon() : dishIcon();
+}
+
+function renderTraySlot(slot, i, order) {
+  const info = ITEMS[slot.need];
+  const isJuice = slot.need === 'juice';
+  const baseIcon = trayBaseIcon(isJuice);
+  const needIcon = trayNeedIcon(slot);
+  const attrs = `data-slot="1" data-order-id="${order.id}" data-slot-idx="${i}" data-need="${slot.need}"`;
+
+  if (slot.filled) {
+    return `<div class="tray-slot filled has-base" ${attrs}>
+      <div class="slot-stack">
+        <span class="slot-need-icon">${itemHtml(slot.need)}</span>
+        <span class="slot-base-icon active">${baseIcon}</span>
+      </div>
+      <span class="slot-label">${info.label}</span></div>`;
+  }
+
+  const baseCls = slot.hasBase ? 'active' : 'ghost';
+  const needCls = slot.hasBase ? 'slot-need-icon waiting-food' : 'slot-need-icon slot-ghost-icon';
+  const hint = slot.hasBase ? (isJuice ? '+ عصير؟' : '+ طعام؟') : (isJuice ? 'كاس؟' : 'طبق؟');
+  const cls = slot.hasBase ? 'has-base' : '';
+
+  return `<div class="tray-slot ${cls}" ${attrs}>
+    <div class="slot-stack">
+      <span class="${needCls}">${needIcon}</span>
+      <span class="slot-base-icon ${baseCls}">${baseIcon}</span>
+    </div>
+    <span class="slot-hint">${hint}</span>
+    <span class="slot-label">${info.label}</span></div>`;
+}
+
 function renderTray() {
   const area = document.getElementById('tray-area');
   const content = document.getElementById('tray-content');
@@ -1458,27 +1547,7 @@ function renderTray() {
   btn.textContent = order.complete ? '🍽️ قدّم للزبون' : `⏳ باقي ${order.slots.filter(s => !s.filled).length}`;
   btn.onclick = () => { if (order.complete) deliverOrder(order.id); };
 
-  content.innerHTML = `<div class="tray-slots">${order.slots.map((slot, i) => {
-    const info = ITEMS[slot.need];
-    const isJuice = slot.need === 'juice';
-    if (slot.filled) {
-      const icon = info.fish ? fishIcon(info.fish) : info.emoji;
-      return `<div class="tray-slot filled has-base" data-slot="1" data-order-id="${order.id}" data-slot-idx="${i}">
-        <span class="slot-emoji">${icon}</span><span class="slot-label">${info.label}</span></div>`;
-    }
-    let mid;
-    if (isJuice) {
-      mid = slot.hasBase ? `<span class="slot-emoji">${cupIcon()}</span><span style="font-size:8px;color:#f39c12">+ عصير؟</span>`
-        : `<span class="slot-ghost-icon">${cupIcon()}</span><span style="font-size:8px">كاس؟</span>`;
-    } else {
-      const ghost = info.fish ? fishIcon(info.fish) : info.emoji;
-      mid = slot.hasBase ? `<span class="slot-emoji">${dishIcon()}</span><span style="font-size:8px;color:#f39c12">+ طعام؟</span>`
-        : `<span class="slot-ghost-icon">${ghost}</span><span style="font-size:8px">طبق؟</span>`;
-    }
-  const cls = slot.hasBase ? 'has-base' : '';
-    return `<div class="tray-slot ${cls}" data-slot="1" data-order-id="${order.id}" data-slot-idx="${i}" data-need="${slot.need}">
-      ${mid}<span class="slot-label">${info.label}</span></div>`;
-  }).join('')}</div>`;
+  content.innerHTML = `<div class="tray-slots">${order.slots.map((slot, i) => renderTraySlot(slot, i, order)).join('')}</div>`;
 }
 
 function msg(text) {
