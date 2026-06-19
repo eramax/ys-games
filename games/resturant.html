@@ -22,7 +22,8 @@
   --tray-fish-w: 52px;
   --tray-fish-h: 28px;
   --tile-cell-min: 88px;
-  --row-orders-h: clamp(172px, 34vh, 248px);
+  --tray-content-h: 128px;
+  --row-orders-h: calc(var(--tray-content-h) + 168px);
 }
 * { margin:0; padding:0; box-sizing:border-box; touch-action:none; user-select:none; }
 body { font-family:'Cairo',sans-serif; overflow:hidden; background:#0a1628; color:#fff; height:100vh; width:100vw; }
@@ -68,9 +69,11 @@ body { font-family:'Cairo',sans-serif; overflow:hidden; background:#0a1628; colo
 #order-tabs-wrap {
   display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px 0;
   overflow-x: auto; overflow-y: hidden; flex-shrink: 0; max-height: 58px;
-  -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y;
+  -webkit-overflow-scrolling: touch; touch-action: pan-x;
   scrollbar-width: thin;
 }
+#order-tabs-wrap .order-tab,
+#order-tabs-wrap .new-chip { touch-action: pan-x; }
 #order-tabs-wrap::-webkit-scrollbar { height: 5px; }
 #order-tabs-wrap::-webkit-scrollbar-thumb { background: rgba(245,200,66,0.35); border-radius: 3px; }
 #order-tabs { display:flex; gap:6px; flex-wrap:nowrap; min-width:min-content; }
@@ -112,10 +115,15 @@ body { font-family:'Cairo',sans-serif; overflow:hidden; background:#0a1628; colo
 #tray-area.show { display: flex; }
 .tray-hd { flex-shrink: 0; display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; font-size:12px; }
 #tray-content {
-  flex: 1; min-height: 0; overflow-x: auto; overflow-y: hidden;
-  -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y;
-  scrollbar-width: thin; padding-bottom: 2px;
+  flex: 0 0 var(--tray-content-h);
+  height: var(--tray-content-h);
+  min-height: var(--tray-content-h);
+  overflow-x: auto; overflow-y: hidden;
+  -webkit-overflow-scrolling: touch; touch-action: pan-x;
+  scrollbar-width: thin; padding-bottom: 4px;
 }
+#tray-content .tray-slots,
+#tray-content .tray-slot { touch-action: pan-x; }
 #tray-content::-webkit-scrollbar { height: 6px; }
 #tray-content::-webkit-scrollbar-thumb { background: rgba(245,200,66,0.4); border-radius: 3px; }
 body.dragging #tray-content,
@@ -123,25 +131,31 @@ body.dragging #order-tabs-wrap { overflow: hidden; touch-action: none; }
 .tray-hd b { color:var(--gold); }
 .tray-slots {
   display: flex; flex-wrap: nowrap; gap: 8px; justify-content: safe center;
-  align-items: stretch; width: max-content; min-width: 100%; padding: 2px 0;
+  align-items: stretch; width: max-content; min-width: 100%;
+  height: 100%; min-height: calc(var(--tray-content-h) - 4px); padding: 2px 0;
 }
 .tray-slot {
   flex-shrink: 0;
-  width:92px; min-height:100px; border-radius:10px; border:2px dashed rgba(255,255,255,0.25);
-  display:flex; flex-direction:column; align-items:center; justify-content:center;
-  font-size:9px; color:#888; background:rgba(0,0,0,0.3); padding:6px; transition:all .2s;
+  width: 92px; height: 100%; min-height: 112px; border-radius: 10px;
+  border: 2px dashed rgba(255,255,255,0.25);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-size: 9px; color: #888; background: rgba(0,0,0,0.3); padding: 6px 6px 8px;
+  transition: all .2s; box-sizing: border-box;
 }
 .tray-slot.has-base { border-color:rgba(245,200,66,0.55); background:rgba(245,200,66,0.06); }
 .tray-slot.filled { border-style:solid; border-color:var(--ok); background:rgba(46,204,113,0.12); color:#fff; }
 .tray-slot.dirty { border-color:#9b59b6; background:rgba(155,89,182,0.12); }
 .tray-slot .slot-stack {
-  position:relative; display:flex; align-items:center; justify-content:center;
-  width:100%; min-height:54px; margin-bottom:2px;
+  position: relative; display: flex; align-items: center; justify-content: center;
+  width: 100%; flex: 1 1 auto; min-height: 56px; max-height: 72px; margin-bottom: 2px;
 }
 .tray-slot .slot-need-icon {
-  font-size:var(--tray-icon); line-height:1; display:flex; align-items:center; justify-content:center;
+  font-size: clamp(32px, var(--tray-icon), 40px); line-height:1;
+  display:flex; align-items:center; justify-content:center; flex-shrink:1; min-height:0;
 }
-.tray-slot .slot-need-icon.slot-ghost-icon { opacity:0.38; }
+.tray-slot .slot-need-icon.slot-ghost-icon { opacity:0.38; max-height:46px; }
+.tray-slot .slot-need-icon.slot-ghost-icon .fish-svg { width:46px; height:25px; }
+.tray-slot .slot-need-icon.slot-ghost-icon .tahini-svg { width:34px; height:34px; }
 .tray-slot .slot-need-icon.waiting-food { opacity:0.92; }
 .tray-slot.has-base .slot-need-icon.waiting-food {
   animation:needPulse 1.6s ease-in-out infinite;
@@ -151,7 +165,7 @@ body.dragging #order-tabs-wrap { overflow: hidden; touch-action: none; }
   50% { opacity:1; transform:scale(1.05); }
 }
 .tray-slot .slot-base-icon {
-  position:absolute; bottom:-2px; left:50%; transform:translateX(-50%);
+  position:absolute; bottom:0; left:50%; transform:translateX(-50%);
   display:flex; align-items:center; justify-content:center; line-height:1;
   transition:opacity .2s;
 }
@@ -162,14 +176,14 @@ body.dragging #order-tabs-wrap { overflow: hidden; touch-action: none; }
 .tray-slot .slot-need-icon .fish-svg { width:var(--tray-fish-w); height:var(--tray-fish-h); }
 .tray-slot .slot-need-icon .tahini-svg { width:38px; height:38px; }
 .order-row .row-icon .tahini-svg { width:20px; height:20px; }
-.tray-slot .slot-hint { font-size:8px; color:#888; line-height:1.2; margin-top:1px; }
+.tray-slot .slot-hint { font-size:8px; color:#888; line-height:1.2; margin-top:1px; flex-shrink:0; }
 .tray-slot.has-base .slot-hint { color:var(--warn); font-weight:600; }
 .tray-slot.filled .slot-hint { display:none; }
 .tray-slot.dirty .slot-emoji { filter:sepia(0.35) hue-rotate(165deg) brightness(0.9); }
 .inv-item.dirty-item .inv-icon { filter:sepia(0.35) hue-rotate(165deg) brightness(0.9); }
 .tray-slot.drop-over { border-color:var(--ok); box-shadow:0 0 12px rgba(46,204,113,0.45); transform:scale(1.04); }
 .tray-slot .slot-emoji { font-size:var(--tray-icon); line-height:1; }
-.tray-slot .slot-label { margin-top:4px; text-align:center; line-height:1.3; }
+.tray-slot .slot-label { margin-top:2px; text-align:center; line-height:1.25; flex-shrink:0; }
 .tray-slot .fish-svg { width:var(--tray-fish-w); height:var(--tray-fish-h); }
 .tray-slot .cup-svg { width:36px; height:44px; }
 .tray-slot .dish-svg { width:40px; height:40px; }
@@ -704,6 +718,32 @@ function buildUI() {
 }
 
 // ============ DRAG ============
+/** يميّز بين التمرير الأفقي (صينية/تبويبات) وبين بدء السحب على التابلت */
+function bindPointerDrag(el, startFn) {
+  el.addEventListener('pointerdown', e => {
+    if (S.drag) return;
+    const sx = e.clientX, sy = e.clientY, pid = e.pointerId;
+    const onMove = ev => {
+      if (ev.pointerId !== pid || S.drag) return;
+      const dx = ev.clientX - sx, dy = ev.clientY - sy;
+      if (Math.hypot(dx, dy) < 10) return;
+      if (Math.abs(dx) > Math.abs(dy) + 4) { cleanup(); return; }
+      cleanup();
+      ev.preventDefault();
+      startFn(ev);
+    };
+    const onUp = ev => { if (ev.pointerId === pid) cleanup(); };
+    const cleanup = () => {
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      document.removeEventListener('pointercancel', onUp);
+    };
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+    document.addEventListener('pointercancel', onUp);
+  });
+}
+
 function startDrag(type, extra, e) {
   if (S.drag) return;
   if (type === 'dish' || type === 'cup') {
@@ -1490,10 +1530,7 @@ function renderOrders() {
       <span class="tab-state">${orderStateLabel(o)}</span></div>`;
   }).join('');
   tabs.querySelectorAll('.order-tab').forEach(t => {
-    t.onpointerdown = e => {
-      e.preventDefault();
-      switchOrder(+t.dataset.oid);
-    };
+    t.onclick = () => switchOrder(+t.dataset.oid);
   });
 }
 
@@ -1567,18 +1604,16 @@ function renderTray() {
     if (draggingMoney) {
       content.innerHTML = `<div class="tray-eating">💰 اسحب المال للكاشير</div>`;
     } else {
-      content.innerHTML = `<div class="tray-slots"><div class="tray-slot filled" style="width:120px;min-height:100px;cursor:grab"
+      content.innerHTML = `<div class="tray-slots"><div class="tray-slot filled" style="width:120px;cursor:grab"
         data-slot="1" data-order-id="${order.id}" data-slot-idx="-1" id="tray-money">
         <span class="slot-emoji">💰</span><span class="slot-label">${order.price} kr</span></div></div>`;
       const moneyEl = document.getElementById('tray-money');
       if (moneyEl) {
-        moneyEl.onpointerdown = e => {
-          e.preventDefault();
-          e.stopPropagation();
+        bindPointerDrag(moneyEl, e => {
           if (S.drag) return;
           startDrag('money', { orderId: order.id }, e);
           renderTray();
-        };
+        });
       }
     }
     btn.classList.remove('show');
@@ -1607,8 +1642,7 @@ function renderTray() {
     content.innerHTML = `<div class="tray-slots">${slotsHtml}</div>`;
     btn.classList.remove('show');
     content.querySelectorAll('.tray-slot.dirty').forEach(el => {
-      el.onpointerdown = e => {
-        e.preventDefault();
+      bindPointerDrag(el, e => {
         if (S.drag) return;
         const idx = +el.dataset.slotIdx;
         const slot = order.slots[idx];
@@ -1617,7 +1651,7 @@ function renderTray() {
         slot.dirty = null;
         startDrag(dtype, { orderId: order.id, slotIdx: idx }, e);
         renderTray();
-      };
+      });
     });
     return;
   }
