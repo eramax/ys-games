@@ -1,0 +1,1358 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>مطعم السمك على البحر — 3D</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --gold: #f5c842;
+  --sea: #1a8fc4;
+  --sand: #e8c88a;
+  --wood: #6b3f1f;
+  --panel: rgba(12,22,38,0.92);
+  --border: rgba(255,255,255,0.12);
+  --ok: #2ecc71;
+  --warn: #f39c12;
+  --danger: #e74c3c;
+}
+* { margin:0; padding:0; box-sizing:border-box; touch-action:none; user-select:none; }
+body { font-family:'Cairo',sans-serif; overflow:hidden; background:#0a1628; color:#fff; height:100vh; width:100vw; }
+
+#canvas-wrap { position:fixed; inset:0; z-index:0; }
+#canvas-wrap canvas { display:block; width:100%; height:100%; }
+
+#ui { position:fixed; inset:0; z-index:10; pointer-events:none; display:flex; flex-direction:column; }
+#ui > * { pointer-events:auto; }
+
+#hud {
+  display:flex; justify-content:center; gap:clamp(8px,2vw,24px); flex-wrap:wrap;
+  padding:8px 16px; background:linear-gradient(180deg,rgba(0,0,0,0.75),transparent);
+}
+.hud-item { background:var(--panel); border:1px solid var(--border); border-radius:20px; padding:4px 14px; font-size:clamp(11px,1.8vw,14px); }
+.hud-item b { color:var(--gold); }
+
+#main-area { flex:1; display:grid; grid-template-columns:200px 1fr 200px; gap:8px; padding:0 8px 8px; min-height:0; }
+@media(max-width:900px){ #main-area{ grid-template-columns:1fr; grid-template-rows:auto 1fr auto; } }
+
+/* ORDER TABS BAR — top */
+#order-tabs-bar {
+  padding:6px 12px 0; min-height:44px; background:rgba(0,0,0,0.35);
+  border-bottom:1px solid var(--border); overflow-x:auto;
+}
+#order-tabs { display:flex; gap:6px; flex-wrap:nowrap; min-width:min-content; padding-bottom:6px; }
+.order-tab {
+  flex-shrink:0; padding:6px 14px; border-radius:10px 10px 0 0; font-size:11px; cursor:pointer;
+  background:rgba(255,255,255,0.06); border:2px solid var(--border); border-bottom:none; font-weight:600;
+  min-width:100px; text-align:center; transition:all .25s;
+}
+.order-tab.active { border-color:var(--gold); background:rgba(245,200,66,0.18); color:var(--gold); transform:translateY(2px); }
+.order-tab.status-preparing { border-top:3px solid var(--warn); }
+.order-tab.status-eating { border-top:3px solid #3498db; }
+.order-tab.status-done, .order-tab.status-payable { border-top:3px solid var(--ok); }
+.order-tab.status-completed { border-top:3px solid var(--ok); background:rgba(46,204,113,0.25); color:var(--ok); }
+.order-tab .tab-name { font-size:12px; display:block; }
+.order-tab .tab-meta { font-size:9px; color:#aaa; display:block; margin-top:2px; }
+.order-tab.active .tab-meta { color:var(--gold); }
+.order-tab.status-completed .tab-meta { color:var(--ok); }
+
+/* TRAY WORKSPACE — above kitchen */
+#tray-workspace {
+  margin:0 8px 6px; background:linear-gradient(145deg,rgba(107,63,31,0.9),rgba(60,35,15,0.95));
+  border:2px solid var(--gold); border-radius:16px; padding:12px 16px;
+  box-shadow:0 8px 24px rgba(0,0,0,0.4); display:none;
+}
+#tray-workspace.show { display:block; }
+.tray-board-hd { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+.tray-board-title { font-size:14px; font-weight:800; color:var(--gold); }
+.tray-hint { font-size:10px; color:#ccc; }
+.tray-slots { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; }
+.tray-slot {
+  width:88px; min-height:96px; border-radius:12px; border:2px dashed rgba(255,255,255,0.25);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  font-size:9px; color:#888; background:rgba(0,0,0,0.25); position:relative; transition:all .2s;
+  padding:4px;
+}
+.tray-slot.has-plate { border-color:rgba(255,255,255,0.45); }
+.tray-slot.filled { border-style:solid; border-color:var(--ok); background:rgba(46,204,113,0.12); color:#fff; }
+.tray-slot.ghost { border-color:rgba(245,200,66,0.45); }
+.tray-slot.drop-over { border-color:var(--ok); box-shadow:0 0 14px rgba(46,204,113,0.5); transform:scale(1.04); }
+.tray-slot .slot-plate { font-size:20px; opacity:0.5; }
+.tray-slot.has-plate .slot-plate { opacity:1; }
+.tray-slot .slot-ghost { font-size:22px; opacity:0.3; }
+.tray-slot.filled .slot-emoji { font-size:28px; }
+.tray-slot .slot-label { margin-top:4px; text-align:center; line-height:1.3; }
+.tray-deliver {
+  margin-top:10px; width:100%; padding:10px; border:none; border-radius:10px;
+  background:linear-gradient(135deg,#27ae60,#2ecc71); color:#fff; font-family:inherit;
+  font-weight:700; font-size:13px; cursor:pointer; display:none;
+}
+.tray-deliver.show { display:block; }
+.tray-deliver:disabled { opacity:0.4; cursor:not-allowed; }
+
+.panel { background:var(--panel); border:1px solid var(--border); border-radius:14px; backdrop-filter:blur(8px); overflow:hidden; display:flex; flex-direction:column; }
+.panel-hd { padding:8px 12px; font-weight:700; font-size:13px; border-bottom:1px solid var(--border); background:rgba(255,255,255,0.04); }
+
+/* LEFT: fishing + fish basket */
+#left-panel { gap:0; }
+#fishing-area { padding:12px; text-align:center; border-bottom:1px solid var(--border); }
+#rod-zone {
+  width:100%; height:90px; border-radius:12px; border:2px dashed rgba(100,200,255,0.4);
+  background:linear-gradient(180deg,rgba(26,143,196,0.3),rgba(26,143,196,0.1));
+  display:flex; align-items:center; justify-content:center; position:relative; cursor:grab;
+  transition:border-color .2s, box-shadow .2s;
+}
+#rod-zone:hover, #rod-zone.over { border-color:#5dade2; box-shadow:0 0 20px rgba(93,173,226,0.4); }
+#rod-zone.busy { cursor:wait; border-color:var(--warn); }
+#rod-icon { font-size:42px; filter:drop-shadow(0 4px 8px rgba(0,0,0,0.5)); transition:transform .3s; }
+#rod-zone.busy #rod-icon { animation:rodCast 1s ease-in-out infinite alternate; }
+@keyframes rodCast { from{transform:rotate(-10deg) translateY(0)} to{transform:rotate(-35deg) translateY(-12px)} }
+.fish-progress { height:6px; background:rgba(255,255,255,0.15); border-radius:3px; margin-top:8px; overflow:hidden; display:none; }
+.fish-progress-fill { height:100%; background:var(--ok); width:0%; transition:width .15s linear; }
+
+#fish-basket { padding:12px; flex:1; }
+#fish-basket-items { display:flex; flex-wrap:wrap; gap:6px; min-height:60px; padding:8px; background:rgba(0,0,0,0.25); border-radius:10px; border:2px solid rgba(46,204,113,0.3); }
+.fish-item { font-size:28px; cursor:grab; padding:4px; border-radius:8px; background:rgba(46,204,113,0.15); transition:transform .15s; }
+.fish-item:hover { transform:scale(1.15); }
+.fish-item:active { cursor:grabbing; }
+.basket-label { font-size:11px; color:#aaa; margin-top:6px; text-align:center; }
+
+/* CENTER: kitchen stations */
+#kitchen { display:grid; grid-template-columns:repeat(4,1fr); grid-template-rows:repeat(3,1fr); gap:6px; padding:8px; min-height:0; }
+@media(max-width:900px){ #kitchen{ grid-template-columns:repeat(3,1fr); grid-template-rows:auto; } }
+
+.station {
+  background:linear-gradient(145deg,rgba(255,255,255,0.08),rgba(0,0,0,0.2));
+  border:2px solid var(--border); border-radius:12px; padding:6px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  position:relative; min-height:72px; transition:all .2s;
+  box-shadow:0 4px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08);
+  transform:perspective(400px) rotateX(4deg);
+}
+.station:hover { border-color:rgba(245,200,66,0.5); transform:perspective(400px) rotateX(2deg) scale(1.02); }
+.station.drop-over { border-color:var(--ok); box-shadow:0 0 16px rgba(46,204,113,0.5); }
+.station.busy { border-color:var(--warn); }
+.station.ready { border-color:var(--ok); }
+.station .s-icon { font-size:clamp(22px,4vw,32px); line-height:1; }
+.station .s-name { font-size:10px; font-weight:600; margin-top:2px; text-align:center; }
+.station .s-status { font-size:9px; color:#aaa; margin-top:2px; }
+.station .s-badge { position:absolute; top:-6px; left:-6px; background:var(--danger); color:#fff; border-radius:50%; width:20px; height:20px; font-size:11px; display:none; align-items:center; justify-content:center; font-weight:700; }
+.station .s-badge.show { display:flex; }
+.station .s-progress { position:absolute; bottom:0; left:0; right:0; height:4px; background:rgba(0,0,0,0.3); border-radius:0 0 10px 10px; overflow:hidden; display:none; }
+.station .s-progress.show { display:block; }
+.station .s-progress > div { height:100%; background:var(--warn); width:0%; transition:width .2s linear; }
+.station .s-items { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; justify-content:center; min-height:36px; overflow:visible; width:100%; }
+.station.has-pickup { min-height:100px; padding-bottom:8px; }
+.station .ready-item {
+  font-size:26px; cursor:grab; padding:8px 10px; border-radius:8px;
+  background:rgba(46,204,113,0.25); border:2px solid var(--ok);
+  min-width:48px; min-height:48px; display:flex; align-items:center; justify-content:center;
+  line-height:1; flex-shrink:0;
+}
+.station .ready-item:active { cursor:grabbing; transform:scale(1.08); }
+.station .pickup-hint { font-size:8px; color:var(--ok); margin-top:2px; }
+
+/* RIGHT: customers only */
+#right-panel { gap:0; }
+#customers-section { flex:1; overflow-y:auto; padding:8px; }
+.customer-card {
+  background:rgba(255,255,255,0.06); border:2px solid var(--border); border-radius:12px;
+  padding:10px; margin-bottom:8px; position:relative; transition:border-color .3s;
+}
+.customer-card.waiting { border-color:var(--warn); }
+.customer-card.eating { border-color:var(--ok); }
+.customer-card.done { border-color:#888; }
+.customer-card .c-avatar { font-size:32px; text-align:center; }
+.customer-card .c-name { text-align:center; font-weight:700; font-size:13px; }
+.customer-card .c-order { font-size:10px; color:#aaa; text-align:center; margin:4px 0; line-height:1.5; }
+.timer-ring {
+  width:36px; height:36px; border-radius:50%; border:3px solid var(--ok);
+  display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:700;
+  margin:4px auto; transition:border-color .3s;
+}
+.timer-ring.eating-ring { border-color:#3498db; color:#3498db; width:52px; height:52px; font-size:16px; }
+.eating-status { text-align:center; font-size:11px; color:#3498db; font-weight:700; margin:4px 0 2px; }
+.timer-ring.warning { border-color:var(--warn); color:var(--warn); }
+.c-btn {
+  width:100%; padding:6px; border:none; border-radius:6px; font-family:inherit;
+  font-size:11px; font-weight:600; cursor:pointer; margin-top:4px;
+}
+.c-btn.primary { background:#2980b9; color:#fff; pointer-events:auto; }
+.c-btn.success { background:var(--ok); color:#fff; }
+.c-btn.gold { background:var(--gold); color:#222; }
+
+/* Drag ghost */
+#drag-ghost {
+  position:fixed; pointer-events:none; z-index:9999; font-size:36px;
+  display:none; transform:translate(-50%,-50%); filter:drop-shadow(0 6px 12px rgba(0,0,0,0.6));
+  transition:none;
+}
+#drag-ghost.show { display:block; }
+
+/* Messages */
+#msgs { position:fixed; top:60px; left:50%; transform:translateX(-50%); z-index:100; pointer-events:none; display:flex; flex-direction:column; gap:4px; align-items:center; }
+.msg { background:rgba(0,0,0,0.85); padding:8px 18px; border-radius:10px; font-size:13px; animation:msgFade 3s forwards; border:1px solid var(--border); }
+@keyframes msgFade { 0%,70%{opacity:1;transform:translateY(0)} 100%{opacity:0;transform:translateY(-16px)} }
+
+/* Price list floating */
+#prices { position:fixed; bottom:12px; left:12px; z-index:15; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:8px 12px; font-size:10px; line-height:1.7; pointer-events:none; }
+#prices h4 { font-size:11px; color:var(--gold); margin-bottom:4px; }
+
+/* Intro */
+#intro {
+  position:fixed; inset:0; z-index:200; background:linear-gradient(160deg,#0a2540,#1a5276 50%,#0a2540);
+  display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:24px;
+}
+#intro h1 { font-size:clamp(1.8rem,5vw,2.8rem); color:var(--gold); margin:16px 0 8px; text-shadow:0 4px 20px rgba(245,200,66,0.4); }
+#intro p { max-width:480px; line-height:1.9; font-size:14px; color:#ccc; margin-bottom:24px; }
+#intro .big { font-size:56px; margin-bottom:8px; }
+#start-btn {
+  background:linear-gradient(135deg,var(--gold),#e6a817); color:#222; border:none;
+  padding:14px 48px; border-radius:50px; font-size:18px; font-weight:800;
+  font-family:inherit; cursor:pointer; box-shadow:0 6px 24px rgba(245,200,66,0.4);
+  transition:transform .15s;
+}
+#start-btn:hover { transform:scale(1.05); }
+
+/* Order modal */
+#modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:150; }
+#order-modal {
+  display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+  background:#1a2a3a; border:2px solid var(--gold); border-radius:16px; padding:20px;
+  z-index:151; min-width:300px; max-width:90vw;
+}
+#order-modal h3 { text-align:center; margin-bottom:12px; }
+.order-row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border); font-size:13px; }
+.qty-btn { width:28px; height:28px; border:none; border-radius:6px; background:#2980b9; color:#fff; font-size:16px; cursor:pointer; font-family:inherit; }
+.modal-btns { display:flex; gap:8px; margin-top:16px; }
+.modal-btns button { flex:1; padding:10px; border:none; border-radius:8px; font-family:inherit; font-weight:700; cursor:pointer; font-size:14px; }
+.btn-ok { background:var(--ok); color:#fff; }
+.btn-cancel { background:var(--danger); color:#fff; }
+</style>
+</head>
+<body>
+
+<div id="intro">
+  <div class="big">🐟🌊🍽️</div>
+  <h1>مطعم السمك على البحر</h1>
+  <p>
+    أنت صاحب مطعم سمك على الشاطئ! اصطد السمك، اشوِه أو اقليه، جهّز الأرز والسلطة والطحينة، وقدّم الوجبات للزبائن.<br><br>
+    🎣 اسحب السنارة للأعلى (نحو البحر) للصيد &nbsp;|&nbsp; 🐟 اسحب سمكة واحدة من السلة للشوي أو القلي<br>
+    🍽️ اسحب طبقاً للصينية ثم الطعام فوقه &nbsp;|&nbsp; ⏱️ الزبون ينتظر 3 دقائق!
+  </p>
+  <button id="start-btn">ابدأ اللعبة 🚀</button>
+</div>
+
+<div id="canvas-wrap"></div>
+
+<div id="ui" style="display:none">
+  <div id="hud">
+    <div class="hud-item">💰 <b id="hud-money">0</b> kr</div>
+    <div class="hud-item">🐟 سمك: <b id="hud-fish">0</b></div>
+    <div class="hud-item">🍽️ صحون: <b id="hud-dishes">20</b></div>
+    <div class="hud-item">🥤 كاسات: <b id="hud-cups">10</b></div>
+    <div class="hud-item">⭐ نجاح: <b id="hud-success">0</b></div>
+  </div>
+
+  <div id="order-tabs-bar"><div id="order-tabs"></div></div>
+
+  <div id="tray-workspace">
+    <div class="tray-board-hd">
+      <span class="tray-board-title" id="tray-title">الصينية</span>
+      <span class="tray-hint">① اسحب طبقاً/كاساً → ② اسحب الطعام فوقه</span>
+    </div>
+    <div class="tray-slots" id="tray-slots"></div>
+    <button class="tray-deliver" id="tray-deliver-btn">🍽️ قدّم الصينية للزبون</button>
+  </div>
+
+  <div id="main-area">
+    <div id="left-panel" class="panel">
+      <div class="panel-hd">🎣 الصيد والمخزون</div>
+      <div id="fishing-area">
+        <div id="rod-zone" data-drop="sea">
+          <span id="rod-icon">🎣</span>
+        </div>
+        <div class="fish-progress" id="fish-prog"><div class="fish-progress-fill" id="fish-prog-fill"></div></div>
+        <div style="font-size:10px;color:#aaa;margin-top:6px">اسحب السنارة هنا ثم للبحر ↓</div>
+      </div>
+      <div id="fish-basket">
+        <div class="panel-hd" style="border:none;padding:0 0 6px">🧺 سلة السمك (<span id="fish-count">0</span>)</div>
+        <div id="fish-basket-items"></div>
+        <div class="basket-label">اسحب سمكة واحدة للشواية أو المقلاة</div>
+      </div>
+    </div>
+
+    <div id="kitchen" class="panel">
+      <div class="panel-hd" style="grid-column:1/-1">🍳 المطبخ — اسحب المكونات بين المحطات</div>
+      <!-- stations injected by JS -->
+    </div>
+
+    <div id="right-panel" class="panel">
+      <div id="customers-section">
+        <div class="panel-hd">👥 الزبائن</div>
+        <div id="customers-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="prices">
+  <h4>📋 الأسعار</h4>
+  🐟🔥 مشوية 20kr &nbsp; 🐟🍳 مقلية 25kr<br>
+  🍚 أرز 5kr &nbsp; 🍊 عصير 5kr &nbsp; 🥗🫙 مجاناً
+</div>
+
+<div id="msgs"></div>
+<div id="drag-ghost"></div>
+
+<div id="modal-bg"></div>
+<div id="order-modal">
+  <h3 id="modal-title">طلب الزبون</h3>
+  <div id="modal-items"></div>
+  <div class="modal-btns">
+    <button class="btn-ok" id="modal-confirm">✅ تأكيد الطلب</button>
+    <button class="btn-cancel" id="modal-cancel">❌ إلغاء</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ============ CONFIG ============
+const CFG = {
+  fishTime: 20000, grillTime: 15000, fryTime: 12000, riceTime: 30000,
+  washDishTime: 10000, washCupTime: 8000, eatTime: 20, eatTimeMs: 20000, waitTime: 180,
+  spawnInterval: 14000, prices: { grilled:20, fried:25, rice:5, juice:5 }
+};
+const ITEMS = {
+  rawFish:   { emoji:'🐟', label:'سمك نيء' },
+  grilled:   { emoji:'🔥🐟', label:'سمكة مشوية' },
+  fried:     { emoji:'🍳🐟', label:'سمكة مقلية' },
+  rice:      { emoji:'🍚', label:'أرز' },
+  salad:     { emoji:'🥗', label:'سلطة' },
+  tahini:    { emoji:'🫙', label:'طحينة' },
+  juice:     { emoji:'🍊', label:'عصير' },
+  dish:      { emoji:'🍽️', label:'طبق نظيف' },
+  cup:       { emoji:'🥤', label:'كاس نظيف' },
+  dirtyDish: { emoji:'🍽️💧', label:'طبق متسخ' },
+  dirtyCup:  { emoji:'🥤💧', label:'كاس متسخ' },
+  tray:      { emoji:'🪔', label:'صينية' },
+  money:     { emoji:'💰', label:'فلوس' },
+  rod:       { emoji:'🎣', label:'سنارة' }
+};
+
+// ============ STATE ============
+const S = {
+  money:0, success:0, fail:0,
+  rawFish:0,
+  grilledReady:[], friedReady:[],
+  grillSlots:[], frySlots:[],
+  rice:{ cooking:false, ready:false, prog:0 },
+  saladReady:true, tahiniReady:true, juiceReady:true,
+  cleanDishes:20, cleanCups:10,
+  dirtyDishes:0, dirtyCups:0,
+  sinkDish:{ busy:false, prog:0 }, sinkCup:{ busy:false, prog:0 },
+  fishing:{ busy:false, prog:0 },
+  orders:[], activeOrderId:null,
+  customers:[], nextId:1, nextOrderId:1,
+  drag:null
+};
+
+let modalCustomer=null, pendingOrder={grilled:0,fried:0,rice:0,juice:0};
+let spawnIv, tickIv, scene, camera, renderer, seaMesh;
+
+// ============ 3D SCENE ============
+function init3D() {
+  const wrap = document.getElementById('canvas-wrap');
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x87ceeb);
+  scene.fog = new THREE.Fog(0x87ceeb, 30, 120);
+
+  camera = new THREE.PerspectiveCamera(55, window.innerWidth/window.innerHeight, 0.1, 200);
+  camera.position.set(0, 12, 22);
+  camera.lookAt(0, 0, 0);
+
+  renderer = new THREE.WebGLRenderer({ antialias:true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  wrap.appendChild(renderer.domElement);
+
+  // Lights
+  scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+  const sun = new THREE.DirectionalLight(0xfff5e0, 1.1);
+  sun.position.set(20, 30, 10);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  scene.add(sun);
+
+  // Sand
+  const sand = new THREE.Mesh(
+    new THREE.PlaneGeometry(80, 40),
+    new THREE.MeshStandardMaterial({ color:0xe8c88a, roughness:0.95 })
+  );
+  sand.rotation.x = -Math.PI/2;
+  sand.position.set(0, 0, 8);
+  sand.receiveShadow = true;
+  scene.add(sand);
+
+  // Sea
+  const seaGeo = new THREE.PlaneGeometry(80, 30, 40, 20);
+  const seaMat = new THREE.MeshStandardMaterial({ color:0x1a8fc4, roughness:0.3, metalness:0.1, transparent:true, opacity:0.92 });
+  seaMesh = new THREE.Mesh(seaGeo, seaMat);
+  seaMesh.rotation.x = -Math.PI/2;
+  seaMesh.position.set(0, -0.05, -12);
+  scene.add(seaMesh);
+
+  // Pier
+  const pier = new THREE.Mesh(
+    new THREE.BoxGeometry(8, 0.4, 6),
+    new THREE.MeshStandardMaterial({ color:0x8B6914 })
+  );
+  pier.position.set(-14, 0.2, -4);
+  pier.castShadow = true;
+  scene.add(pier);
+  for (let i = 0; i < 5; i++) {
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.15,1.5,8), new THREE.MeshStandardMaterial({color:0x6B4E10}));
+    post.position.set(-14 + (i-2)*1.5, 0.5, -1.5);
+    scene.add(post);
+  }
+
+  // Counter table
+  const counter = new THREE.Mesh(
+    new THREE.BoxGeometry(18, 1.2, 4),
+    new THREE.MeshStandardMaterial({ color:0x6b3f1f, roughness:0.7 })
+  );
+  counter.position.set(2, 0.6, 6);
+  counter.castShadow = true;
+  counter.receiveShadow = true;
+  scene.add(counter);
+  const counterTop = new THREE.Mesh(
+    new THREE.BoxGeometry(18.2, 0.15, 4.2),
+    new THREE.MeshStandardMaterial({ color:0x9a5c2e })
+  );
+  counterTop.position.set(2, 1.25, 6);
+  scene.add(counterTop);
+
+  // Umbrella
+  const umbPole = new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.1,5,8), new THREE.MeshStandardMaterial({color:0xccc}));
+  umbPole.position.set(8, 2.5, 4);
+  scene.add(umbPole);
+  const umbTop = new THREE.Mesh(new THREE.ConeGeometry(3, 1.5, 8), new THREE.MeshStandardMaterial({color:0xe74c3c}));
+  umbTop.position.set(8, 5, 4);
+  scene.add(umbTop);
+
+  // Palm trees
+  [[-8,5,3],[12,5,2]].forEach(([x,z,s]) => {
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.4,4,8), new THREE.MeshStandardMaterial({color:0x8B4513}));
+    trunk.position.set(x, 2, z);
+    scene.add(trunk);
+    const leaves = new THREE.Mesh(new THREE.SphereGeometry(s,8,6), new THREE.MeshStandardMaterial({color:0x27ae60}));
+    leaves.position.set(x, 4.5, z);
+    leaves.scale.y = 0.6;
+    scene.add(leaves);
+  });
+
+  // Sun sphere
+  const sunMesh = new THREE.Mesh(new THREE.SphereGeometry(2,16,16), new THREE.MeshBasicMaterial({color:0xffe87c}));
+  sunMesh.position.set(25, 18, -20);
+  scene.add(sunMesh);
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+  animate3D();
+}
+
+function animate3D() {
+  requestAnimationFrame(animate3D);
+  const t = Date.now() * 0.001;
+  if (seaMesh) {
+    const pos = seaMesh.geometry.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i), y = pos.getY(i);
+      pos.setZ(i, Math.sin(x*0.4+t)*0.25 + Math.cos(y*0.3+t*1.2)*0.15);
+    }
+    pos.needsUpdate = true;
+    seaMesh.geometry.computeVertexNormals();
+  }
+  renderer.render(scene, camera);
+}
+
+// ============ STATIONS ============
+const STATIONS = [
+  { id:'grill', icon:'🔥', name:'الشواية', needs:['rawFish'], gives:'grilled', cook:true },
+  { id:'fryer', icon:'🍳', name:'المقلاة', needs:['rawFish'], gives:'fried', cook:true },
+  { id:'rice', icon:'🍚', name:'حلة الأرز', needs:['dish'], gives:'rice', pot:true },
+  { id:'salad', icon:'🥗', name:'السلطة', needs:['dish'], gives:'salad' },
+  { id:'tahini', icon:'🫙', name:'الطحينة', needs:['dish'], gives:'tahini' },
+  { id:'juice', icon:'🍊', name:'عصير برتقال', needs:['cup'], gives:'juice' },
+  { id:'dishes', icon:'🍽️', name:'صحون نظيفة', gives:'dish', source:true },
+  { id:'cups', icon:'🥤', name:'كاسات نظيفة', gives:'cup', source:true },
+  { id:'sinkDish', icon:'🚿', name:'غسالة صحون', needs:['dirtyDish'], wash:'dish' },
+  { id:'sinkCup', icon:'💧', name:'غسالة كاسات', needs:['dirtyCup'], wash:'cup' },
+  { id:'dirty', icon:'🗑️', name:'متسخ', needs:[], source:true, dirty:true },
+  { id:'cashier', icon:'💰', name:'الكاشير', needs:['money'] }
+];
+
+function buildKitchen() {
+  const k = document.getElementById('kitchen');
+  STATIONS.forEach(st => {
+    const el = document.createElement('div');
+    el.className = 'station';
+    el.id = 'st-'+st.id;
+    el.dataset.station = st.id;
+    el.innerHTML = `<span class="s-icon">${st.icon}</span><span class="s-name">${st.name}</span><span class="s-status" id="st-${st.id}-status"></span><span class="s-badge" id="st-${st.id}-badge"></span><div class="s-progress" id="st-${st.id}-prog"><div></div></div><div class="s-items" id="st-${st.id}-items"></div>`;
+    k.appendChild(el);
+  });
+}
+
+// ============ DRAG SYSTEM ============
+function startDrag(type, source, extra) {
+  if (S.drag) return;
+  S.drag = { type, source, extra: extra||{} };
+  const g = document.getElementById('drag-ghost');
+  const label = ITEMS[type];
+  g.textContent = label?.emoji || '❓';
+  g.style.fontSize = (type === 'grilled' || type === 'fried') ? '42px' : '36px';
+  g.classList.add('show');
+}
+
+function endDrag() {
+  S.drag = null;
+  document.getElementById('drag-ghost').classList.remove('show');
+  document.querySelectorAll('.drop-over').forEach(e => e.classList.remove('drop-over'));
+}
+
+function getDropTarget(x, y) {
+  const els = document.elementsFromPoint(x, y);
+  for (const el of els) {
+    if (el.dataset?.station) return { kind:'station', id:el.dataset.station, el };
+    if (el.dataset?.drop === 'sea') return { kind:'sea', el };
+    if (el.dataset?.slot) return { kind:'slot', orderId:+el.dataset.orderId, slotIdx:+el.dataset.slotIdx, need:el.dataset.need, el };
+    if (el.dataset?.customer) return { kind:'customer', id:+el.dataset.customer, el };
+    if (el.classList?.contains('fish-item')) return { kind:'fishBasket', el };
+    if (el.id === 'rod-zone' || el.closest('#rod-zone')) return { kind:'rod', el:document.getElementById('rod-zone') };
+  }
+  return null;
+}
+
+document.addEventListener('pointermove', e => {
+  if (!S.drag) return;
+  const g = document.getElementById('drag-ghost');
+  g.style.left = e.clientX+'px';
+  g.style.top = e.clientY+'px';
+  document.querySelectorAll('.drop-over').forEach(x => x.classList.remove('drop-over'));
+  const t = getDropTarget(e.clientX, e.clientY);
+  if (t?.el) t.el.classList.add('drop-over');
+});
+
+document.addEventListener('pointerup', e => {
+  if (!S.drag) return;
+  const d = S.drag;
+  // Rod → sea (upper half of screen)
+  if (d.type === 'rod' && e.clientY < window.innerHeight * 0.52) {
+    startFishing();
+    endDrag();
+    return;
+  }
+  const t = getDropTarget(e.clientX, e.clientY);
+  if (t) handleDrop(d, t);
+  else if (d.type === 'dish') { S.cleanDishes++; renderAll(); }
+  else if (d.type === 'cup') { S.cleanCups++; renderAll(); }
+  else if (['salad','tahini','rice','juice','grilled','fried'].includes(d.type)) {
+    if (d.type === 'rice') S.rice.ready = true;
+    else if (d.type === 'grilled' && d.extra?.slotIdx !== undefined) S.grillSlots[d.extra.slotIdx] = { done:true, prog:1 };
+    else if (d.type === 'fried' && d.extra?.slotIdx !== undefined) S.frySlots[d.extra.slotIdx] = { done:true, prog:1 };
+    renderAll();
+  }
+  endDrag();
+});
+document.addEventListener('pointercancel', () => {
+  if (S.drag?.type === 'dish') S.cleanDishes++;
+  else if (S.drag?.type === 'cup') S.cleanCups++;
+  endDrag();
+});
+
+// Rod drag from icon
+document.getElementById('rod-zone').addEventListener('pointerdown', e => {
+  if (S.fishing.busy) { msg('⏳ السنارة مشغولة!'); return; }
+  e.preventDefault();
+  startDrag('rod', 'rod');
+});
+
+// Sea drop zone — drag rod upward to fish
+document.getElementById('canvas-wrap').addEventListener('pointermove', e => {
+  if (S.drag?.type === 'rod') {
+    const g = document.getElementById('drag-ghost');
+    g.style.left = e.clientX+'px';
+    g.style.top = e.clientY+'px';
+    document.getElementById('rod-zone').classList.toggle('over', e.clientY < window.innerHeight * 0.52);
+  }
+});
+
+function handleDrop(drag, target) {
+  const { type, source, extra } = drag;
+
+  // Rod to sea
+  if (type === 'rod' && (target.kind === 'sea' || target.kind === 'rod')) {
+    startFishing(); return;
+  }
+
+  // Raw fish to grill/fryer
+  if (type === 'rawFish' && target.kind === 'station') {
+    if (target.id === 'grill') putOnGrill();
+    else if (target.id === 'fryer') putOnFryer();
+    return;
+  }
+
+  // Ready items to tray slot
+  if (target.kind === 'slot') {
+    placeOnSlot(target.orderId, target.slotIdx, type);
+    return;
+  }
+
+  // Ready tray to customer
+  if (type === 'tray' && target.kind === 'customer') {
+    deliverOrder(target.id); return;
+  }
+
+  // Money from customer
+  if (type === 'money' && target.kind === 'station' && target.id === 'cashier') {
+    collectMoney(extra.customerId); return;
+  }
+
+  // Station interactions
+  if (target.kind === 'station') {
+  const st = target.id;
+
+  // Take dish/cup from rack
+  if (st === 'dishes' && type === null) { takeDish(); return; }
+  if (st === 'cups' && type === null) { takeCup(); return; }
+
+  // Dirty to sink
+  if (st === 'sinkDish' && type === 'dirtyDish') { startWashDish(); return; }
+  if (st === 'sinkCup' && type === 'dirtyCup') { startWashCup(); return; }
+
+  // Dish + rice pot — لا يستهلك صحن هنا
+  if (st === 'rice') {
+    if (type === 'dish') { if (!S.rice.cooking && !S.rice.ready) startRice(); return; }
+    if (!S.rice.cooking && !S.rice.ready) startRice();
+    return;
+  }
+
+  // Salad/tahini/juice — تحضير بدون صحن (الصحن يُوضع على الصينية)
+  if (st === 'salad') { startDrag('salad', 'pot'); return; }
+  if (st === 'tahini') { startDrag('tahini', 'pot'); return; }
+  if (st === 'juice' && type === 'cup') { startDrag('juice', 'juice'); return; }
+
+  // Take ready fish from grill/fryer
+  if (st === 'grill' && source?.slotIdx !== undefined) { takeGrilled(source.slotIdx); return; }
+  if (st === 'fryer' && source?.slotIdx !== undefined) { takeFried(source.slotIdx); return; }
+
+  // Money to cashier
+  if (st === 'cashier' && type === 'money') { collectMoney(extra.customerId); return; }
+  if (st === 'dirty') {
+    if (S.dirtyDishes > 0 && !type) { S.dirtyDishes--; startDrag('dirtyDish','dirty'); msg('اسحب للغسالة 🚿'); }
+    else if (S.dirtyCups > 0 && !type) { S.dirtyCups--; startDrag('dirtyCup','dirty'); msg('اسحب لغسالة الكاسات 💧'); }
+    return;
+  }
+  }
+}
+
+// Click-to-drag for stations (pointerdown)
+document.getElementById('kitchen').addEventListener('pointerdown', e => {
+  const stEl = e.target.closest('[data-station]');
+  if (!stEl || S.drag) return;
+  const id = stEl.dataset.station;
+  e.preventDefault();
+
+  if (id === 'grill') {
+    const gIdx = S.grillSlots.findIndex(s => s && s.done);
+    if (gIdx >= 0) { takeGrilled(gIdx); return; }
+  }
+  if (id === 'fryer') {
+    const fIdx = S.frySlots.findIndex(s => s && s.done);
+    if (fIdx >= 0) { takeFried(fIdx); return; }
+  }
+  if (id === 'dishes' && S.cleanDishes > 0) { takeDish(); return; }
+  if (id === 'cups' && S.cleanCups > 0) { takeCup(); return; }
+  if (id === 'rice' && S.rice.ready) { startDrag('rice', 'pot'); S.rice.ready = false; return; }
+  if (id === 'rice' && !S.rice.cooking && !S.rice.ready) { startRice(); return; }
+  if (id === 'salad') { startDrag('salad', 'pot'); return; }
+  if (id === 'tahini') { startDrag('tahini', 'pot'); return; }
+  if (id === 'juice') { startDrag('juice', 'juice'); return; }
+  if (id === 'dirty') {
+    if (S.dirtyDishes > 0) { S.dirtyDishes--; startDrag('dirtyDish','dirty'); msg('اسحب للغسالة 🚿'); return; }
+    if (S.dirtyCups > 0) { S.dirtyCups--; startDrag('dirtyCup','dirty'); msg('اسحب لغسالة الكاسات 💧'); return; }
+  }
+
+  // Ready fish items
+  const readyEl = e.target.closest('[data-ready]');
+  if (readyEl) {
+    const [station, idx] = readyEl.dataset.ready.split(':');
+  if (station === 'grill') takeGrilled(+idx);
+  else if (station === 'fryer') takeFried(+idx);
+  }
+});
+
+document.getElementById('fish-basket-items').addEventListener('pointerdown', e => {
+  const fi = e.target.closest('.fish-item');
+  if (!fi || S.rawFish <= 0) return;
+  e.preventDefault();
+  startDrag('rawFish', 'basket');
+});
+
+// ============ FISHING ============
+function startFishing() {
+  if (S.fishing.busy) return;
+  S.fishing.busy = true;
+  S.fishing.prog = 0;
+  const zone = document.getElementById('rod-zone');
+  zone.classList.add('busy');
+  document.getElementById('fish-prog').style.display = 'block';
+  msg('🎣 السنارة في البحر... 20 ثانية');
+  const start = Date.now();
+  const iv = setInterval(() => {
+    const p = Math.min((Date.now()-start)/CFG.fishTime, 1);
+    S.fishing.prog = p;
+    document.getElementById('fish-prog-fill').style.width = (p*100)+'%';
+    if (p >= 1) {
+      clearInterval(iv);
+      S.fishing.busy = false;
+      S.rawFish++;
+      zone.classList.remove('busy');
+      document.getElementById('fish-prog').style.display = 'none';
+      msg(`✅ سمكة جديدة! المخزون: ${S.rawFish}`);
+      renderAll();
+    }
+  }, 100);
+}
+
+// ============ COOKING ============
+function putOnGrill() {
+  if (S.rawFish <= 0) { msg('❌ لا يوجد سمك! اصطد أولاً 🎣'); return; }
+  if (S.grillSlots.filter(s=>s).length >= 3) { msg('❌ الشواية ممتلئة!'); return; }
+  S.rawFish--;
+  const idx = S.grillSlots.findIndex(s=>!s);
+  const slot = idx >= 0 ? idx : S.grillSlots.length;
+  S.grillSlots[slot] = { prog:0, start:Date.now() };
+  msg('🔥 سمكة على الشواية...');
+  renderAll();
+}
+
+function putOnFryer() {
+  if (S.rawFish <= 0) { msg('❌ لا يوجد سمك!'); return; }
+  if (S.frySlots.filter(s=>s).length >= 3) { msg('❌ المقلاة ممتلئة!'); return; }
+  S.rawFish--;
+  const idx = S.frySlots.findIndex(s=>!s);
+  const slot = idx >= 0 ? idx : S.frySlots.length;
+  S.frySlots[slot] = { prog:0, start:Date.now() };
+  msg('🍳 سمكة في المقلاة...');
+  renderAll();
+}
+
+function startRice() {
+  if (S.rice.cooking) { msg('⏳ الأرز يطبخ...'); return; }
+  if (S.rice.ready) { msg('🍚 الأرز جاهز! اسحبه لطبق'); return; }
+  S.rice.cooking = true; S.rice.prog = 0; S.rice.start = Date.now();
+  msg('🍚 الأرز على النار... 30 ثانية');
+  renderAll();
+}
+
+function takeDish() {
+  if (S.cleanDishes <= 0) { msg('❌ لا صحون نظيفة! اغسل المتسخة 🚿'); return; }
+  S.cleanDishes--;
+  startDrag('dish', 'dishes');
+}
+
+function takeCup() {
+  if (S.cleanCups <= 0) { msg('❌ لا كاسات نظيفة!'); return; }
+  S.cleanCups--;
+  startDrag('cup', 'cups');
+}
+
+function pourJuice() { startDrag('juice', 'juice'); }
+
+function takeGrilled(idx) {
+  const slot = S.grillSlots[idx];
+  if (!slot || !slot.done) return;
+  S.grillSlots[idx] = null;
+  startDrag('grilled', 'grill', { slotIdx: idx });
+  renderAll();
+}
+
+function takeFried(idx) {
+  const slot = S.frySlots[idx];
+  if (!slot || !slot.done) return;
+  S.frySlots[idx] = null;
+  startDrag('fried', 'fryer', { slotIdx: idx });
+  renderAll();
+}
+
+function startWashDish() {
+  if (S.sinkDish.busy) return;
+  S.sinkDish.busy = true; S.sinkDish.prog = 0; S.sinkDish.start = Date.now();
+  S.sinkDish.count = 1;
+  msg('🚿 تغسل الصحون...');
+  renderAll();
+}
+
+function startWashCup() {
+  if (S.sinkCup.busy) return;
+  S.sinkCup.busy = true; S.sinkCup.prog = 0; S.sinkCup.start = Date.now();
+  msg('💧 تغسل الكاسات...');
+  renderAll();
+}
+
+// ============ ORDERS & TRAYS ============
+function createOrder(customer) {
+  const order = {
+    id: S.nextOrderId++,
+    customerId: customer.id,
+    customerName: customer.name,
+    avatar: customer.avatar,
+    needs: { ...customer.order },
+    slots: buildSlots(customer.order),
+    status: 'preparing',
+    complete: false
+  };
+  S.orders.push(order);
+  S.activeOrderId = order.id;
+  return order;
+}
+
+function buildSlots(order) {
+  const slots = [];
+  for (let i = 0; i < (order.grilled || 0); i++) slots.push({ need:'grilled', hasPlate:false, hasCup:false, filled:null });
+  for (let i = 0; i < (order.fried || 0); i++) slots.push({ need:'fried', hasPlate:false, hasCup:false, filled:null });
+  for (let i = 0; i < (order.rice || 0); i++) slots.push({ need:'rice', hasPlate:false, hasCup:false, filled:null });
+  for (let i = 0; i < (order.juice || 0); i++) slots.push({ need:'juice', hasPlate:false, hasCup:false, filled:null });
+  slots.push({ need:'salad', hasPlate:false, hasCup:false, filled:null });
+  slots.push({ need:'tahini', hasPlate:false, hasCup:false, filled:null });
+  return slots;
+}
+
+function placeOnSlot(orderId, slotIdx, type) {
+  const order = S.orders.find(o => o.id === orderId);
+  if (!order || order.status !== 'preparing') { msg('❌ لا يمكن التعديل على هذا الطلب'); return; }
+  const slot = order.slots[slotIdx];
+  if (!slot || slot.filled) return;
+
+  const isJuice = slot.need === 'juice';
+
+  // خطوة 1: وضع طبق أو كاس (الصحن/الكاس مُسحوب مسبقاً من الرف)
+  if (type === 'dish' && !isJuice && !slot.hasPlate) {
+    slot.hasPlate = true;
+    refreshTray();
+    msg('🍽️ طبق على الصينية — الآن اسحب الطعام');
+    renderHUD();
+    renderOrders();
+    return;
+  }
+  if (type === 'cup' && isJuice && !slot.hasCup) {
+    slot.hasCup = true;
+    refreshTray();
+    msg('🥤 كاس على الصينية — الآن اسحب العصير');
+    renderHUD();
+    renderOrders();
+    return;
+  }
+
+  // خطوة 2: وضع الطعام
+  if (type !== slot.need) {
+    if (!isJuice && !slot.hasPlate) msg('❌ ضع طبقاً أولاً!');
+    else if (isJuice && !slot.hasCup) msg('❌ ضع كاساً أولاً!');
+    else msg(`❌ هذا المكان يحتاج ${ITEMS[slot.need].label}!`);
+    return;
+  }
+  if (isJuice && !slot.hasCup) { msg('❌ ضع كاساً أولاً!'); return; }
+  if (!isJuice && !slot.hasPlate) { msg('❌ ضع طبقاً أولاً!'); return; }
+
+  slot.filled = type;
+  order.complete = order.slots.every(s => s.filled);
+  refreshTray();
+  msg(`✅ ${ITEMS[type].label} جاهز على الصينية!`);
+  renderOrders();
+  renderHUD();
+}
+
+function refreshTray() {
+  renderTray._key = null;
+  renderTray();
+}
+
+function deliverOrder(customerId) {
+  const customer = S.customers.find(c => c.id === customerId);
+  const order = S.orders.find(o => o.customerId === customerId && o.status === 'preparing' && o.complete);
+  if (!customer || customer.status !== 'waiting') { msg('❌ الزبون لا ينتظر!'); return; }
+  if (!order) { msg('❌ الطلب غير مكتمل!'); return; }
+
+  customer.status = 'eating';
+  customer.eatLeft = CFG.eatTime;
+  customer.eatEnd = Date.now() + CFG.eatTimeMs;
+  clearInterval(customer.waitIv);
+  order.status = 'eating';
+
+  const dishCount = order.slots.filter(s => s.hasPlate).length;
+  const cupCount = order.slots.filter(s => s.hasCup).length;
+  customer.dirtyDishes = dishCount;
+  customer.dirtyCups = cupCount;
+
+  msg(`✅ قُدّم الطلب لـ ${customer.name}!`);
+  renderAll();
+}
+
+function switchOrder(id) {
+  endDrag();
+  const order = S.orders.find(o => o.id === id);
+  if (!order || order.status !== 'preparing') {
+    if (order) msg('هذا الطلب قُدِّم — لا يمكن تعديل الصينية');
+    return;
+  }
+  S.activeOrderId = id;
+  renderTray._key = null;
+  renderTray();
+  renderOrders();
+}
+
+function orderStatusLabel(order) {
+  const c = S.customers.find(x => x.id === order.customerId);
+  if (order.status === 'preparing') {
+    const m = c ? Math.floor(c.timeLeft/60)+':'+String(c.timeLeft%60).padStart(2,'0') : '';
+    const n = order.slots.filter(s=>s.filled).length;
+    return `⏱ ${m} · يُجهَّز (${n}/${order.slots.length})`;
+  }
+  if (order.status === 'eating') return `🍽️ يأكل · ${Math.max(0,c?.eatLeft||0)}ث`;
+  if (order.status === 'done') return '🍽️ اجمع الصحون';
+  if (order.status === 'payable') return `💰 ${c?.price||0} kr`;
+  if (order.status === 'completed') return '✅ تم';
+  return '';
+}
+
+// ============ CUSTOMERS ============
+const NAMES = ['محمد','أحمد','فاطمة','سارة','علي','عمر','زينب','حسن','مريم','يوسف'];
+const AVATARS = ['👨','👩','🧔','👱‍♀️','🧑','👴','👵','🧒'];
+
+function spawnCustomer() {
+  if (S.customers.filter(c => !['paid','left'].includes(c.status)).length >= 4) return;
+  const id = S.nextId++;
+  const name = NAMES[Math.floor(Math.random()*NAMES.length)];
+  const avatar = AVATARS[Math.floor(Math.random()*AVATARS.length)];
+  const order = { grilled:0, fried:0, rice:0, juice:0 };
+  S.customers.push({ id, name, avatar, order, price:0, status:'arrived', timeLeft:CFG.waitTime, waitIv:null, eatLeft:0, eatEnd:0, dirtyDishes:0, dirtyCups:0 });
+  msg(`🧑 ${name} وصل! اضغط لأخذ طلبه`);
+  renderAll();
+}
+
+function openModal(cid) {
+  const c = S.customers.find(x => x.id === cid);
+  if (!c || c.status !== 'arrived') return;
+  modalCustomer = c;
+  pendingOrder = { grilled:0, fried:0, rice:0, juice:0 };
+  document.getElementById('modal-title').textContent = `${c.avatar} طلب ${c.name}`;
+  renderModalItems();
+  document.getElementById('modal-bg').style.display = 'block';
+  document.getElementById('order-modal').style.display = 'block';
+}
+
+function renderModalItems() {
+  const items = [
+    {k:'grilled',l:'🐟🔥 سمكة مشوية',p:20},{k:'fried',l:'🐟🍳 سمكة مقلية',p:25},
+    {k:'rice',l:'🍚 أرز',p:5},{k:'juice',l:'🍊 عصير',p:5}
+  ];
+  document.getElementById('modal-items').innerHTML = items.map(i => `
+    <div class="order-row"><span>${i.l} (${i.p}kr)</span>
+    <div><button class="qty-btn" data-q="${i.k}" data-d="-1">-</button>
+    <span style="min-width:24px;display:inline-block;text-align:center" id="mq-${i.k}">${pendingOrder[i.k]}</span>
+    <button class="qty-btn" data-q="${i.k}" data-d="1">+</button></div></div>`).join('') +
+    '<div style="padding:8px;background:rgba(255,255,255,0.05);border-radius:8px;margin-top:8px;font-size:12px">🥗 السلطة والطحينة مجاناً مع كل وجبة</div>';
+}
+
+document.getElementById('modal-items').addEventListener('click', e => {
+  const btn = e.target.closest('.qty-btn');
+  if (!btn) return;
+  const k = btn.dataset.q, d = +btn.dataset.d;
+  pendingOrder[k] = Math.max(0, pendingOrder[k]+d);
+  document.getElementById('mq-'+k).textContent = pendingOrder[k];
+});
+
+document.getElementById('modal-confirm').onclick = () => {
+  if (!modalCustomer) return;
+  const total = pendingOrder.grilled+pendingOrder.fried+pendingOrder.rice+pendingOrder.juice;
+  if (total === 0) { msg('❌ الطلب فارغ!'); return; }
+  const customer = modalCustomer;
+  const customerName = customer.name;
+  customer.order = { ...pendingOrder };
+  customer.price = pendingOrder.grilled*20+pendingOrder.fried*25+pendingOrder.rice*5+pendingOrder.juice*5;
+  customer.status = 'waiting';
+  customer.timeLeft = CFG.waitTime;
+  const customerId = customer.id;
+  customer.waitIv = setInterval(() => {
+    const c = S.customers.find(x => x.id === customerId);
+    if (!c || c.status !== 'waiting') return;
+    c.timeLeft--;
+    if (c.timeLeft <= 0) {
+      clearInterval(c.waitIv);
+      c.status = 'left'; S.fail++;
+      msg(`😞 ${c.name} غادر! فات الوقت`);
+      S.orders = S.orders.filter(o => o.customerId !== c.id);
+      if (!S.orders.find(o => o.id === S.activeOrderId)) S.activeOrderId = S.orders.find(o => o.status === 'preparing')?.id || null;
+      renderAll();
+    }
+    renderOrders();
+    renderCustomers();
+  }, 1000);
+  createOrder(customer);
+  S.activeOrderId = S.orders[S.orders.length - 1].id;
+  closeModal();
+  msg(`✅ طلب ${customerName} — جهّزه سريعاً!`);
+  renderAll();
+};
+
+function closeModal() {
+  document.getElementById('modal-bg').style.display = 'none';
+  document.getElementById('order-modal').style.display = 'none';
+  modalCustomer = null;
+}
+document.getElementById('modal-cancel').onclick = closeModal;
+document.getElementById('modal-bg').onclick = closeModal;
+
+function collectDishes(cid) {
+  const c = S.customers.find(x => x.id === cid);
+  if (!c || c.status !== 'done') return;
+  S.dirtyDishes += c.dirtyDishes;
+  S.dirtyCups += c.dirtyCups;
+  c.status = 'payable';
+  const order = S.orders.find(o => o.customerId === cid);
+  if (order) order.status = 'payable';
+  msg('🍽️ جُمعت الأطباق المتسخة — اسحب الفلوس للكاشير');
+  renderAll();
+}
+
+function collectMoney(cid) {
+  const c = S.customers.find(x => x.id === cid);
+  if (!c || c.status !== 'payable') return;
+  S.money += c.price; S.success++;
+  c.status = 'paid';
+  const order = S.orders.find(o => o.customerId === cid);
+  if (order) order.status = 'completed';
+  msg(`💰 +${c.price} kr من ${c.name}!`);
+  setTimeout(() => {
+    S.customers = S.customers.filter(x => x.id !== cid);
+    S.orders = S.orders.filter(o => o.customerId !== cid);
+    if (!S.orders.find(o => o.id === S.activeOrderId)) S.activeOrderId = S.orders.find(o => o.status === 'preparing')?.id || S.orders[0]?.id || null;
+    renderAll();
+  }, 2000);
+  renderAll();
+}
+
+// ============ TICK ============
+function gameTick() {
+  const now = Date.now();
+
+  // Grill slots
+  S.grillSlots.forEach((slot, i) => {
+    if (!slot || slot.done) return;
+    slot.prog = Math.min((now - slot.start)/CFG.grillTime, 1);
+    if (slot.prog >= 1) { slot.done = true; if (!slot._msg) { slot._msg=true; msg('✅ سمكة مشوية جاهزة! اسحبها 🔥'); } }
+  });
+
+  // Fryer slots
+  S.frySlots.forEach((slot, i) => {
+    if (!slot || slot.done) return;
+    slot.prog = Math.min((now - slot.start)/CFG.fryTime, 1);
+    if (slot.prog >= 1) { slot.done = true; if (!slot._msg) { slot._msg=true; msg('✅ سمكة مقلية جاهزة! 🍳'); } }
+  });
+
+  // Rice
+  if (S.rice.cooking) {
+    S.rice.prog = Math.min((now - S.rice.start)/CFG.riceTime, 1);
+    if (S.rice.prog >= 1) { S.rice.cooking = false; S.rice.ready = true; msg('✅ الأرز جاهز!'); }
+  }
+
+  // Sinks
+  if (S.sinkDish.busy) {
+    S.sinkDish.prog = Math.min((now - S.sinkDish.start)/CFG.washDishTime, 1);
+    if (S.sinkDish.prog >= 1) { S.sinkDish.busy = false; S.cleanDishes += S.sinkDish.count||1; msg('✅ صحن نظيف!'); }
+  }
+  if (S.sinkCup.busy) {
+    S.sinkCup.prog = Math.min((now - S.sinkCup.start)/CFG.washCupTime, 1);
+    if (S.sinkCup.prog >= 1) { S.sinkCup.busy = false; S.cleanCups++; msg('✅ كاس نظيف!'); }
+  }
+
+  // Eating — وقت حقيقي 20 ثانية
+  S.customers.forEach(c => {
+    if (c.status === 'eating' && c.eatEnd) {
+      c.eatLeft = Math.max(0, Math.ceil((c.eatEnd - now) / 1000));
+      if (now >= c.eatEnd) {
+        c.status = 'done';
+        c.eatLeft = 0;
+        const order = S.orders.find(o => o.customerId === c.id);
+        if (order) order.status = 'done';
+        msg(`${c.avatar} ${c.name} انتهى من الأكل — اجمع الصحون!`);
+      }
+    }
+  });
+
+  renderStations();
+  renderOrders();
+  renderCustomers();
+}
+
+// ============ RENDER ============
+function renderAll() {
+  renderCustomers._sig = null;
+  renderHUD();
+  renderBasket();
+  renderStations();
+  renderOrders();
+  renderTray();
+  renderCustomers();
+}
+
+function renderHUD() {
+  document.getElementById('hud-money').textContent = S.money;
+  document.getElementById('hud-fish').textContent = S.rawFish;
+  document.getElementById('hud-dishes').textContent = S.cleanDishes;
+  document.getElementById('hud-cups').textContent = S.cleanCups;
+  document.getElementById('hud-success').textContent = S.success;
+  document.getElementById('fish-count').textContent = S.rawFish;
+}
+
+function renderBasket() {
+  const el = document.getElementById('fish-basket-items');
+  el.innerHTML = Array.from({length:S.rawFish}, (_,i) => `<span class="fish-item" data-idx="${i}">🐟</span>`).join('') ||
+    '<span style="color:#666;font-size:12px;width:100%;text-align:center;padding:12px">فارغة — اصطد سمكاً!</span>';
+}
+
+function renderStations() {
+  const dragging = !!S.drag;
+  // Grill
+  const grillEl = document.getElementById('st-grill');
+  const grillItems = document.getElementById('st-grill-items');
+  const activeGrill = S.grillSlots.filter(s=>s&&!s.done).length;
+  grillEl.classList.toggle('busy', activeGrill > 0);
+  const hasGrillReady = S.grillSlots.some(s => s && s.done);
+  grillEl.classList.toggle('ready', hasGrillReady);
+  grillEl.classList.toggle('has-pickup', hasGrillReady);
+  document.getElementById('st-grill-status').textContent = activeGrill ? `يشوي ${activeGrill}` : (hasGrillReady ? 'اسحب السمك ⬇️' : 'اسحب سمكة');
+  if (!dragging || !S.drag?.type?.match(/grilled|fried/)) {
+    grillItems.innerHTML = S.grillSlots.map((s,i) => s ? (s.done
+      ? `<span class="ready-item" data-ready="grill:${i}" title="اسحب للصينية">🔥🐟</span>`
+      : `<span style="font-size:13px;opacity:0.7;padding:4px">🔥 ${Math.floor(s.prog*100)}%</span>`) : '').join('')
+      + (hasGrillReady ? '<div class="pickup-hint">اضغط أو اسحب</div>' : '');
+  }
+  const gp = document.getElementById('st-grill-prog');
+  const maxG = Math.max(...S.grillSlots.filter(s=>s&&!s.done).map(s=>s.prog), 0);
+  gp.classList.toggle('show', maxG > 0 && maxG < 1);
+  gp.querySelector('div').style.width = (maxG*100)+'%';
+
+  // Fryer
+  const fryEl = document.getElementById('st-fryer');
+  const fryItems = document.getElementById('st-fryer-items');
+  const activeFry = S.frySlots.filter(s=>s&&!s.done).length;
+  fryEl.classList.toggle('busy', activeFry > 0);
+  const hasFryReady = S.frySlots.some(s => s && s.done);
+  fryEl.classList.toggle('ready', hasFryReady);
+  fryEl.classList.toggle('has-pickup', hasFryReady);
+  document.getElementById('st-fryer-status').textContent = activeFry ? `يقلي ${activeFry}` : (hasFryReady ? 'اسحب السمك ⬇️' : 'اسحب سمكة');
+  if (!dragging || !S.drag?.type?.match(/grilled|fried/)) {
+    fryItems.innerHTML = S.frySlots.map((s,i) => s ? (s.done
+      ? `<span class="ready-item" data-ready="fryer:${i}" title="اسحب للصينية">🍳🐟</span>`
+      : `<span style="font-size:13px;opacity:0.7;padding:4px">🍳 ${Math.floor(s.prog*100)}%</span>`) : '').join('')
+      + (hasFryReady ? '<div class="pickup-hint">اضغط أو اسحب</div>' : '');
+  }
+
+  // Rice
+  const riceEl = document.getElementById('st-rice');
+  riceEl.classList.toggle('busy', S.rice.cooking);
+  riceEl.classList.toggle('ready', S.rice.ready);
+  document.getElementById('st-rice-status').textContent = S.rice.cooking ? `يطبخ ${Math.floor(S.rice.prog*100)}%` : S.rice.ready ? '✅ جاهز — اسحب!' : 'اضغط أو اسحب طبقاً';
+  const rp = document.getElementById('st-rice-prog');
+  rp.classList.toggle('show', S.rice.cooking);
+  rp.querySelector('div').style.width = (S.rice.prog*100)+'%';
+
+  // Dishes/cups
+  document.getElementById('st-dishes-badge').textContent = S.cleanDishes;
+  document.getElementById('st-dishes-badge').classList.toggle('show', S.cleanDishes > 0);
+  document.getElementById('st-dishes-status').textContent = S.cleanDishes + ' صحون';
+  document.getElementById('st-cups-badge').textContent = S.cleanCups;
+  document.getElementById('st-cups-badge').classList.toggle('show', S.cleanCups > 0);
+  document.getElementById('st-cups-status').textContent = S.cleanCups + ' كاسات';
+
+  // Sinks
+  document.getElementById('st-sinkDish-status').textContent = S.sinkDish.busy ? 'تغسل...' : `${S.dirtyDishes} متسخ`;
+  document.getElementById('st-sinkCup-status').textContent = S.sinkCup.busy ? 'تغسل...' : `${S.dirtyCups} متسخ`;
+  document.getElementById('st-dirty-status').textContent = `${S.dirtyDishes}🍽️ ${S.dirtyCups}🥤`;
+  document.getElementById('st-cashier-status').textContent = S.money + ' kr';
+
+  // Salad/tahini/juice
+  document.getElementById('st-salad-status').textContent = 'جاهزة';
+  document.getElementById('st-tahini-status').textContent = 'جاهزة';
+  document.getElementById('st-juice-status').textContent = 'اسحب عصيراً';
+}
+
+function renderOrders() {
+  const tabs = document.getElementById('order-tabs');
+  const visible = S.orders;
+  if (!visible.length) {
+    tabs.innerHTML = '<span style="padding:8px;font-size:11px;color:#888">لا طلبات — خذ طلب زبون من اليمين</span>';
+    return;
+  }
+  tabs.innerHTML = visible.map(o => {
+    const stClass = 'status-' + o.status;
+    const active = o.id === S.activeOrderId ? 'active' : '';
+    const canSelect = o.status === 'preparing';
+    return `<div class="order-tab ${stClass} ${active}" data-oid="${o.id}" data-selectable="${canSelect}">
+      <span class="tab-name">${o.avatar} ${o.customerName} #${o.id}</span>
+      <span class="tab-meta">${orderStatusLabel(o)}</span></div>`;
+  }).join('');
+  tabs.querySelectorAll('.order-tab[data-selectable="true"]').forEach(t => {
+    t.onpointerdown = e => { e.preventDefault(); switchOrder(+t.dataset.oid); };
+  });
+  tabs.querySelectorAll('.order-tab[data-selectable="false"]').forEach(t => {
+    t.onpointerdown = e => { e.preventDefault(); msg('هذا الطلب قُدِّم — تابع من تبويب الحالة'); };
+  });
+}
+
+function renderTray() {
+  const workspace = document.getElementById('tray-workspace');
+  const order = S.orders.find(o => o.id === S.activeOrderId);
+  const title = document.getElementById('tray-title');
+  const slots = document.getElementById('tray-slots');
+  const btn = document.getElementById('tray-deliver-btn');
+
+  if (!order || order.status !== 'preparing') {
+    workspace.classList.remove('show');
+    title.textContent = 'الصينية';
+    if (!S.drag) slots.innerHTML = '';
+    btn.classList.remove('show');
+    return;
+  }
+
+  workspace.classList.add('show');
+  title.textContent = `🪔 صينية ${order.customerName} — طلب #${order.id}`;
+  btn.classList.add('show');
+  btn.disabled = !order.complete;
+  btn.textContent = order.complete ? '🍽️ قدّم الصينية للزبون' : `⏳ باقي ${order.slots.filter(s=>!s.filled).length} أصناف`;
+  btn.onclick = () => { if (order.complete) deliverOrder(order.customerId); };
+
+  const slotsKey = order.id + ':' + order.slots.map(s => `${s.need}|${s.hasPlate}|${s.hasCup}|${s.filled}`).join(',');
+  if (renderTray._key === slotsKey) return;
+  renderTray._key = slotsKey;
+
+  slots.innerHTML = order.slots.map((slot, i) => {
+    const info = ITEMS[slot.need];
+    const isJuice = slot.need === 'juice';
+    if (slot.filled) {
+      return `<div class="tray-slot filled has-plate" data-order-id="${order.id}" data-slot-idx="${i}" data-need="${slot.need}" data-slot="1">
+        <span class="slot-emoji">${info.emoji}</span>
+        <span class="slot-label">${info.label}</span></div>`;
+    }
+    let mid = '';
+    if (isJuice) {
+      mid = slot.hasCup ? '<span class="slot-plate">🥤</span><span style="font-size:8px;color:#f39c12">+ عصير؟</span>'
+        : '<span class="slot-ghost">🥤</span><span style="font-size:8px">كاس؟</span>';
+    } else {
+      mid = slot.hasPlate ? '<span class="slot-plate">🍽️</span><span style="font-size:8px;color:#f39c12">+ طعام؟</span>'
+        : '<span class="slot-ghost">' + info.emoji + '</span><span style="font-size:8px">طبق؟</span>';
+    }
+    const cls = slot.hasPlate || slot.hasCup ? 'has-plate ghost' : 'ghost';
+    return `<div class="tray-slot ${cls} drop-target" data-order-id="${order.id}" data-slot-idx="${i}" data-need="${slot.need}" data-slot="1">
+      ${mid}<span class="slot-label">${info.label}</span></div>`;
+  }).join('');
+}
+
+function renderCustomers() {
+  const list = document.getElementById('customers-list');
+  const active = S.customers.filter(c => !['paid','left'].includes(c.status));
+  if (!active.length) {
+    list.innerHTML = '<div style="padding:12px;text-align:center;color:#888;font-size:12px">لا زبائن حالياً...</div>';
+    return;
+  }
+
+  const sig = active.map(c => `${c.id}:${c.status}:${c.timeLeft}:${c.eatLeft}`).join('|');
+  if (renderCustomers._sig === sig) return;
+  renderCustomers._sig = sig;
+
+  list.innerHTML = active.map(c => {
+    let timer = '', btn = '';
+    if (c.status === 'arrived') {
+      btn = `<button type="button" class="c-btn primary" data-open-order="${c.id}">📋 خذ الطلب</button>`;
+    } else if (c.status === 'waiting') {
+      const cls = c.timeLeft < 45 ? 'urgent' : c.timeLeft < 90 ? 'warning' : '';
+      const m = Math.floor(c.timeLeft/60), s = String(c.timeLeft%60).padStart(2,'0');
+      timer = `<div class="timer-ring ${cls}">${m}:${s}</div>`;
+    } else if (c.status === 'eating') {
+      timer = `<div class="eating-status">🍽️ يأكل الآن...</div>
+        <div class="timer-ring eating-ring">${c.eatLeft}<span style="font-size:8px">ث</span></div>`;
+    } else if (c.status === 'done') {
+      btn = `<button type="button" class="c-btn success" data-collect-dishes="${c.id}">🍽️ اجمع الصحون</button>`;
+    } else if (c.status === 'payable') {
+      btn = `<div class="c-btn gold" style="cursor:grab" data-money="${c.id}">💰 اسحب ${c.price} kr للكاشير</div>`;
+    }
+
+    const orderText = c.status !== 'arrived' ? `<div class="c-order">${c.order.grilled?'🐟🔥×'+c.order.grilled+' ':''}${c.order.fried?'🐟🍳×'+c.order.fried+' ':''}${c.order.rice?'🍚×'+c.order.rice+' ':''}${c.order.juice?'🍊×'+c.order.juice:''} 🥗🫙<br>💰 ${c.price} kr</div>` : '';
+
+    return `<div class="customer-card ${c.status}" data-customer="${c.id}">
+      <div class="c-avatar">${c.avatar}</div><div class="c-name">${c.name}</div>
+      ${orderText}${timer}${btn}</div>`;
+  }).join('');
+
+  // Money drag + tray drag to customer
+  list.querySelectorAll('[data-money]').forEach(el => {
+    el.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      startDrag('money', 'customer', { customerId: +el.dataset.money });
+    });
+  });
+  list.querySelectorAll('.customer-card.waiting').forEach(el => {
+    el.addEventListener('pointerdown', e => {
+      const order = S.orders.find(o => o.customerId === +el.dataset.customer && o.complete);
+      if (order && !S.drag) {
+        e.preventDefault();
+        startDrag('tray', 'tray', { customerId: +el.dataset.customer });
+      }
+    });
+  });
+}
+
+function msg(text) {
+  const el = document.createElement('div');
+  el.className = 'msg';
+  el.textContent = text;
+  document.getElementById('msgs').appendChild(el);
+  setTimeout(() => el.remove(), 3200);
+}
+
+// أحداث الزبائن — تفويض ثابت (لا تُفقد عند إعادة الرسم)
+document.getElementById('customers-list').addEventListener('click', e => {
+  const openBtn = e.target.closest('[data-open-order]');
+  if (openBtn) { e.stopPropagation(); openModal(+openBtn.dataset.openOrder); return; }
+  const dishBtn = e.target.closest('[data-collect-dishes]');
+  if (dishBtn) { e.stopPropagation(); collectDishes(+dishBtn.dataset.collectDishes); }
+});
+
+// ============ START ============
+document.getElementById('start-btn').onclick = () => {
+  document.getElementById('intro').style.display = 'none';
+  document.getElementById('ui').style.display = 'flex';
+  init3D();
+  buildKitchen();
+  renderAll();
+  spawnIv = setInterval(spawnCustomer, CFG.spawnInterval);
+  tickIv = setInterval(gameTick, 200);
+  setTimeout(spawnCustomer, 3000);
+  msg('🎉 مرحباً! اسحب السنارة للبحر لبدء الصيد');
+};
+
+// Expose for onclick handlers
+window.openModal = openModal;
+window.collectDishes = collectDishes;
+window.collectMoney = collectMoney;
+</script>
+</body>
+</html>
