@@ -92,6 +92,8 @@ body { font-family:'Cairo',sans-serif; overflow:hidden; background:#0a1628; colo
 .tray-slot.has-base { border-color:rgba(255,255,255,0.45); }
 .tray-slot.filled { border-style:solid; border-color:var(--ok); background:rgba(46,204,113,0.12); color:#fff; }
 .tray-slot.dirty { border-color:#9b59b6; background:rgba(155,89,182,0.12); }
+.tray-slot.dirty .slot-emoji { filter:sepia(0.35) hue-rotate(165deg) brightness(0.9); }
+.inv-item.dirty-item .inv-icon { filter:sepia(0.35) hue-rotate(165deg) brightness(0.9); }
 .tray-slot.drop-over { border-color:var(--ok); box-shadow:0 0 12px rgba(46,204,113,0.45); transform:scale(1.04); }
 .tray-slot .slot-emoji { font-size:var(--tray-icon); line-height:1; }
 .tray-slot .slot-label { margin-top:4px; text-align:center; line-height:1.3; }
@@ -282,9 +284,9 @@ const FEMALE_AVATARS = ['👩','👱‍♀️','👧'];
 
 const ITEMS = {
   cleanDish:  { emoji:'🍽️', label:'صحون نظيفة', inv:'cleanDishes' },
-  dirtyDish:  { emoji:'🍽️💧', label:'صحون متسخة', inv:'dirtyDishes' },
+  dirtyDish:  { emoji:'🍽️', label:'صحون متسخة', inv:'dirtyDishes' },
   cleanCup:   { emoji:'🥤', label:'كاسات نظيفة', inv:'cleanCups' },
-  dirtyCup:   { emoji:'🥤💧', label:'كاسات متسخة', inv:'dirtyCups' },
+  dirtyCup:   { emoji:'🥤', label:'كاسات متسخة', inv:'dirtyCups' },
   rawFish:    { emoji:'fish', label:'سمك نيء', inv:'rawFish', fish:'raw' },
   grilled:    { emoji:'fish', label:'سمك مشوي', inv:'grilled', fish:'grilled' },
   fried:      { emoji:'fish', label:'سمك مقلي', inv:'fried', fish:'fried' },
@@ -518,8 +520,8 @@ function endDrag(restore) {
 function canDropOnAct(actId, dragType) {
   if (dragType === 'rawFish' && actId === 'grill') return !S.acts.grill.busy;
   if (dragType === 'rawFish' && actId === 'fry') return !S.acts.fry.busy;
-  if (dragType === 'dirtyDish' && actId === 'washDishes') return !S.acts.washDishes.busy;
-  if (dragType === 'dirtyCup' && actId === 'washCups') return !S.acts.washCups.busy;
+  if (dragType === 'dirtyDish' && actId === 'washDishes') return true;
+  if (dragType === 'dirtyCup' && actId === 'washCups') return true;
   return false;
 }
 
@@ -561,12 +563,10 @@ function handleDrop(drag, target) {
     if (type === 'rawFish' && target.id === 'grill') return startGrill();
     if (type === 'rawFish' && target.id === 'fry') return startFry();
     if (type === 'dirtyDish' && target.id === 'washDishes') {
-      if (!canDropOnAct('washDishes', 'dirtyDish')) { msg('⏳ الغسالة مشغولة!'); return false; }
       if (startWash('washDishes', 'dirtyDish')) { checkCleanupDone(extra.orderId); return true; }
       return false;
     }
     if (type === 'dirtyCup' && target.id === 'washCups') {
-      if (!canDropOnAct('washCups', 'dirtyCup')) { msg('⏳ غسالة الكاسات مشغولة!'); return false; }
       if (startWash('washCups', 'dirtyCup')) { checkCleanupDone(extra.orderId); return true; }
       return false;
     }
@@ -586,8 +586,7 @@ function handleDrop(drag, target) {
       return true;
     }
     if (type === 'money' && target.id === 'money') {
-      collectMoney(extra.orderId);
-      return true;
+      return collectMoney(extra.orderId);
     }
     return false;
   }
@@ -631,17 +630,15 @@ document.getElementById('activities-grid').addEventListener('pointerdown', e => 
   else if (id === 'salad') startCook('salad', 'salad');
   else if (id === 'tahini') startCook('tahini', 'tahini');
   else if (id === 'washDishes') {
-    if (S.acts.washDishes.busy) { msg('⏳ الغسالة مشغولة!'); return; }
     if (S.dirtyDishes > 0) {
       S.dirtyDishes--;
-      if (!startWash('washDishes', 'dirtyDish')) S.dirtyDishes++;
+      startWash('washDishes', 'dirtyDish');
       renderInventory();
     }
   } else if (id === 'washCups') {
-    if (S.acts.washCups.busy) { msg('⏳ غسالة الكاسات مشغولة!'); return; }
     if (S.dirtyCups > 0) {
       S.dirtyCups--;
-      if (!startWash('washCups', 'dirtyCup')) S.dirtyCups++;
+      startWash('washCups', 'dirtyCup');
       renderInventory();
     }
   }
@@ -687,17 +684,22 @@ function startCook(actId, give) {
 
 function startWash(actId, kind) {
   const a = S.acts[actId];
-  if (a.busy) { msg('⏳ الغسيل جارٍ...'); return false; }
-  a.busy = true; a.prog = 0; a.start = Date.now();
-  a.washKind = kind;
-  msg(kind === 'dirtyDish' ? '🚿 غسيل صحون...' : '💧 غسيل كاسات...');
+  if (!a.busy) {
+    a.busy = true;
+    a.prog = 0;
+    a.start = Date.now();
+    a.washKind = kind;
+    msg(kind === 'dirtyDish' ? '🚿 غسيل صحون...' : '💧 غسيل كاسات...');
+  } else {
+    a.queue++;
+    msg(kind === 'dirtyDish' ? `🚿 صحن في الطابور (${a.queue})` : `💧 كاس في الطابور (${a.queue})`);
+  }
   renderActivities();
   return true;
 }
 
 function finishAct(id) {
   const a = S.acts[id];
-  a.busy = false; a.prog = 0;
   if (id === 'fishing') { S.rawFish++; msg('✅ سمكة نيئة +1'); }
   else if (id === 'grill') { S.grilled++; msg('✅ سمك مشوي +1'); }
   else if (id === 'fry') { S.fried++; msg('✅ سمك مقلي +1'); }
@@ -707,6 +709,17 @@ function finishAct(id) {
   else if (id === 'tahini') { incInv('tahini', CFG.batchCook); msg(`✅ طحينة جاهزة +${CFG.batchCook}`); }
   else if (id === 'washDishes') { S.cleanDishes++; msg('✅ صحن نظيف +1'); }
   else if (id === 'washCups') { S.cleanCups++; msg('✅ كاس نظيف +1'); }
+
+  if ((id === 'washDishes' || id === 'washCups') && a.queue > 0) {
+    a.queue--;
+    a.prog = 0;
+    a.start = Date.now();
+    renderAll();
+    return;
+  }
+
+  a.busy = false;
+  a.prog = 0;
   renderAll();
 }
 
@@ -847,7 +860,9 @@ function checkCleanupDone(orderId) {
 function collectMoney(orderId) {
   const order = S.orders.find(o => o.id === orderId);
   const c = S.customers.find(x => x.id === order?.customerId);
-  if (!order || order.status !== 'payable' || !order.moneyOnTray) return;
+  const fromDrag = S.drag?.type === 'money' && S.drag.extra?.orderId === orderId;
+  if (!order || order.status !== 'payable') return false;
+  if (!order.moneyOnTray && !fromDrag) return false;
   S.money += order.price;
   S.success++;
   order.moneyOnTray = false;
@@ -855,6 +870,7 @@ function collectMoney(orderId) {
   if (c) c.status = 'paid';
   msg(`💰 +${order.price} kr!`);
   renderAll();
+  return true;
 }
 
 function closeOrder(orderId) {
@@ -1018,6 +1034,7 @@ function renderInventory() {
     if (el) { el.textContent = cnt; el.classList.toggle('zero', cnt <= 0); }
     if (box) {
       box.classList.toggle('empty', cnt <= 0 && k !== 'money');
+      box.classList.toggle('dirty-item', k === 'dirtyDish' || k === 'dirtyCup');
       if (k === 'dirtyDish' || k === 'dirtyCup' || k === 'money') {
         box.dataset.invDrop = k;
       }
@@ -1034,13 +1051,16 @@ function renderActivities() {
     const status = document.getElementById('act-' + a.id + '-st');
     if (!el) return;
     el.classList.toggle('busy', st.busy);
-    el.classList.toggle('drop-locked', st.busy && (a.id === 'washDishes' || a.id === 'washCups' || a.id === 'grill' || a.id === 'fry'));
+    el.classList.toggle('drop-locked', st.busy && (a.id === 'grill' || a.id === 'fry'));
     if (prog) {
       prog.classList.toggle('show', st.busy);
       prog.querySelector('div').style.width = (st.prog * 100) + '%';
     }
     if (status) {
-      if (st.busy) status.textContent = Math.floor(st.prog * 100) + '%';
+      if (st.busy && (a.id === 'washDishes' || a.id === 'washCups')) {
+        const q = st.queue ? ` · طابور ${st.queue}` : '';
+        status.textContent = Math.floor(st.prog * 100) + '%' + q;
+      } else if (st.busy) status.textContent = Math.floor(st.prog * 100) + '%';
       else if (a.id === 'grill' || a.id === 'fry') status.textContent = 'اسحب سمكاً نيئاً';
       else if (a.id === 'washDishes') status.textContent = S.dirtyDishes + ' متسخ';
       else if (a.id === 'washCups') status.textContent = S.dirtyCups + ' متسخ';
@@ -1126,21 +1146,26 @@ function renderTray() {
     return;
   }
 
+  const draggingMoney = S.drag?.type === 'money' && S.drag.extra?.orderId === order.id;
+
   if (order.status === 'payable' && order.moneyOnTray) {
-    content.innerHTML = `<div class="tray-slots"><div class="tray-slot filled" style="width:120px;min-height:100px;cursor:grab"
-      data-slot="1" data-order-id="${order.id}" data-slot-idx="-1" id="tray-money">
-      <span class="slot-emoji">💰</span><span class="slot-label">${order.price} kr</span></div></div>`;
-    btn.classList.remove('show');
-    const moneyEl = document.getElementById('tray-money');
-    if (moneyEl) {
-      moneyEl.onpointerdown = e => {
-        e.preventDefault();
-        if (S.drag) return;
-        order.moneyOnTray = false;
-        startDrag('money', { orderId: order.id });
-        renderTray();
-      };
+    if (draggingMoney) {
+      content.innerHTML = `<div class="tray-eating">💰 اسحب المال للكاشير</div>`;
+    } else {
+      content.innerHTML = `<div class="tray-slots"><div class="tray-slot filled" style="width:120px;min-height:100px;cursor:grab"
+        data-slot="1" data-order-id="${order.id}" data-slot-idx="-1" id="tray-money">
+        <span class="slot-emoji">💰</span><span class="slot-label">${order.price} kr</span></div></div>`;
+      const moneyEl = document.getElementById('tray-money');
+      if (moneyEl) {
+        moneyEl.onpointerdown = e => {
+          e.preventDefault();
+          if (S.drag) return;
+          startDrag('money', { orderId: order.id });
+          renderTray();
+        };
+      }
     }
+    btn.classList.remove('show');
     return;
   }
 
@@ -1154,7 +1179,7 @@ function renderTray() {
     const slotsHtml = order.slots.map((slot, i) => {
       if (!slot.dirty) return '';
       const label = slot.dirty === 'dirtyCup' ? 'كاس متسخ' : 'طبق متسخ';
-      const emoji = slot.dirty === 'dirtyCup' ? '🥤💧' : '🍽️💧';
+      const emoji = slot.dirty === 'dirtyCup' ? '🥤' : '🍽️';
       return `<div class="tray-slot dirty" data-slot="1" data-order-id="${order.id}" data-slot-idx="${i}">
         <span class="slot-emoji">${emoji}</span><span class="slot-label">${label}</span></div>`;
     }).join('') || '<div class="tray-eating">لا صحون متبقية</div>';
