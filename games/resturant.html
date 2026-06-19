@@ -144,7 +144,7 @@ body.dragging #order-tabs-wrap { overflow: hidden; touch-action: none; }
 }
 .tray-slot.has-base { border-color:rgba(245,200,66,0.55); background:rgba(245,200,66,0.06); }
 .tray-slot.filled { border-style:solid; border-color:var(--ok); background:rgba(46,204,113,0.12); color:#fff; }
-.tray-slot.dirty { border-color:#9b59b6; background:rgba(155,89,182,0.12); }
+.tray-slot.dirty { border-color:#9b59b6; background:rgba(155,89,182,0.12); touch-action:none; cursor:grab; }
 .tray-slot .slot-stack {
   position: relative; display: flex; align-items: center; justify-content: center;
   width: 100%; flex: 1 1 auto; min-height: 56px; max-height: 72px; margin-bottom: 2px;
@@ -767,21 +767,62 @@ function buildUI() {
 }
 
 // ============ DRAG ============
+let dragCaptureEl = null;
+let dragCapturePid = null;
+
+function captureDragPointer(e) {
+  if (e?.pointerId == null) return;
+  const el = document.body;
+  try {
+    el.setPointerCapture(e.pointerId);
+    dragCaptureEl = el;
+    dragCapturePid = e.pointerId;
+  } catch (_) {}
+}
+
+function releaseDragPointer() {
+  if (dragCaptureEl && dragCapturePid != null) {
+    try { dragCaptureEl.releasePointerCapture(dragCapturePid); } catch (_) {}
+  }
+  dragCaptureEl = null;
+  dragCapturePid = null;
+}
+
+function isDraggingTrayDirty(orderId, slotIdx) {
+  if (slotIdx == null || slotIdx < 0) return false;
+  const t = S.drag?.type;
+  const ex = S.drag?.extra;
+  return (t === 'dirtyDish' || t === 'dirtyCup') &&
+    ex?.orderId === orderId && ex?.slotIdx === slotIdx;
+}
+
+function finishTrayDirtyDrop(extra) {
+  if (extra?.orderId == null || extra?.slotIdx == null) return;
+  const order = S.orders.find(o => o.id === extra.orderId);
+  if (order?.slots[extra.slotIdx]) order.slots[extra.slotIdx].dirty = null;
+}
+
 /** يميّز بين التمرير الأفقي (صينية/تبويبات) وبين بدء السحب على التابلت */
 function bindPointerDrag(el, startFn) {
   el.addEventListener('pointerdown', e => {
     if (S.drag) return;
     const sx = e.clientX, sy = e.clientY, pid = e.pointerId;
+    let started = false;
     const onMove = ev => {
-      if (ev.pointerId !== pid || S.drag) return;
+      if (ev.pointerId !== pid || started) return;
+      if (S.drag) { cleanup(); return; }
       const dx = ev.clientX - sx, dy = ev.clientY - sy;
       if (Math.hypot(dx, dy) < 10) return;
       if (Math.abs(dx) > Math.abs(dy) + 4) { cleanup(); return; }
+      started = true;
       cleanup();
       ev.preventDefault();
-      startFn(ev);
+      startFn(e);
     };
-    const onUp = ev => { if (ev.pointerId === pid) cleanup(); };
+    const onUp = ev => {
+      if (ev.pointerId !== pid || started) return;
+      cleanup();
+    };
     const cleanup = () => {
       document.removeEventListener('pointermove', onMove);
       document.removeEventListener('pointerup', onUp);
@@ -794,7 +835,7 @@ function bindPointerDrag(el, startFn) {
 }
 
 function startDrag(type, extra, e) {
-  if (S.drag) return;
+  if (S.drag) endDrag(true);
   if (type === 'dish' || type === 'cup') {
     if (type === 'dish' && S.cleanDishes <= 0) { msg('❌ لا صحون نظيفة!'); return; }
     if (type === 'cup' && S.cleanCups <= 0) { msg('❌ لا كاسات نظيفة!'); return; }
@@ -819,21 +860,27 @@ function startDrag(type, extra, e) {
   }
   if (type !== 'money') renderInventory();
   document.body.classList.add('dragging');
-  if (e?.pointerId != null) {
-    try { document.getElementById('ui').setPointerCapture(e.pointerId); } catch (_) {}
-  }
+  captureDragPointer(e);
 }
 
 function endDrag(restore) {
-  if (restore && S.drag) {
-    const t = S.drag.type;
-    const ex = S.drag.extra || {};
+  const drag = S.drag;
+  if (!drag) return;
+  S.drag = null;
+  releaseDragPointer();
+  document.body.classList.remove('dragging');
+  const g = document.getElementById('drag-ghost');
+  g.classList.remove('show', 'drag-cup', 'drag-dish');
+  document.querySelectorAll('.drop-over').forEach(e => e.classList.remove('drop-over'));
+  if (restore) {
+    const t = drag.type;
+    const ex = drag.extra || {};
     if (t === 'dish') S.cleanDishes++;
     else if (t === 'cup') S.cleanCups++;
     else if (['rawFish','grilled','fried','rice','salad','tahini','juice'].includes(t)) incInv(t);
     else if ((t === 'dirtyDish' || t === 'dirtyCup') && ex.orderId != null && ex.slotIdx != null) {
       const order = S.orders.find(o => o.id === ex.orderId);
-      if (order?.slots[ex.slotIdx]) order.slots[ex.slotIdx].dirty = t;
+      if (order?.slots[ex.slotIdx] && !order.slots[ex.slotIdx].dirty) order.slots[ex.slotIdx].dirty = t;
     } else if (t === 'dirtyDish') S.dirtyDishes++;
     else if (t === 'dirtyCup') S.dirtyCups++;
     else if (t === 'money' && ex.orderId != null) {
@@ -841,11 +888,6 @@ function endDrag(restore) {
       if (order) order.moneyOnTray = true;
     }
   }
-  S.drag = null;
-  document.body.classList.remove('dragging');
-  const g = document.getElementById('drag-ghost');
-  g.classList.remove('show', 'drag-cup', 'drag-dish');
-  document.querySelectorAll('.drop-over').forEach(e => e.classList.remove('drop-over'));
   renderAll();
 }
 
@@ -858,13 +900,28 @@ function canDropOnAct(actId, dragType) {
 
 function getDropTarget(x, y) {
   const els = document.elementsFromPoint(x, y);
-  if (S.drag?.type === 'money') {
+  const dragType = S.drag?.type;
+
+  if (dragType === 'money') {
     for (const el of els) {
       const cash = el.closest?.('[data-inv="money"]');
       if (cash) return { kind: 'invDrop', id: 'money', el: cash };
     }
     return null;
   }
+
+  if (dragType === 'dirtyDish' || dragType === 'dirtyCup') {
+    for (const el of els) {
+      const act = el.closest?.('[data-act]');
+      if (act) return { kind: 'act', id: act.dataset.act, el: act };
+      const invDrop = el.closest?.('[data-inv-drop]');
+      if (invDrop) return { kind: 'invDrop', id: invDrop.dataset.invDrop, el: invDrop };
+      const inv = el.closest?.('[data-inv]');
+      if (inv) return { kind: 'invDrop', id: inv.dataset.inv, el: inv };
+    }
+    return null;
+  }
+
   for (const el of els) {
     const act = el.closest?.('[data-act]');
     if (act) return { kind: 'act', id: act.dataset.act, el: act };
@@ -881,6 +938,14 @@ function getDropTarget(x, y) {
 function canDropTarget(dragType, target) {
   if (dragType === 'money') {
     return (target.kind === 'invDrop' || target.kind === 'inv') && target.id === 'money';
+  }
+  if (dragType === 'dirtyDish') {
+    return (target.kind === 'act' && target.id === 'washDishes') ||
+      (target.kind === 'invDrop' && target.id === 'dirtyDish');
+  }
+  if (dragType === 'dirtyCup') {
+    return (target.kind === 'act' && target.id === 'washCups') ||
+      (target.kind === 'invDrop' && target.id === 'dirtyCup');
   }
   if (target.kind === 'act') return canDropOnAct(target.id, dragType);
   return target.kind === 'invDrop' || target.kind === 'inv' || target.kind === 'slot';
@@ -909,6 +974,9 @@ document.addEventListener('pointerup', e => {
   e.preventDefault();
 });
 document.addEventListener('pointercancel', e => { if (S.drag) endDrag(true); });
+document.body.addEventListener('lostpointercapture', e => {
+  if (S.drag && e.pointerId === dragCapturePid) endDrag(true);
+});
 
 function handleDrop(drag, target) {
   const { type, extra } = drag;
@@ -917,11 +985,19 @@ function handleDrop(drag, target) {
     if (type === 'rawFish' && target.id === 'grill') return startGrill();
     if (type === 'rawFish' && target.id === 'fry') return startFry();
     if (type === 'dirtyDish' && target.id === 'washDishes') {
-      if (startWash('washDishes', 'dirtyDish')) { checkCleanupDone(extra.orderId); return true; }
+      if (startWash('washDishes', 'dirtyDish')) {
+        finishTrayDirtyDrop(extra);
+        checkCleanupDone(extra.orderId);
+        return true;
+      }
       return false;
     }
     if (type === 'dirtyCup' && target.id === 'washCups') {
-      if (startWash('washCups', 'dirtyCup')) { checkCleanupDone(extra.orderId); return true; }
+      if (startWash('washCups', 'dirtyCup')) {
+        finishTrayDirtyDrop(extra);
+        checkCleanupDone(extra.orderId);
+        return true;
+      }
       return false;
     }
     msg('❌ لا يمكن الإفلات هنا');
@@ -931,11 +1007,13 @@ function handleDrop(drag, target) {
   if (target.kind === 'invDrop') {
     if (type === 'dirtyDish' && target.id === 'dirtyDish') {
       S.dirtyDishes++;
+      finishTrayDirtyDrop(extra);
       checkCleanupDone(extra.orderId);
       return true;
     }
     if (type === 'dirtyCup' && target.id === 'dirtyCup') {
       S.dirtyCups++;
+      finishTrayDirtyDrop(extra);
       checkCleanupDone(extra.orderId);
       return true;
     }
@@ -1672,25 +1750,31 @@ function renderTray() {
 
   if (order.status === 'cleanup') {
     const slotsHtml = order.slots.map((slot, i) => {
-      if (!slot.dirty) return '';
+      if (!slot.dirty || isDraggingTrayDirty(order.id, i)) return '';
       const label = slot.dirty === 'dirtyCup' ? 'كاس متسخ' : 'طبق متسخ';
       const icon = slot.dirty === 'dirtyCup' ? cupIcon() : dishIcon();
       return `<div class="tray-slot dirty" data-slot="1" data-order-id="${order.id}" data-slot-idx="${i}">
         <span class="slot-emoji">${icon}</span><span class="slot-label">${label}</span></div>`;
-    }).join('') || '<div class="tray-eating">لا صحون متبقية</div>';
-    content.innerHTML = `<div class="tray-slots">${slotsHtml}</div>`;
+    }).join('');
+    const draggingDirty = S.drag?.type === 'dirtyDish' || S.drag?.type === 'dirtyCup';
+    const hint = draggingDirty
+      ? '<div class="tray-eating" style="padding:10px;font-size:12px">اسحب للغسيل ↓</div>'
+      : '';
+    content.innerHTML = slotsHtml
+      ? `<div class="tray-slots">${slotsHtml}</div>${hint}`
+      : '<div class="tray-eating">لا صحون متبقية</div>';
     btn.classList.remove('show');
     content.querySelectorAll('.tray-slot.dirty').forEach(el => {
-      bindPointerDrag(el, e => {
+      el.onpointerdown = e => {
+        e.preventDefault();
+        e.stopPropagation();
         if (S.drag) return;
         const idx = +el.dataset.slotIdx;
         const slot = order.slots[idx];
         if (!slot?.dirty) return;
-        const dtype = slot.dirty;
-        slot.dirty = null;
-        startDrag(dtype, { orderId: order.id, slotIdx: idx }, e);
+        startDrag(slot.dirty, { orderId: order.id, slotIdx: idx }, e);
         renderTray();
-      });
+      };
     });
     return;
   }
