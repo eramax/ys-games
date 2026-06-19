@@ -38,6 +38,11 @@ body { font-family:'Cairo',sans-serif; overflow:hidden; background:#0a1628; colo
 }
 .hud-item { background:var(--panel); border:1px solid var(--border); border-radius:20px; padding:4px 12px; font-size:clamp(10px,1.6vw,13px); }
 .hud-item b { color:var(--gold); }
+.hud-btn {
+  cursor:pointer; font-family:inherit; color:#fff; border:1px solid var(--border);
+  transition:all .15s;
+}
+.hud-btn:hover { border-color:var(--gold); background:rgba(245,200,66,0.12); }
 
 .game-row {
   margin:0 8px 6px; background:var(--panel2); border:1px solid var(--border);
@@ -141,7 +146,7 @@ body { font-family:'Cairo',sans-serif; overflow:hidden; background:#0a1628; colo
   border-radius:50%; min-width:22px; height:22px; font-size:11px; font-weight:700;
   display:flex; align-items:center; justify-content:center; padding:0 4px;
 }
-.inv-item .inv-count.zero { display:none; }
+.inv-item.drop-target { border-color:var(--ok); box-shadow:0 0 12px rgba(46,204,113,0.45); }
 
 /* BOTTOM: activities */
 #row-activities { flex:1; min-height:0; display:flex; flex-direction:column; margin-bottom:8px; }
@@ -192,8 +197,14 @@ body { font-family:'Cairo',sans-serif; overflow:hidden; background:#0a1628; colo
   z-index:151; min-width:300px; max-width:92vw;
 }
 #order-modal h3 { text-align:center; margin-bottom:12px; }
-.order-row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border); font-size:13px; }
-.qty-btn { width:28px; height:28px; border:none; border-radius:6px; background:#2980b9; color:#fff; font-size:16px; cursor:pointer; font-family:inherit; }
+.order-row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border); font-size:13px; gap:8px; }
+.order-row > span { flex:1; line-height:1.4; }
+.qty-btn { width:28px; height:28px; border:none; border-radius:6px; background:#2980b9; color:#fff; font-size:16px; cursor:pointer; font-family:inherit; flex-shrink:0; }
+.modal-total {
+  padding:10px; background:rgba(245,200,66,0.1); border-radius:8px; margin-top:10px;
+  font-size:13px; text-align:center; border:1px solid rgba(245,200,66,0.25);
+}
+.modal-total b { color:var(--gold); }
 .modal-btns { display:flex; gap:8px; margin-top:16px; }
 .modal-btns button { flex:1; padding:10px; border:none; border-radius:8px; font-family:inherit; font-weight:700; cursor:pointer; font-size:14px; }
 .btn-ok { background:var(--ok); color:#fff; }
@@ -220,6 +231,7 @@ body { font-family:'Cairo',sans-serif; overflow:hidden; background:#0a1628; colo
     <div class="hud-item">💰 <b id="hud-money">0</b> kr</div>
     <div class="hud-item">📋 طلبات: <b id="hud-orders">0</b></div>
     <div class="hud-item">⭐ نجاح: <b id="hud-success">0</b></div>
+    <button type="button" class="hud-item hud-btn" id="hud-shop-btn">🛒 شراء</button>
   </div>
 
   <div id="row-orders" class="game-row">
@@ -269,7 +281,8 @@ const CFG = {
   washTime: 10000, eatTimeMs: 20000, waitTime: 180, spawnInterval: 14000,
   prices: { grilled: 20, fried: 25, rice: 5, juice: 5 },
   startDishes: 20, startCups: 10,
-  batchCook: 5
+  batchCook: 5,
+  shop: { dishes: 5, rawFish: 8, rice: 10, tahini: 5, salad: 3, juice: 10, cups: 5 }
 };
 
 const PEOPLE = [
@@ -311,6 +324,16 @@ const ACTS = [
   { id:'fry', icon:'🍳', name:'قلي سمك' }
 ];
 
+const SHOP_ITEMS = [
+  { k:'dishes', inv:'cleanDishes', l:'طبق', priceKey:'dishes', unit:'للواحد', icon:'🍽️', perUnit:1 },
+  { k:'rawFish', inv:'rawFish', l:'سمكة نيئة', priceKey:'rawFish', unit:'للواحد', fish:'raw', perUnit:1 },
+  { k:'rice', inv:'rice', l:'أرز', priceKey:'rice', unit:'يكفي 5 أطباق', icon:'🍚', perBatch:true },
+  { k:'tahini', inv:'tahini', l:'طحينة', priceKey:'tahini', unit:'يكفي 5 أطباق', icon:'🫙', perBatch:true },
+  { k:'salad', inv:'salad', l:'سلطة', priceKey:'salad', unit:'يكفي 5 أطباق', icon:'🥗', perBatch:true },
+  { k:'juice', inv:'juice', l:'عصير', priceKey:'juice', unit:'يكفي 5 أكواب', icon:'🍊', perBatch:true },
+  { k:'cups', inv:'cleanCups', l:'كاس', priceKey:'cups', unit:'للواحد', icon:'🥤', perUnit:1 }
+];
+
 const STATE_LABELS = {
   waiting: 'منتظر',
   preparing: 'يُجهَّز',
@@ -335,7 +358,9 @@ const S = {
 ACTS.forEach(a => { S.acts[a.id] = { busy: false, prog: 0, start: 0, queue: 0 }; });
 
 let modalCustomer = null;
+let modalMode = 'order';
 let pendingOrder = { grilled:0, fried:0, rice:0, juice:0 };
+let pendingShop = { dishes:0, rawFish:0, rice:0, tahini:0, salad:0, juice:0, cups:0 };
 let spawnIv, tickIv, scene, camera, renderer, seaMesh;
 
 function fishIcon(type) {
@@ -491,7 +516,7 @@ function startDrag(type, extra) {
   const g = document.getElementById('drag-ghost');
   g.innerHTML = itemHtml(type === 'dish' ? 'cleanDish' : type === 'cup' ? 'cleanCup' : type);
   g.classList.add('show');
-  renderInventory();
+  if (type !== 'money') renderInventory();
 }
 
 function endDrag(restore) {
@@ -528,9 +553,9 @@ function canDropOnAct(actId, dragType) {
 function getDropTarget(x, y) {
   for (const el of document.elementsFromPoint(x, y)) {
     if (el.dataset?.act) return { kind: 'act', id: el.dataset.act, el };
+    if (el.dataset?.invDrop) return { kind: 'invDrop', id: el.dataset.invDrop, el };
     if (el.dataset?.inv) return { kind: 'inv', id: el.dataset.inv, el };
     if (el.dataset?.slot) return { kind: 'slot', orderId: +el.dataset.orderId, slotIdx: +el.dataset.slotIdx, el };
-    if (el.dataset?.invDrop) return { kind: 'invDrop', id: el.dataset.invDrop, el };
   }
   return null;
 }
@@ -542,7 +567,11 @@ document.addEventListener('pointermove', e => {
   g.style.top = e.clientY + 'px';
   document.querySelectorAll('.drop-over').forEach(x => x.classList.remove('drop-over'));
   const t = getDropTarget(e.clientX, e.clientY);
-  if (t?.el && (t.kind !== 'act' || canDropOnAct(t.id, S.drag.type))) t.el.classList.add('drop-over');
+  if (!t?.el) return;
+  const canDrop = t.kind === 'act'
+    ? canDropOnAct(t.id, S.drag.type)
+    : t.kind === 'invDrop' || t.kind === 'inv' || t.kind === 'slot';
+  if (canDrop) t.el.classList.add('drop-over');
 });
 
 document.addEventListener('pointerup', e => {
@@ -589,6 +618,10 @@ function handleDrop(drag, target) {
       return collectMoney(extra.orderId);
     }
     return false;
+  }
+
+  if (target.kind === 'inv' && type === 'money' && target.id === 'money') {
+    return collectMoney(extra.orderId);
   }
 
   if (target.kind === 'slot') {
@@ -910,15 +943,68 @@ function spawnCustomer() {
 function openModal(cid) {
   const c = S.customers.find(x => x.id === cid);
   if (!c || c.status !== 'arrived') return;
+  modalMode = 'order';
   modalCustomer = c;
   pendingOrder = { grilled:0, fried:0, rice:0, juice:0 };
   document.getElementById('modal-title').textContent = `${c.avatar} طلب ${c.name}`;
+  document.getElementById('modal-confirm').textContent = '✅ تأكيد الطلب';
   renderModalItems();
   document.getElementById('modal-bg').style.display = 'block';
   document.getElementById('order-modal').style.display = 'block';
 }
 
+function openShop() {
+  if (S.drag) endDrag(true);
+  modalMode = 'shop';
+  modalCustomer = null;
+  pendingShop = { dishes:0, rawFish:0, rice:0, tahini:0, salad:0, juice:0, cups:0 };
+  document.getElementById('modal-title').textContent = '🛒 شراء مستلزمات';
+  document.getElementById('modal-confirm').textContent = '✅ تأكيد الشراء';
+  renderModalItems();
+  document.getElementById('modal-bg').style.display = 'block';
+  document.getElementById('order-modal').style.display = 'block';
+}
+
+function shopItemAmount(item) {
+  return item.perBatch ? CFG.batchCook : item.perUnit;
+}
+
+function shopItemPrice(item) {
+  return CFG.shop[item.priceKey];
+}
+
+function shopTotal() {
+  return SHOP_ITEMS.reduce((sum, i) => sum + (pendingShop[i.k] || 0) * shopItemPrice(i), 0);
+}
+
+function shopItemCount() {
+  return SHOP_ITEMS.reduce((sum, i) => sum + (pendingShop[i.k] || 0), 0);
+}
+
+function shopItemIcon(item) {
+  return item.fish ? fishIcon(item.fish) : item.icon;
+}
+
+function updateShopTotal() {
+  const el = document.getElementById('modal-total');
+  if (!el) return;
+  const total = shopTotal();
+  const ok = S.money >= total;
+  el.innerHTML = `المجموع: <b>${total}</b> kr · رصيدك: <b>${S.money}</b> kr` +
+    (total > 0 && !ok ? '<br><span style="color:var(--danger);font-size:11px">❌ رصيد غير كافٍ</span>' : '');
+}
+
 function renderModalItems() {
+  if (modalMode === 'shop') {
+    document.getElementById('modal-items').innerHTML = SHOP_ITEMS.map(i => `
+      <div class="order-row"><span>${shopItemIcon(i)} ${i.l} — ${shopItemPrice(i)} kr (${i.unit})</span>
+      <div><button class="qty-btn" data-q="${i.k}" data-d="-1">-</button>
+      <span style="min-width:24px;display:inline-block;text-align:center" id="mq-${i.k}">0</span>
+      <button class="qty-btn" data-q="${i.k}" data-d="1">+</button></div></div>`).join('') +
+      `<div class="modal-total" id="modal-total"></div>`;
+    updateShopTotal();
+    return;
+  }
   const items = [
     { k:'grilled', l:'سمكة مشوية', p:20, icon: fishIcon('grilled') },
     { k:'fried', l:'سمكة مقلية', p:25, icon: fishIcon('fried') },
@@ -937,11 +1023,33 @@ document.getElementById('modal-items').addEventListener('click', e => {
   const btn = e.target.closest('.qty-btn');
   if (!btn) return;
   const k = btn.dataset.q, d = +btn.dataset.d;
+  if (modalMode === 'shop') {
+    pendingShop[k] = Math.max(0, (pendingShop[k] || 0) + d);
+    document.getElementById('mq-' + k).textContent = pendingShop[k];
+    updateShopTotal();
+    return;
+  }
   pendingOrder[k] = Math.max(0, pendingOrder[k] + d);
   document.getElementById('mq-' + k).textContent = pendingOrder[k];
 });
 
+function confirmShop() {
+  const total = shopTotal();
+  if (shopItemCount() === 0) { msg('❌ لم تختر شيئاً!'); return; }
+  if (S.money < total) { msg('❌ رصيد غير كافٍ!'); return; }
+  S.money -= total;
+  SHOP_ITEMS.forEach(i => {
+    const qty = pendingShop[i.k] || 0;
+    if (!qty) return;
+    S[i.inv] += qty * shopItemAmount(i);
+  });
+  closeModal();
+  msg(`🛒 تم الشراء — ${total} kr`);
+  renderAll();
+}
+
 document.getElementById('modal-confirm').onclick = () => {
+  if (modalMode === 'shop') { confirmShop(); return; }
   if (!modalCustomer) return;
   const total = pendingOrder.grilled + pendingOrder.fried + pendingOrder.rice + pendingOrder.juice;
   if (total === 0) { msg('❌ الطلب فارغ!'); return; }
@@ -979,9 +1087,12 @@ function closeModal() {
   document.getElementById('modal-bg').style.display = 'none';
   document.getElementById('order-modal').style.display = 'none';
   modalCustomer = null;
+  modalMode = 'order';
+  document.getElementById('modal-confirm').textContent = '✅ تأكيد الطلب';
 }
 document.getElementById('modal-cancel').onclick = closeModal;
 document.getElementById('modal-bg').onclick = closeModal;
+document.getElementById('hud-shop-btn').onclick = openShop;
 
 // ============ TICK ============
 function gameTick() {
