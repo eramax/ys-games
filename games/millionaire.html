@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#06003a">
+<title>من سيربح المليون؟</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --stage-deep:#06003a;
+  --stage-mid:#0d0066;
+  --stage-light:#1a0a8a;
+  --gold:#ff9900;
+  --gold-bright:#ffcc00;
+  --gold-dim:#cc7700;
+  --ladder-text:#ff9900;
+  --ladder-active:#ffffff;
+  --bar-bg:linear-gradient(180deg,#0a0055 0%,#120070 50%,#0a0055 100%);
+  --bar-border:#3366cc;
+  --bar-glow:rgba(51,102,204,.6);
+  --correct:#00cc44;
+  --wrong:#ff3333;
+  --safe-mark:#00ccff;
+  --font:'Cairo',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:var(--font);color:#fff;-webkit-tap-highlight-color:transparent;user-select:none;overflow:hidden}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+.hidden{display:none!important}
+
+/* ===== STUDIO BACKGROUND ===== */
+body{
+  background:var(--stage-deep);
+}
+.studio-bg{
+  position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 35%,rgba(30,0,120,.7) 0%,transparent 70%),
+    radial-gradient(ellipse 50% 40% at 50% 50%,rgba(80,40,200,.25) 0%,transparent 60%),
+    radial-gradient(circle at 50% 100%,rgba(255,153,0,.08) 0%,transparent 40%),
+    linear-gradient(180deg,#040020 0%,#0a0044 40%,#060030 100%);
+}
+.studio-bg::before{
+  content:'';position:absolute;inset:0;
+  background:
+    radial-gradient(circle at 50% 42%,transparent 18%,rgba(255,153,0,.04) 19%,transparent 20%),
+    radial-gradient(circle at 50% 42%,transparent 28%,rgba(255,153,0,.03) 29%,transparent 30%),
+    radial-gradient(circle at 50% 42%,transparent 38%,rgba(255,153,0,.02) 39%,transparent 40%);
+}
+.spotlight{
+  position:absolute;width:300px;height:300px;border-radius:50%;
+  background:radial-gradient(circle,rgba(100,80,255,.15) 0%,transparent 70%);
+  animation:spotPulse 4s ease-in-out infinite;
+}
+.spotlight.s1{top:5%;right:10%;animation-delay:0s}
+.spotlight.s2{top:5%;left:10%;animation-delay:2s}
+@keyframes spotPulse{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:1;transform:scale(1.1)}}
+
+#app{position:relative;z-index:1;height:100vh;height:100dvh;display:flex;flex-direction:column}
+
+/* ===== SCREENS ===== */
+.screen{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:24px 20px;gap:24px;overflow-y:auto;
+}
+.title-logo{
+  font-size:clamp(1.8rem,6vw,3.2rem);font-weight:900;line-height:1.25;
+  text-shadow:0 0 40px rgba(255,153,0,.5),0 4px 0 #663300;
+}
+.title-logo .line1{color:var(--gold-bright)}
+.title-logo .line2{
+  background:linear-gradient(180deg,#fff 0%,#ffcc00 100%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+}
+.title-sub{color:rgba(255,255,255,.65);font-size:clamp(.9rem,2.5vw,1.1rem);line-height:1.8;max-width:520px}
+.title-prize{
+  font-size:clamp(1.4rem,4vw,2rem);font-weight:900;color:var(--gold-bright);
+  text-shadow:0 0 30px rgba(255,153,0,.6);
+}
+.btn-gold{
+  background:linear-gradient(180deg,#ffcc00 0%,#ff9900 50%,#cc7700 100%);
+  color:#1a0033;padding:16px 48px;border-radius:8px;
+  font-weight:900;font-size:clamp(1rem,3vw,1.25rem);
+  box-shadow:0 6px 0 #663300,0 0 30px rgba(255,153,0,.4);
+  transition:transform .15s,box-shadow .15s;min-height:56px;min-width:200px;
+}
+.btn-gold:active{transform:translateY(4px);box-shadow:0 2px 0 #663300}
+.btn-outline{
+  border:2px solid rgba(255,153,0,.5);color:var(--gold-bright);
+  padding:12px 32px;border-radius:8px;font-weight:700;font-size:1rem;
+  background:rgba(0,0,0,.3);min-height:48px;
+}
+
+/* ===== GAME STAGE LAYOUT ===== */
+.stage{
+  flex:1;display:grid;min-height:0;
+  grid-template-columns:1fr;
+  grid-template-rows:auto 1fr;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* Tablet landscape & desktop: ladder on side */
+@media(min-width:700px) and (orientation:landscape),(min-width:900px){
+  .stage{
+    grid-template-columns:minmax(160px,200px) 1fr;
+    grid-template-rows:1fr;
+    gap:0;
+  }
+}
+
+/* ===== PRIZE LADDER (classic show style) ===== */
+.ladder-col{
+  background:linear-gradient(180deg,rgba(0,0,40,.9),rgba(0,0,60,.95));
+  border-left:2px solid rgba(255,153,0,.2);
+  display:flex;flex-direction:column;overflow:hidden;
+}
+.ladder-header{
+  padding:10px 8px 6px;text-align:center;
+  font-size:.7rem;font-weight:800;color:var(--gold);letter-spacing:1px;
+  border-bottom:1px solid rgba(255,153,0,.15);flex-shrink:0;
+}
+.ladder-scroll{
+  flex:1;overflow-y:auto;overflow-x:hidden;padding:4px 6px;
+  -webkit-overflow-scrolling:touch;
+}
+.ladder-item{
+  display:grid;grid-template-columns:28px 1fr;gap:4px;align-items:center;
+  padding:3px 6px;margin-bottom:1px;border-radius:4px;
+  font-size:clamp(.65rem,1.8vw,.78rem);font-weight:700;
+  color:var(--ladder-text);transition:all .3s;
+}
+.ladder-item .num{text-align:center;opacity:.7}
+.ladder-item .amount{text-align:left;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ladder-item.active{
+  background:linear-gradient(90deg,rgba(255,255,255,.15),rgba(255,153,0,.2));
+  color:var(--ladder-active);
+  text-shadow:0 0 12px rgba(255,255,255,.8);
+  box-shadow:0 0 15px rgba(255,153,0,.3);
+  border:1px solid rgba(255,204,0,.4);
+}
+.ladder-item.passed{opacity:.35}
+.ladder-item.safe .num::after{content:'◆';font-size:.5rem;color:var(--safe-mark);margin-right:2px}
+
+/* Portrait & narrow: horizontal scrollable ladder strip */
+@media(max-width:699px),(orientation:portrait) and (max-width:1024px){
+  .ladder-col{
+    border-left:none;border-bottom:2px solid rgba(255,153,0,.2);
+    max-height:none;
+  }
+  .ladder-header{padding:6px}
+  .ladder-scroll{
+    display:flex;flex-direction:row-reverse;overflow-x:auto;overflow-y:hidden;
+    padding:4px;gap:2px;
+  }
+  .ladder-item{
+    flex-shrink:0;grid-template-columns:1fr;gap:0;padding:6px 10px;
+    min-width:72px;text-align:center;border:1px solid rgba(255,153,0,.15);
+    border-radius:6px;
+  }
+  .ladder-item .num{display:none}
+  .ladder-item .amount{font-size:.65rem;text-align:center}
+  .ladder-item.safe .amount::before{content:'◆ ';color:var(--safe-mark);font-size:.55rem}
+}
+
+/* ===== PLAY AREA ===== */
+.play-area{
+  display:flex;flex-direction:column;min-height:0;flex:1;
+  padding:8px 12px 12px;gap:8px;
+}
+
+/* Top bar: lifelines + controls */
+.top-bar{
+  display:flex;justify-content:space-between;align-items:center;
+  flex-shrink:0;gap:8px;padding:4px 0;
+}
+.lifelines{display:flex;gap:clamp(8px,2vw,16px);align-items:center}
+.lifeline{
+  width:clamp(48px,10vw,64px);height:clamp(48px,10vw,64px);
+  border-radius:50%;
+  background:radial-gradient(circle at 35% 35%,#2a1a80,#0a0055);
+  border:3px solid var(--gold);
+  box-shadow:0 0 15px rgba(255,153,0,.3),inset 0 0 10px rgba(0,0,0,.5);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-size:clamp(.55rem,1.8vw,.65rem);font-weight:800;color:var(--gold-bright);
+  transition:all .2s;position:relative;
+}
+.lifeline .lf-icon{font-size:clamp(1rem,3vw,1.3rem);line-height:1}
+.lifeline:not(:disabled):active{transform:scale(.92)}
+.lifeline:disabled{opacity:.25;border-color:#555;box-shadow:none;cursor:not-allowed}
+.lifeline:disabled::after{
+  content:'';position:absolute;width:120%;height:3px;background:#ff3333;
+  transform:rotate(-45deg);border-radius:2px;
+}
+.controls{display:flex;gap:6px;align-items:center}
+.ctrl-btn{
+  width:44px;height:44px;border-radius:50%;
+  background:rgba(0,0,0,.4);border:2px solid rgba(255,153,0,.4);
+  font-size:1.1rem;display:flex;align-items:center;justify-content:center;
+  transition:all .2s;
+}
+.ctrl-btn:active{background:rgba(255,153,0,.2)}
+.prize-now{
+  font-size:clamp(.75rem,2vw,.9rem);font-weight:800;color:var(--gold-bright);
+  text-shadow:0 0 10px rgba(255,153,0,.5);white-space:nowrap;
+  display:none;
+}
+@media(max-width:699px){.prize-now{display:block}}
+
+/* ===== QUESTION PANEL (static gold frame) ===== */
+.question-zone{
+  flex:1 1 auto;display:flex;align-items:center;justify-content:center;
+  min-height:0;padding:4px 0;overflow:hidden;
+}
+.question-ring{
+  position:relative;width:min(92vw,600px);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:16px 24px;
+  background:radial-gradient(ellipse at 50% 20%,#1a0080 0%,#080040 55%,#040020 100%);
+  border:3px solid var(--gold);
+  border-radius:16px;
+  box-shadow:0 0 30px rgba(255,153,0,.25),inset 0 0 40px rgba(0,0,0,.5);
+  overflow:hidden;
+}
+@media(min-width:600px) and (orientation:portrait){
+  .question-ring{width:min(88vw,620px);padding:18px 28px}
+  .play-area{padding:12px 20px 16px;gap:12px}
+  .answer-bar{min-height:64px;font-size:1.05rem}
+}
+@media(min-width:700px) and (orientation:landscape){
+  .question-ring{padding:20px 32px}
+  .answer-bar{min-height:60px;padding:12px 24px}
+  .lifeline{width:60px;height:60px}
+}
+.q-inner{
+  display:flex;flex-direction:column;gap:6px;align-items:center;justify-content:center;
+  width:100%;overflow:hidden;
+}
+.q-category{
+  font-size:clamp(.6rem,1.8vw,.72rem);font-weight:800;flex-shrink:0;
+  color:var(--gold);background:rgba(255,153,0,.15);
+  padding:2px 12px;border-radius:20px;border:1px solid rgba(255,153,0,.3);
+}
+.q-num{font-size:clamp(.6rem,1.6vw,.7rem);color:rgba(255,255,255,.5);font-weight:700;flex-shrink:0}
+.q-text{
+  font-size:clamp(.85rem,2.8vw,1.2rem);font-weight:800;line-height:1.5;
+  color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.5);
+  overflow:hidden;overflow-wrap:break-word;word-break:break-word;
+  width:100%;
+}
+
+/* ===== ANSWER BARS (normal rectangles) ===== */
+.answers-zone{flex-shrink:0;display:flex;flex-direction:column;gap:clamp(6px,1.5vw,10px)}
+.answers-row{display:grid;grid-template-columns:1fr 1fr;gap:clamp(6px,1.5vw,12px)}
+.answer-bar{
+  position:relative;display:flex;align-items:center;gap:8px;
+  min-height:clamp(52px,12vw,68px);
+  padding:10px clamp(12px,3vw,20px);
+  background:var(--bar-bg);
+  border:2px solid var(--bar-border);
+  border-radius:10px;
+  color:#fff;font-size:clamp(.82rem,2.5vw,1rem);font-weight:700;
+  text-align:right;cursor:pointer;
+  transition:all .2s;
+  box-shadow:0 0 8px var(--bar-glow),inset 0 1px 0 rgba(255,255,255,.1);
+}
+
+.answer-bar .ans-letter{
+  flex-shrink:0;font-weight:900;color:var(--gold-bright);
+  font-size:clamp(.9rem,2.8vw,1.1rem);min-width:24px;
+}
+.answer-bar .ans-text{flex:1;line-height:1.4}
+.answer-bar:not(:disabled):hover,.answer-bar:not(:disabled):focus-visible{
+  border-color:var(--gold-bright);
+  box-shadow:0 0 20px rgba(255,153,0,.5),inset 0 0 15px rgba(255,153,0,.1);
+}
+.answer-bar.selected{
+  border-color:var(--gold-bright);
+  background:linear-gradient(180deg,#1a0080,#2a00aa);
+  box-shadow:0 0 25px rgba(255,204,0,.6);
+  animation:selectedPulse 1s ease-in-out infinite;
+}
+@keyframes selectedPulse{0%,100%{box-shadow:0 0 25px rgba(255,204,0,.6)}50%{box-shadow:0 0 35px rgba(255,204,0,.9)}}
+.answer-bar.correct{border-color:var(--correct);background:linear-gradient(180deg,#004422,#006633);box-shadow:0 0 25px rgba(0,204,68,.6)}
+.answer-bar.wrong{border-color:var(--wrong);background:linear-gradient(180deg,#440000,#660000);animation:shake .4s}
+.answer-bar.hidden-answer{visibility:hidden;pointer-events:none;opacity:0}
+.answer-bar:disabled{cursor:not-allowed}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+
+/* Confirm */
+.confirm-zone{
+  flex-shrink:0;display:flex;justify-content:center;gap:12px;
+  padding-top:4px;min-height:52px;
+}
+.confirm-zone.hidden-bar{visibility:hidden;pointer-events:none}
+
+/* ===== MODAL ===== */
+.overlay{
+  position:fixed;inset:0;z-index:200;
+  background:rgba(0,0,20,.85);backdrop-filter:blur(8px);
+  display:flex;align-items:center;justify-content:center;padding:20px;
+}
+.modal{
+  background:linear-gradient(180deg,#0a0066,#060040);
+  border:3px solid var(--gold);border-radius:16px;
+  padding:28px 24px;max-width:420px;width:100%;text-align:center;
+  box-shadow:0 0 60px rgba(255,153,0,.3);
+  animation:modalIn .3s ease;
+}
+@keyframes modalIn{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
+.modal h2{font-size:1.3rem;font-weight:900;color:var(--gold-bright);margin-bottom:12px}
+.modal p,.modal .friend-msg{color:rgba(255,255,255,.75);line-height:1.7;margin-bottom:16px;font-size:.95rem}
+.modal-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.friend-msg{background:rgba(255,153,0,.1);border:1px solid rgba(255,153,0,.3);border-radius:10px;padding:14px}
+.poll-bar{margin:8px 0;text-align:right}
+.poll-bar label{font-size:.8rem;color:rgba(255,255,255,.6);display:block;margin-bottom:4px}
+.poll-track{height:24px;background:rgba(0,0,0,.4);border-radius:6px;overflow:hidden;border:1px solid rgba(255,153,0,.2)}
+.poll-fill{height:100%;background:linear-gradient(90deg,#ff9900,#ffcc00);display:flex;align-items:center;justify-content:flex-end;padding:0 8px;font-size:.75rem;font-weight:800;color:#1a0033;transition:width 1s ease}
+
+/* ===== LOADING ===== */
+.loading{text-align:center;padding:40px}
+.spinner{
+  width:48px;height:48px;border:4px solid rgba(255,153,0,.2);
+  border-top-color:var(--gold);border-radius:50%;
+  animation:spin .8s linear infinite;margin:0 auto 16px;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ===== RESULT SCREEN ===== */
+.result-icon{font-size:4rem;line-height:1}
+.result-prize{font-size:clamp(1.6rem,5vw,2.5rem);font-weight:900;color:var(--gold-bright);text-shadow:0 0 30px rgba(255,153,0,.6)}
+
+@media(max-width:480px){
+  .answers-row{grid-template-columns:1fr}
+  .answer-bar{padding:12px 16px}
+  .lifeline{width:52px;height:52px}
+  .lifeline .lf-label{display:none}
+}
+
+/* ===== CORRECT ANSWER FX ===== */
+.fx-layer{
+  position:fixed;inset:0;z-index:150;pointer-events:none;
+  display:flex;align-items:center;justify-content:center;
+}
+.correct-burst{
+  position:absolute;inset:0;
+  background:radial-gradient(circle,rgba(0,204,68,.35) 0%,transparent 65%);
+  animation:burstFade 1.6s ease forwards;
+}
+.correct-banner{
+  position:relative;z-index:2;
+  background:linear-gradient(180deg,#00cc44,#009933);
+  border:4px solid #66ff99;
+  border-radius:20px;
+  padding:24px 48px;
+  text-align:center;
+  box-shadow:0 0 60px rgba(0,255,100,.6),0 20px 50px rgba(0,0,0,.5);
+  animation:bannerPop 1.6s cubic-bezier(.34,1.56,.64,1) forwards;
+}
+.correct-banner .cb-icon{font-size:3.5rem;line-height:1;margin-bottom:8px}
+.correct-banner .cb-text{
+  font-size:clamp(2rem,8vw,3.5rem);font-weight:900;color:#fff;
+  text-shadow:0 4px 20px rgba(0,0,0,.4);
+}
+.correct-banner .cb-sub{font-size:clamp(.9rem,3vw,1.2rem);color:rgba(255,255,255,.9);margin-top:6px;font-weight:700}
+@keyframes burstFade{0%{opacity:0}15%{opacity:1}70%{opacity:1}100%{opacity:0}}
+@keyframes bannerPop{
+  0%{opacity:0;transform:scale(.3) rotate(-8deg)}
+  20%{opacity:1;transform:scale(1.1) rotate(2deg)}
+  35%{transform:scale(1) rotate(0)}
+  75%{opacity:1;transform:scale(1)}
+  100%{opacity:0;transform:scale(1.05)}
+}
+
+/* ===== WIN CELEBRATION ===== */
+.win-overlay{
+  position:fixed;inset:0;z-index:300;
+  background:radial-gradient(ellipse at 50% 40%,rgba(40,0,100,.95),rgba(0,0,30,.98));
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:20px;overflow:hidden;
+}
+.win-overlay.hidden-win{display:none}
+#confetti-canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.win-rays{
+  position:absolute;width:200vmax;height:200vmax;
+  background:conic-gradient(from 0deg,transparent 0deg,rgba(255,204,0,.12) 15deg,transparent 30deg,rgba(255,153,0,.1) 45deg,transparent 60deg,rgba(255,204,0,.12) 75deg,transparent 90deg,rgba(255,153,0,.1) 105deg,transparent 120deg,rgba(255,204,0,.12) 135deg,transparent 150deg,rgba(255,153,0,.1) 165deg,transparent 180deg,rgba(255,204,0,.12) 195deg,transparent 210deg,rgba(255,153,0,.1) 225deg,transparent 240deg,rgba(255,204,0,.12) 255deg,transparent 270deg,rgba(255,153,0,.1) 285deg,transparent 300deg,rgba(255,204,0,.12) 315deg,transparent 330deg,rgba(255,153,0,.1) 345deg,transparent 360deg);
+  animation:raysSpin 12s linear infinite;opacity:.7;
+}
+@keyframes raysSpin{to{transform:rotate(360deg)}}
+.win-content{position:relative;z-index:2;animation:winContentIn 1s cubic-bezier(.34,1.56,.64,1) both}
+.win-trophy{font-size:clamp(4rem,15vw,7rem);animation:trophyBounce 1s ease-in-out infinite alternate;line-height:1}
+.win-title{
+  font-size:clamp(2rem,8vw,4rem);font-weight:900;margin:12px 0;
+  background:linear-gradient(180deg,#fff 0%,#ffcc00 40%,#ff9900 100%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  filter:drop-shadow(0 0 30px rgba(255,204,0,.8));
+  animation:titlePulse 1.5s ease-in-out infinite alternate;
+}
+.win-amount{
+  font-size:clamp(1.8rem,7vw,3.5rem);font-weight:900;color:#ffcc00;
+  text-shadow:0 0 40px rgba(255,204,0,.9),0 0 80px rgba(255,153,0,.5);
+  margin:8px 0 16px;font-variant-numeric:tabular-nums;
+}
+.win-stars{font-size:2rem;letter-spacing:8px;animation:starsBlink 1s ease-in-out infinite}
+@keyframes winContentIn{from{opacity:0;transform:scale(.2)}to{opacity:1;transform:scale(1)}}
+@keyframes trophyBounce{from{transform:translateY(0) scale(1)}to{transform:translateY(-15px) scale(1.08)}}
+@keyframes titlePulse{from{filter:drop-shadow(0 0 20px rgba(255,204,0,.6))}to{filter:drop-shadow(0 0 50px rgba(255,204,0,1))}}
+@keyframes starsBlink{0%,100%{opacity:1}50%{opacity:.4}}
+.win-firework{
+  position:absolute;width:8px;height:8px;border-radius:50%;
+  animation:fireworkBurst 1.2s ease-out forwards;
+}
+@keyframes fireworkBurst{
+  0%{opacity:1;transform:translate(0,0) scale(1)}
+  100%{opacity:0;transform:translate(var(--tx),var(--ty)) scale(0)}
+}
+</style>
+</head>
+<body>
+<div class="studio-bg">
+  <div class="spotlight s1"></div>
+  <div class="spotlight s2"></div>
+</div>
+
+<div id="app">
+  <!-- Loading -->
+  <div id="screen-loading" class="screen">
+    <div class="loading">
+      <div class="spinner"></div>
+      <p style="color:rgba(255,255,255,.6)">جاري تحميل الأسئلة...</p>
+    </div>
+  </div>
+
+  <!-- Title -->
+  <div id="screen-title" class="screen hidden">
+    <div class="title-logo">
+      <div class="line1">من سيربح</div>
+      <div class="line2">المليون؟</div>
+    </div>
+    <div class="title-prize">🇸🇪 1,000,000 kr</div>
+    <p class="title-sub">١٥ سؤالاً للفوز بمليون كرونة سويدية!<br>أسئلة سهلة للأطفال مع ٤ وسائل مساعدة.</p>
+    <button class="btn-gold" id="btn-start">▶ &nbsp; ابدأ اللعبة</button>
+  </div>
+
+  <!-- Game -->
+  <div id="screen-game" class="stage hidden">
+    <aside class="ladder-col">
+      <div class="ladder-header">🇸🇪 سلم الجوائز</div>
+      <div class="ladder-scroll" id="ladder"></div>
+    </aside>
+
+    <div class="play-area">
+      <div class="top-bar">
+        <div class="lifelines">
+          <button class="lifeline" id="lf-5050" data-lf="5050" title="حذف إجابتين">
+            <span class="lf-icon">50:50</span>
+            <span class="lf-label">نصفين</span>
+          </button>
+          <button class="lifeline" id="lf-friend" data-lf="friend" title="اتصال بصديق">
+            <span class="lf-icon">📞</span>
+            <span class="lf-label">صديق</span>
+          </button>
+          <button class="lifeline" id="lf-audience" data-lf="audience" title="استطلاع الجمهور">
+            <span class="lf-icon">👥</span>
+            <span class="lf-label">جمهور</span>
+          </button>
+          <button class="lifeline" id="lf-swap" data-lf="swap" title="تغيير السؤال">
+            <span class="lf-icon">🔄</span>
+            <span class="lf-label">تبديل</span>
+          </button>
+        </div>
+        <div class="controls">
+          <span class="prize-now" id="current-prize">0 kr</span>
+          <button class="ctrl-btn" id="btn-sound" title="الصوت">🔊</button>
+          <button class="ctrl-btn" id="btn-quit" title="انسحاب">🏳️</button>
+        </div>
+      </div>
+
+      <div class="question-zone">
+        <div class="question-ring">
+          <div class="q-inner">
+            <span class="q-category" id="q-category">حيوانات</span>
+            <span class="q-num" id="q-number">السؤال ١ من ١٥</span>
+            <div class="q-text" id="q-text">...</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="answers-zone" id="answers-zone">
+        <div class="answers-row" id="answers-row-top"></div>
+        <div class="answers-row" id="answers-row-bottom"></div>
+      </div>
+
+      <div class="confirm-zone hidden-bar" id="confirm-bar">
+        <button class="btn-gold" id="btn-lock" style="padding:12px 36px;font-size:.95rem;min-width:auto">تأكيد الإجابة النهائية</button>
+        <button class="btn-outline" id="btn-cancel">تراجع</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Result -->
+  <div id="screen-result" class="screen hidden">
+    <div class="result-icon" id="result-icon">🎉</div>
+    <h1 class="title-logo" id="result-title" style="font-size:clamp(1.5rem,5vw,2.5rem)">مبروك!</h1>
+    <div class="result-prize" id="result-prize"></div>
+    <p class="title-sub" id="result-msg"></p>
+    <button class="btn-gold" id="btn-replay">العب مرة أخرى</button>
+  </div>
+</div>
+
+<div class="overlay hidden" id="overlay">
+  <div class="modal">
+    <h2 id="modal-title"></h2>
+    <div id="modal-body"></div>
+    <div class="modal-actions" id="modal-actions"></div>
+  </div>
+</div>
+
+<div class="fx-layer hidden" id="fx-correct">
+  <div class="correct-burst"></div>
+  <div class="correct-banner">
+    <div class="cb-icon">✅</div>
+    <div class="cb-text">مبروك!</div>
+    <div class="cb-sub" id="fx-correct-sub">إجابة صحيحة</div>
+  </div>
+</div>
+
+<div class="win-overlay hidden-win" id="win-overlay">
+  <div class="win-rays"></div>
+  <canvas id="confetti-canvas"></canvas>
+  <div class="win-content">
+    <div class="win-trophy">🏆</div>
+    <div class="win-stars">⭐ ✨ ⭐ ✨ ⭐</div>
+    <h1 class="win-title">مبروك! أنت مليونير!</h1>
+    <div class="win-amount" id="win-amount">1,000,000 kr</div>
+    <p style="color:rgba(255,255,255,.8);font-size:1.1rem;font-weight:700">أجبت على كل الأسئلة بشكل صحيح!</p>
+  </div>
+</div>
+
+<script>
+const PRIZES = [
+  100, 200, 500, 1000, 2000,
+  4000, 8000, 16000, 32000, 64000,
+  125000, 250000, 500000, 750000, 1000000
+];
+const SAFE_LEVELS = [4, 9];
+const TOTAL_QUESTIONS = 15;
+const LETTERS = ['أ', 'ب', 'ج', 'د'];
+
+let allQuestions = [], gameQuestions = [];
+let currentLevel = 0, selectedAnswer = -1, locked = false, soundOn = true;
+let lifelinesUsed = { '5050': false, friend: false, audience: false, swap: false };
+
+const $ = id => document.getElementById(id);
+
+function formatSEK(n) { return n.toLocaleString('en-US') + ' kr'; }
+
+function playCorrectJingle() {
+  if (!soundOn) return;
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const notes = [523, 659, 784, 1047];
+    notes.forEach((f, i) => {
+      const osc = ctx.createOscillator(), g = ctx.createGain();
+      osc.type = 'sine'; osc.frequency.value = f;
+      const t = ctx.currentTime + i * 0.12;
+      g.gain.setValueAtTime(0.15, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+      osc.connect(g); g.connect(ctx.destination);
+      osc.start(t); osc.stop(t + 0.25);
+    });
+  } catch (_) {}
+}
+
+function playWinFanfare() {
+  if (!soundOn) return;
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const melody = [523,523,523,659,784,784,659,784,1047,1047,784,1047,1319];
+    melody.forEach((f, i) => {
+      const osc = ctx.createOscillator(), g = ctx.createGain();
+      osc.type = i % 3 === 0 ? 'square' : 'sine';
+      osc.frequency.value = f;
+      const t = ctx.currentTime + i * 0.18;
+      g.gain.setValueAtTime(0.12, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+      osc.connect(g); g.connect(ctx.destination);
+      osc.start(t); osc.stop(t + 0.35);
+    });
+  } catch (_) {}
+}
+
+function showCorrectEffect(prize) {
+  return new Promise(resolve => {
+    const el = $('fx-correct');
+    $('fx-correct-sub').textContent = prize
+      ? `ربحت ${formatSEK(prize)} — السؤال التالي!`
+      : 'إجابة صحيحة!';
+    el.classList.remove('hidden');
+    playCorrectJingle();
+    setTimeout(() => {
+      el.classList.add('hidden');
+      resolve();
+    }, 1600);
+  });
+}
+
+let confettiAnim = null;
+function startConfetti() {
+  const canvas = $('confetti-canvas');
+  const ctx = canvas.getContext('2d');
+  const resize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
+  resize();
+  window.addEventListener('resize', resize);
+
+  const colors = ['#ffcc00','#ff9900','#ff6600','#00cc44','#3366ff','#ff3366','#ffffff','#ff00ff'];
+  const pieces = Array.from({ length: 180 }, () => ({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height - canvas.height,
+    w: 6 + Math.random() * 8,
+    h: 4 + Math.random() * 6,
+    color: colors[Math.floor(Math.random() * colors.length)],
+    rot: Math.random() * 360,
+    spin: (Math.random() - .5) * 12,
+    vy: 2 + Math.random() * 5,
+    vx: (Math.random() - .5) * 3,
+    shape: Math.random() > .5 ? 'rect' : 'circle'
+  }));
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    pieces.forEach(p => {
+      p.x += p.vx; p.y += p.vy; p.rot += p.spin;
+      if (p.y > canvas.height + 20) { p.y = -20; p.x = Math.random() * canvas.width; }
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot * Math.PI / 180);
+      ctx.fillStyle = p.color;
+      if (p.shape === 'circle') {
+        ctx.beginPath(); ctx.arc(0, 0, p.w / 2, 0, Math.PI * 2); ctx.fill();
+      } else {
+        ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      }
+      ctx.restore();
+    });
+    confettiAnim = requestAnimationFrame(draw);
+  }
+  draw();
+  spawnFireworks();
+}
+
+function spawnFireworks() {
+  const overlay = $('win-overlay');
+  const colors = ['#ffcc00','#ff9900','#00ff88','#ff66ff','#66ccff'];
+  const burst = () => {
+    const cx = 10 + Math.random() * 80;
+    const cy = 10 + Math.random() * 50;
+    for (let i = 0; i < 24; i++) {
+      const dot = document.createElement('div');
+      dot.className = 'win-firework';
+      dot.style.left = cx + '%';
+      dot.style.top = cy + '%';
+      dot.style.background = colors[Math.floor(Math.random() * colors.length)];
+      dot.style.boxShadow = `0 0 8px ${dot.style.background}`;
+      const angle = (i / 24) * Math.PI * 2;
+      const dist = 80 + Math.random() * 120;
+      dot.style.setProperty('--tx', Math.cos(angle) * dist + 'px');
+      dot.style.setProperty('--ty', Math.sin(angle) * dist + 'px');
+      overlay.appendChild(dot);
+      setTimeout(() => dot.remove(), 1300);
+    }
+  };
+  burst();
+  const interval = setInterval(burst, 600);
+  setTimeout(() => clearInterval(interval), 5000);
+}
+
+function stopConfetti() {
+  if (confettiAnim) { cancelAnimationFrame(confettiAnim); confettiAnim = null; }
+  const canvas = $('confetti-canvas');
+  canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+}
+
+function showWinCelebration(prize) {
+  return new Promise(resolve => {
+    $('win-amount').textContent = formatSEK(prize);
+    $('win-overlay').classList.remove('hidden-win');
+    startConfetti();
+    playWinFanfare();
+    setTimeout(() => {
+      stopConfetti();
+      $('win-overlay').classList.add('hidden-win');
+      resolve();
+    }, 5500);
+  });
+}
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function playTone(freq, dur, type = 'sine') {
+  if (!soundOn) return;
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator(), gain = ctx.createGain();
+    osc.type = type; osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + dur);
+  } catch (_) {}
+}
+
+function showScreen(id) {
+  ['screen-loading','screen-title','screen-game','screen-result'].forEach(s =>
+    $(s).classList.toggle('hidden', s !== id));
+}
+
+function buildLadder() {
+  const ladder = $('ladder');
+  ladder.innerHTML = '';
+  for (let i = TOTAL_QUESTIONS - 1; i >= 0; i--) {
+    const div = document.createElement('div');
+    div.className = 'ladder-item' + (SAFE_LEVELS.includes(i) ? ' safe' : '');
+    div.dataset.level = i;
+    div.innerHTML = `<span class="num">${i + 1}</span><span class="amount">${formatSEK(PRIZES[i])}</span>`;
+    ladder.appendChild(div);
+  }
+}
+
+function updateLadder() {
+  document.querySelectorAll('.ladder-item').forEach(el => {
+    const lvl = +el.dataset.level;
+    el.classList.remove('active', 'passed');
+    if (lvl === currentLevel) el.classList.add('active');
+    else if (lvl < currentLevel) el.classList.add('passed');
+  });
+  const prize = currentLevel > 0 ? PRIZES[currentLevel - 1] : 0;
+  $('current-prize').textContent = formatSEK(prize);
+  const active = document.querySelector('.ladder-item.active');
+  if (active) active.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+}
+
+function prepareQuestion(q) {
+  const shuffled = shuffle([0, 1, 2, 3]);
+  const correctNew = shuffled.indexOf(q.correct);
+  return { ...q, answers: shuffled.map(i => q.answers[i]), correct: correctNew };
+}
+
+function startGame() {
+  gameQuestions = shuffle(allQuestions).slice(0, TOTAL_QUESTIONS).map(prepareQuestion);
+  currentLevel = 0; selectedAnswer = -1; locked = false;
+  lifelinesUsed = { '5050': false, friend: false, audience: false, swap: false };
+  Object.keys(lifelinesUsed).forEach(k => {
+    const btn = $(`lf-${k}`);
+    if (btn) { btn.disabled = false; }
+  });
+  showScreen('screen-game');
+  renderQuestion();
+  updateLadder();
+  playTone(523, 0.15);
+}
+
+function createAnswerBtn(ans, i) {
+  const btn = document.createElement('button');
+  btn.className = 'answer-bar';
+  btn.dataset.index = i;
+  btn.innerHTML = `<span class="ans-letter">${LETTERS[i]}:</span><span class="ans-text">${ans}</span>`;
+  btn.addEventListener('click', () => selectAnswer(i, btn));
+  return btn;
+}
+
+function renderQuestion() {
+  const q = gameQuestions[currentLevel];
+  $('q-number').textContent = `السؤال ${currentLevel + 1} من ${TOTAL_QUESTIONS}`;
+  $('q-category').textContent = q.category;
+  $('q-text').textContent = q.question;
+  selectedAnswer = -1; locked = false;
+  $('confirm-bar').classList.add('hidden-bar');
+
+  $('answers-row-top').innerHTML = '';
+  $('answers-row-bottom').innerHTML = '';
+  $('answers-row-top').appendChild(createAnswerBtn(q.answers[0], 0));
+  $('answers-row-top').appendChild(createAnswerBtn(q.answers[1], 1));
+  $('answers-row-bottom').appendChild(createAnswerBtn(q.answers[2], 2));
+  $('answers-row-bottom').appendChild(createAnswerBtn(q.answers[3], 3));
+}
+
+function selectAnswer(index, btn) {
+  if (locked) return;
+  selectedAnswer = index;
+  document.querySelectorAll('.answer-bar').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  $('confirm-bar').classList.remove('hidden-bar');
+  playTone(440, 0.08);
+}
+
+function lockAnswer() {
+  if (selectedAnswer < 0 || locked) return;
+  locked = true;
+  $('confirm-bar').classList.add('hidden-bar');
+  const q = gameQuestions[currentLevel];
+  const buttons = document.querySelectorAll('.answer-bar');
+  buttons.forEach(b => b.disabled = true);
+
+  const correct = selectedAnswer === q.correct;
+  buttons[selectedAnswer].classList.add(correct ? 'correct' : 'wrong');
+  if (!correct) buttons[q.correct].classList.add('correct');
+
+  if (correct) {
+    const prizeWon = PRIZES[currentLevel];
+    const isFinal = currentLevel === TOTAL_QUESTIONS - 1;
+    setTimeout(async () => {
+      if (isFinal) {
+        await showWinCelebration(PRIZES[TOTAL_QUESTIONS - 1]);
+        endGame(true);
+      } else {
+        await showCorrectEffect(prizeWon);
+        currentLevel++;
+        updateLadder();
+        renderQuestion();
+        playTone(523, 0.1);
+      }
+    }, 800);
+  } else {
+    playTone(200, 0.4, 'sawtooth');
+    setTimeout(() => endGame(false), 2200);
+  }
+}
+
+function getSafePrize() {
+  if (currentLevel >= 10) return PRIZES[9];
+  if (currentLevel >= 5) return PRIZES[4];
+  return 0;
+}
+
+function endGame(won) {
+  const prize = won ? PRIZES[TOTAL_QUESTIONS - 1] : getSafePrize();
+  $('result-icon').textContent = won ? '🎉' : (prize > 0 ? '🏆' : '😔');
+  $('result-title').textContent = won ? 'مبروك! أنت مليونير!' : (prize > 0 ? 'انتهت اللعبة' : 'للأسف!');
+  $('result-prize').textContent = formatSEK(prize);
+  $('result-msg').textContent = won
+    ? `أجبت على كل الأسئلة الـ${TOTAL_QUESTIONS} بشكل صحيح!`
+    : prize > 0 ? 'وصلت لنقطة الأمان. حاول مرة أخرى!' : 'أجبت خطأ. لا بأس، تعلّم وجرّب مجدداً!';
+  $('current-prize').textContent = formatSEK(prize);
+  showScreen('screen-result');
+  if (!won) playTone(300, 0.3);
+}
+
+function useLifeline(type) {
+  if (lifelinesUsed[type] || locked) return;
+  const q = gameQuestions[currentLevel];
+  lifelinesUsed[type] = true;
+  $(`lf-${type}`).disabled = true;
+
+  if (type === '5050') {
+    const toHide = shuffle([0,1,2,3].filter(i => i !== q.correct)).slice(0, 2);
+    document.querySelectorAll('.answer-bar').forEach(b => {
+      if (toHide.includes(+b.dataset.index)) b.classList.add('hidden-answer');
+    });
+  } else if (type === 'friend') {
+    const conf = 60 + Math.floor(Math.random() * 35);
+    showModal('📞 اتصال بصديق',
+      `<div class="friend-msg">أعتقد الإجابة هي <strong>${LETTERS[q.correct]}: ${q.answers[q.correct]}</strong><br>ثقتي ${conf}%</div>`,
+      [{ label: 'شكراً', action: closeModal, cls: 'btn-gold' }]);
+  } else if (type === 'audience') {
+    const pct = [0,0,0,0];
+    pct[q.correct] = 45 + Math.floor(Math.random() * 30);
+    let rem = 100 - pct[q.correct];
+    const others = [0,1,2,3].filter(i => i !== q.correct);
+    others.forEach((i, idx) => {
+      if (idx === others.length - 1) pct[i] = rem;
+      else { const p = Math.floor(Math.random() * (rem - (others.length - idx - 1))); pct[i] = p; rem -= p; }
+    });
+    let html = '';
+    [0,1,2,3].forEach(i => {
+      html += `<div class="poll-bar"><label>${LETTERS[i]}: ${q.answers[i]}</label><div class="poll-track"><div class="poll-fill" style="width:0" data-pct="${pct[i]}">${pct[i]}%</div></div></div>`;
+    });
+    showModal('👥 استطلاع الجمهور', html, [{ label: 'حسناً', action: closeModal, cls: 'btn-gold' }]);
+    setTimeout(() => document.querySelectorAll('.poll-fill').forEach(el => el.style.width = el.dataset.pct + '%'), 100);
+  } else if (type === 'swap') {
+    const used = new Set(gameQuestions.map(g => g.id));
+    const avail = allQuestions.filter(a => !used.has(a.id));
+    if (!avail.length) {
+      lifelinesUsed.swap = false; $(`lf-swap`).disabled = false;
+      showModal('🔄', '<p>لا توجد أسئلة بديلة!</p>', [{ label: 'حسناً', action: closeModal, cls: 'btn-gold' }]);
+      return;
+    }
+    gameQuestions[currentLevel] = prepareQuestion(avail[Math.floor(Math.random() * avail.length)]);
+    renderQuestion();
+  }
+  playTone(550, 0.1);
+}
+
+function showModal(title, body, actions) {
+  $('modal-title').textContent = title;
+  $('modal-body').innerHTML = typeof body === 'string' ? body : '';
+  $('modal-actions').innerHTML = '';
+  actions.forEach(a => {
+    const b = document.createElement('button');
+    b.className = a.cls || 'btn-gold';
+    b.style.cssText = 'padding:10px 28px;font-size:.9rem;min-width:auto';
+    b.textContent = a.label;
+    b.onclick = a.action;
+    $('modal-actions').appendChild(b);
+  });
+  $('overlay').classList.remove('hidden');
+}
+function closeModal() { $('overlay').classList.add('hidden'); }
+
+function confirmQuit() {
+  if (currentLevel === 0) { showScreen('screen-title'); return; }
+  const prize = currentLevel > 0 ? PRIZES[currentLevel - 1] : 0;
+  showModal('🏳️ انسحاب',
+    `<p>انسحابك الآن يعني ربح <strong style="color:#ffcc00">${formatSEK(prize)}</strong></p>`,
+    [
+      { label: 'نعم، انسحب', cls: 'btn-gold', action: () => {
+        closeModal();
+        $('result-icon').textContent = '🏳️';
+        $('result-title').textContent = 'انسحبت بأمان';
+        $('result-prize').textContent = formatSEK(prize);
+        $('result-msg').textContent = 'اخترت الانسحاب والاحتفاظ بجائزتك.';
+        showScreen('screen-result');
+      }},
+      { label: 'أكمل', cls: 'btn-outline', action: closeModal }
+    ]);
+}
+
+async function loadQuestions() {
+  try {
+    const res = await fetch('millionaire-questions.json');
+    if (!res.ok) throw new Error();
+    allQuestions = await res.json();
+    if (allQuestions.length < TOTAL_QUESTIONS) throw new Error();
+    showScreen('screen-title');
+  } catch (_) {
+    $('screen-loading').innerHTML = '<div class="loading"><p style="color:#ff6666">تعذر تحميل الأسئلة</p><button class="btn-gold" onclick="location.reload()" style="margin-top:16px">إعادة المحاولة</button></div>';
+  }
+}
+
+$('btn-start').addEventListener('click', startGame);
+$('btn-replay').addEventListener('click', () => { showScreen('screen-title'); $('current-prize').textContent = '0 kr'; });
+$('btn-lock').addEventListener('click', lockAnswer);
+$('btn-cancel').addEventListener('click', () => {
+  selectedAnswer = -1;
+  document.querySelectorAll('.answer-bar').forEach(b => b.classList.remove('selected'));
+  $('confirm-bar').classList.add('hidden-bar');
+});
+$('btn-quit').addEventListener('click', confirmQuit);
+$('btn-sound').addEventListener('click', () => { soundOn = !soundOn; $('btn-sound').textContent = soundOn ? '🔊' : '🔇'; });
+document.querySelectorAll('.lifeline').forEach(b => b.addEventListener('click', () => useLifeline(b.dataset.lf)));
+
+buildLadder();
+loadQuestions();
+</script>
+</body>
+</html>
