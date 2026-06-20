@@ -38,7 +38,20 @@ if [ ! -x "${JAVA_HOME:-}/bin/javac" ]; then
 fi
 
 cd "$APK_DIR"
-./gradlew assembleRelease
+./gradlew assembleDebug assembleRelease
 
-APK=$(ls -1 app/build/outputs/apk/release/*.apk 2>/dev/null | head -1)
-echo "✅ APK جاهز: $APK"
+DEBUG_APK="$APK_DIR/app/build/outputs/apk/debug/app-debug.apk"
+RELEASE_APK="$APK_DIR/app/build/outputs/apk/release/app-release-unsigned.apk"
+DOWNLOAD_APK="$ROOT/ys-games-app.apk"
+
+if [ -f "$DEBUG_APK" ]; then
+  cp "$DEBUG_APK" "$DOWNLOAD_APK"
+  echo "✅ تم نسخ ملف التحميل: $DOWNLOAD_APK"
+  ls -lh "$DOWNLOAD_APK"
+else
+  echo "❌ لم يُعثر على debug APK" >&2
+  exit 1
+fi
+
+echo "📦 debug (قابل للتثبيت): $DEBUG_APK"
+echo "📦 release (غير موقّع):   $RELEASE_APK"
