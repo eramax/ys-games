@@ -20,6 +20,8 @@ copy games/vendor/three.min.js
 copy games/images/chess.svg
 copy games/images/millionaire.png
 copy games/images/resturant.webp
+copy games/images/car-game.webp
+copy games/images/car-game-thumb.png
 cp "$ROOT/apk-shell/offline.html" "$DEST/apk-shell/offline.html"
 cp "$ROOT/apk-shell/loading.html" "$DEST/apk-shell/loading.html"
 mkdir -p "$ROOT/ys-games-apk/app/src/main/assets/www/apk-shell"

@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "baseUrl": "https://ys-games.vercel.app/",
   "files": [
     "index.html",
@@ -14,6 +14,8 @@
     "games/vendor/three.min.js",
     "games/images/chess.svg",
     "games/images/millionaire.png",
-    "games/images/resturant.webp"
+    "games/images/resturant.webp",
+    "games/images/car-game.webp",
+    "games/images/car-game-thumb.png"
   ]
 }
