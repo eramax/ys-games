@@ -342,7 +342,7 @@ body.dragging { touch-action:none; }
 .btn-cancel { background:var(--danger); color:#fff; }
 
 #phone-widget {
-  display:none; position:fixed; top:88px; right:12px; z-index:120;
+  display:none; position:fixed; top:88px; left:12px; right:auto; z-index:120;
   width:52px; height:52px; border-radius:50%; cursor:pointer;
   background:rgba(46,204,113,0.9); border:2px solid #2ecc71;
   align-items:center; justify-content:center; font-size:26px;
@@ -354,34 +354,18 @@ body.dragging { touch-action:none; }
   50% { transform:rotate(8deg) scale(1.08); }
 }
 
-#row-equipment { flex-shrink:0; }
-#row-equipment.game-row { overflow:visible; }
-#equipment-grid {
-  display:flex; flex-wrap:wrap; gap:8px; padding:10px;
-  align-content:start; justify-content:flex-start;
-}
-.equip-item {
-  background:rgba(255,255,255,0.06); border:2px solid var(--border); border-radius:10px;
-  padding:8px 10px; min-width:100px; max-width:140px; text-align:center;
-  position:relative; display:flex; flex-direction:column; align-items:center; gap:4px;
-}
-.equip-item.delivering { border-color:var(--warn); }
-.equip-item.has-money { border-color:var(--ok); }
-.equip-item.drop-over { border-color:var(--ok); box-shadow:0 0 12px rgba(46,204,113,0.45); }
-.equip-item .eq-icon { font-size:28px; line-height:1; }
-.equip-item .eq-name { font-size:9px; color:#bbb; }
-.equip-item .eq-st { font-size:8px; color:#aaa; line-height:1.3; }
-.equip-item .eq-send {
-  margin-top:4px; width:100%; padding:5px; border:none; border-radius:6px;
+.activity .veh-send {
+  margin-top:3px; width:100%; padding:4px; border:none; border-radius:6px;
   background:var(--gold); color:#222; font-family:inherit; font-weight:700;
-  font-size:9px; cursor:pointer;
+  font-size:8px; cursor:pointer;
 }
-.equip-item .eq-send:disabled { opacity:0.4; cursor:not-allowed; }
-.equip-item .eq-money {
-  margin-top:4px; padding:6px; border-radius:8px; background:rgba(46,204,113,0.2);
-  border:1px dashed var(--ok); cursor:grab; font-size:11px; font-weight:700; width:100%;
+.activity .veh-money {
+  margin-top:3px; padding:4px 6px; border-radius:6px; background:rgba(46,204,113,0.2);
+  border:1px dashed var(--ok); cursor:grab; font-size:9px; font-weight:700; width:100%;
 }
-.equip-owned { font-size:10px; color:var(--gold); padding:8px 12px; }
+.activity.vehicle-act { cursor:default; }
+.activity.vehicle-act.delivering { border-color:var(--warn); }
+.activity.vehicle-act.has-money { border-color:var(--ok); }
 </style>
 </head>
 <body>
@@ -430,11 +414,6 @@ body.dragging { touch-action:none; }
     <div id="inventory-grid"></div>
   </div>
 
-  <div id="row-equipment" class="game-row">
-    <div class="row-label">🛵 المعدات والتوصيل</div>
-    <div id="equipment-grid"></div>
-  </div>
-
   <div id="row-activities" class="game-row">
     <div class="row-label">⚙️ الأنشطة</div>
     <div id="activities-grid"></div>
@@ -465,13 +444,14 @@ const CFG = {
   batchCook: 5,
   startSupplyBatches: 1,
   maxOrders: 4,
+  startMoney: 100,
   deliveryTime: 60000,
   phoneRingMin: 25000,
   phoneRingMax: 55000,
   netFishBatch: 5,
   vehicleCap: { moto: 2, car: 5 },
   shop: { dishes: 5, rawFish: 8, rice: 10, tahini: 5, salad: 3, juice: 10, cola: 10, cups: 5 },
-  equip: { grill: 100, fryer: 120, moto: 500, car: 1500, phone: 200, net: 100 }
+  equip: { grill: 10, fryer: 10, moto: 10, car: 10, phone: 10, net: 100 }
 };
 
 const ORDER_TEMPLATES = [
@@ -657,7 +637,7 @@ const STATE_LABELS = {
 };
 
 const S = {
-  money: 0, success: 0, fail: 0,
+  money: CFG.startMoney, success: 0, fail: 0,
   cleanDishes: CFG.startDishes, dirtyDishes: 0,
   cleanCups: CFG.startCups, dirtyCups: 0,
   rawFish: 0, grilled: 0, fried: 0,
@@ -667,7 +647,7 @@ const S = {
   supplyCola: CFG.startSupplyBatches,
   equip: { grill: 0, fryer: 0, phone: 0, net: 0 },
   vehicles: { moto: [], car: [] },
-  phone: { ringing: false, nextRing: 0, pendingCall: null },
+  phone: { ringing: false, nextRing: 0, pendingCall: null, soundActive: false },
   acts: {},
   orders: [], activeOrderId: null,
   customers: [], nextId: 1, nextOrderId: 1, nextVehicleId: 1,
@@ -682,6 +662,53 @@ let pendingShop = { dishes:0, rawFish:0, rice:0, tahini:0, salad:0, juice:0, col
 let pendingEquip = { grill:0, fryer:0, moto:0, car:0, phone:0, net:0 };
 let spawnIv, tickIv, scene, camera, renderer, seaMesh;
 let prevInvCounts = {};
+let phoneAudioCtx = null;
+let phoneRingIv = null;
+
+function ensurePhoneAudio() {
+  if (!phoneAudioCtx) {
+    phoneAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (phoneAudioCtx.state === 'suspended') phoneAudioCtx.resume();
+}
+
+function playPhoneRingBurst() {
+  try {
+    ensurePhoneAudio();
+    const t = phoneAudioCtx.currentTime;
+    [0, 0.45].forEach(offset => {
+      [480, 620].forEach((freq, i) => {
+        const osc = phoneAudioCtx.createOscillator();
+        const gain = phoneAudioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        const start = t + offset + i * 0.18;
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(0.22, start + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.16);
+        osc.connect(gain);
+        gain.connect(phoneAudioCtx.destination);
+        osc.start(start);
+        osc.stop(start + 0.17);
+      });
+    });
+  } catch (_) {}
+}
+
+function startPhoneRingAudio() {
+  if (S.phone.soundActive) return;
+  S.phone.soundActive = true;
+  playPhoneRingBurst();
+  phoneRingIv = setInterval(playPhoneRingBurst, 2600);
+}
+
+function stopPhoneRingAudio() {
+  S.phone.soundActive = false;
+  if (phoneRingIv) {
+    clearInterval(phoneRingIv);
+    phoneRingIv = null;
+  }
+}
 
 function flashClass(el, cls) {
   if (!el) return;
@@ -849,15 +876,59 @@ function actVisible(a) {
   return (S.equip[a.needsEquip] || 0) > 0;
 }
 
+function vehicleActId(vtype, vid) {
+  return `veh-${vtype}-${vid}`;
+}
+
+function buildVehicleActivitiesHtml() {
+  return ['moto', 'car'].flatMap(vtype => S.vehicles[vtype].map(v => {
+    const icon = vtype === 'moto' ? '🛵' : '🚗';
+    const name = vtype === 'moto' ? 'موتوسيكل' : 'سيارة';
+    const vid = vehicleActId(vtype, v.id);
+    const showSend = v.status !== 'delivering' && v.orders.length > 0;
+    const sendBtn = `<button type="button" class="veh-send" data-send="${vtype}-${v.id}" style="display:${showSend ? 'block' : 'none'}">🚀 إرسال</button>`;
+    const moneyHtml = v.payout > 0
+      ? `<div class="veh-money" data-vehicle-money="${vtype}-${v.id}">💰 ${v.payout} kr</div>` : '';
+    return `<div class="activity vehicle-act" data-vehicle-drop="1" data-vehicle-type="${vtype}" data-vehicle-id="${v.id}" id="${vid}">
+      <span class="act-icon">${icon}</span>
+      <span class="act-name">${name} #${v.id}</span>
+      <span class="act-status" id="${vid}-st"></span>
+      <div class="act-progress" id="${vid}-prog"><div></div></div>
+      ${sendBtn}${moneyHtml}
+    </div>`;
+  })).join('');
+}
+
+function bindVehicleActivityEvents() {
+  document.querySelectorAll('#activities-grid .veh-send').forEach(btn => {
+    btn.onclick = e => {
+      e.stopPropagation();
+      const [vt, id] = btn.dataset.send.split('-');
+      sendVehicle(vt, +id);
+    };
+  });
+  document.querySelectorAll('#activities-grid .veh-money').forEach(mn => {
+    mn.onpointerdown = e => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (S.drag) return;
+      const [vt, id] = mn.dataset.vehicleMoney.split('-');
+      startDrag('vehicleMoney', { vtype: vt, vid: +id }, e);
+    };
+  });
+}
+
 function rebuildActivities() {
   const acts = document.getElementById('activities-grid');
-  acts.innerHTML = ACTS.filter(actVisible).map(a => `
+  const actHtml = ACTS.filter(actVisible).map(a => `
     <div class="activity" data-act="${a.id}" id="act-${a.id}">
       <span class="act-icon">${actIconHtml(a)}</span>
       <span class="act-name">${a.name}</span>
       <span class="act-status" id="act-${a.id}-st"></span>
       <div class="act-progress" id="act-${a.id}-prog"><div></div></div>
     </div>`).join('');
+  acts.innerHTML = actHtml + buildVehicleActivitiesHtml();
+  bindVehicleActivityEvents();
   ACTS.forEach(a => {
     if (!S.acts[a.id]) S.acts[a.id] = { busy: false, prog: 0, start: 0, queue: 0 };
   });
@@ -1544,7 +1615,10 @@ function loadPackageOnVehicle(orderId, vtype, vid) {
   order.vehicleType = vtype;
   order.vehicleId = v.id;
   msg(`📦 على ${vtype === 'moto' ? 'الموتوسيكل' : 'السيارة'} (${v.orders.length}/${cap})`);
-  renderAll();
+  rebuildActivities();
+  renderActivities();
+  renderTray();
+  renderOrders();
   return true;
 }
 
@@ -1554,11 +1628,13 @@ function sendVehicle(vtype, vid) {
   v.status = 'delivering';
   v.deliverEnd = Date.now() + CFG.deliveryTime;
   msg('🛵 التوصيل جارٍ... 60 ثانية');
-  renderEquipment();
+  rebuildActivities();
+  renderActivities();
 }
 
 function tickVehicles() {
   const now = Date.now();
+  let structureChanged = false;
   ['moto', 'car'].forEach(vtype => {
     S.vehicles[vtype].forEach(v => {
       if (v.status !== 'delivering' || now < v.deliverEnd) return;
@@ -1569,9 +1645,11 @@ function tickVehicles() {
         if (ord) { ord.status = 'done'; S.success++; }
       });
       v.orders = [];
+      structureChanged = true;
       msg(`✅ ${vtype === 'moto' ? '🛵' : '🚗'} عاد بالمال — ${v.payout} kr`);
     });
   });
+  if (structureChanged) rebuildActivities();
 }
 
 function collectVehicleMoney(vtype, vid) {
@@ -1580,6 +1658,7 @@ function collectVehicleMoney(vtype, vid) {
   S.money += v.payout;
   msg(`💰 +${v.payout} kr من التوصيل!`);
   v.payout = 0;
+  rebuildActivities();
   renderAll();
   return true;
 }
@@ -1593,14 +1672,17 @@ function schedulePhoneRing() {
 function tickPhone() {
   const el = document.getElementById('phone-widget');
   if (S.equip.phone <= 0) {
+    stopPhoneRingAudio();
     if (el) el.style.display = 'none';
     return;
   }
   if (el) el.style.display = 'flex';
   if (S.phone.ringing) {
     el?.classList.add('ringing');
+    startPhoneRingAudio();
     return;
   }
+  stopPhoneRingAudio();
   el?.classList.remove('ringing');
   if (!S.phone.pendingCall && S.phone.nextRing > 0 && Date.now() >= S.phone.nextRing) {
     const id = S.nextId++;
@@ -1611,6 +1693,7 @@ function tickPhone() {
       price: calcOrderPrice(order), isDelivery: true
     };
     msg('📞 التليفون يرن — طلب توصيل!');
+    startPhoneRingAudio();
   }
 }
 
@@ -1667,49 +1750,6 @@ function confirmEquip() {
   msg(`🛠️ تم شراء الأجهزة — ${total} kr`);
   rebuildActivities();
   renderAll();
-}
-
-function renderEquipment() {
-  const el = document.getElementById('equipment-grid');
-  if (!el) return;
-  const owned = [];
-  if (S.equip.grill > 0) owned.push(`🔥 شوايات: ${S.equip.grill}`);
-  if (S.equip.fryer > 0) owned.push(`🍳 مقلاة: ${S.equip.fryer}`);
-  if (S.equip.net > 0) owned.push(`🕸️ شباك: ${S.equip.net}`);
-  if (S.equip.phone > 0) owned.push(`📞 تليفون: ${S.equip.phone}`);
-
-  const vehHtml = ['moto', 'car'].flatMap(vtype => S.vehicles[vtype].map(v => {
-    const cap = CFG.vehicleCap[vtype];
-    const icon = vtype === 'moto' ? '🛵' : '🚗';
-    const name = vtype === 'moto' ? 'موتوسيكل' : 'سيارة';
-    const delivering = v.status === 'delivering';
-    const left = delivering ? Math.max(0, Math.ceil((v.deliverEnd - Date.now()) / 1000)) : 0;
-    const st = delivering ? `يوصّل... ${left}ث` : (v.orders.length ? `${v.orders.length}/${cap} طلب` : 'جاهز');
-    const cls = ['equip-item', delivering ? 'delivering' : '', v.payout > 0 ? 'has-money' : ''].filter(Boolean).join(' ');
-    const moneyHtml = v.payout > 0
-      ? `<div class="eq-money" data-vehicle-money="${vtype}-${v.id}">💰 ${v.payout} kr</div>` : '';
-    const sendBtn = !delivering && v.orders.length
-      ? `<button type="button" class="eq-send" data-send="${vtype}-${v.id}">🚀 إرسال</button>` : '';
-    return `<div class="${cls}" data-vehicle-drop="1" data-vehicle-type="${vtype}" data-vehicle-id="${v.id}">
-      <span class="eq-icon">${icon}</span><span class="eq-name">${name} #${v.id}</span>
-      <span class="eq-st">${st}</span>${sendBtn}${moneyHtml}</div>`;
-  }));
-
-  el.innerHTML =
-    (owned.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px;width:100%;margin-bottom:4px">${owned.map(t => `<span class="equip-owned">${t}</span>`).join('')}</div>` : '') +
-    (vehHtml.length ? vehHtml.join('') : '<span class="equip-owned">اشترِ موتوسيكل أو سيارة من 🛠️ أجهزة</span>');
-
-  el.querySelectorAll('[data-send]').forEach(btn => {
-    btn.onclick = e => { e.stopPropagation(); const [vt, id] = btn.dataset.send.split('-'); sendVehicle(vt, +id); };
-  });
-  el.querySelectorAll('.eq-money').forEach(mn => {
-    mn.onpointerdown = e => {
-      e.preventDefault(); e.stopPropagation();
-      if (S.drag) return;
-      const [vt, id] = mn.dataset.vehicleMoney.split('-');
-      startDrag('vehicleMoney', { vtype: vt, vid: +id }, e);
-    };
-  });
 }
 
 // ============ CUSTOMERS ============
@@ -1870,6 +1910,7 @@ function acceptDeliveryOrder() {
   if (!c?.order) return;
   S.phone.ringing = false;
   S.phone.pendingCall = null;
+  stopPhoneRingAudio();
   schedulePhoneRing();
   S.customers.push({
     id: c.id, name: c.name, avatar: c.avatar,
@@ -1939,7 +1980,6 @@ function gameTick() {
   });
 
   renderActivities();
-  renderEquipment();
   renderOrders();
   renderTray();
 }
@@ -1949,7 +1989,6 @@ function renderAll() {
   renderHUD();
   renderInventory();
   renderActivities();
-  renderEquipment();
   renderNewCustomers();
   renderOrders();
   renderTray();
@@ -2012,6 +2051,35 @@ function renderActivities() {
       }
       else status.textContent = 'اضغط للبدء';
     }
+  });
+  ['moto', 'car'].forEach(vtype => {
+    S.vehicles[vtype].forEach(v => {
+      const id = vehicleActId(vtype, v.id);
+      const el = document.getElementById(id);
+      const status = document.getElementById(id + '-st');
+      const prog = document.getElementById(id + '-prog');
+      if (!el || !status) return;
+      const cap = CFG.vehicleCap[vtype];
+      const delivering = v.status === 'delivering';
+      el.classList.toggle('busy', delivering);
+      el.classList.toggle('delivering', delivering);
+      el.classList.toggle('has-money', v.payout > 0);
+      const sendBtn = el.querySelector('.veh-send');
+      if (sendBtn) sendBtn.style.display = (!delivering && v.orders.length > 0) ? 'block' : 'none';
+      if (delivering && prog) {
+        const elapsed = CFG.deliveryTime - Math.max(0, v.deliverEnd - Date.now());
+        const p = Math.min(elapsed / CFG.deliveryTime, 1);
+        prog.classList.add('show');
+        prog.querySelector('div').style.width = (p * 100) + '%';
+        const left = Math.max(0, Math.ceil((v.deliverEnd - Date.now()) / 1000));
+        status.textContent = Math.floor(p * 100) + '% · ' + left + 'ث';
+      } else if (prog) {
+        prog.classList.remove('show');
+        if (v.payout > 0) status.textContent = 'اسحب المال 💰';
+        else if (v.orders.length) status.textContent = `${v.orders.length}/${cap} طلب · إرسال`;
+        else status.textContent = 'اسحب الطلب 📦';
+      }
+    });
   });
 }
 
@@ -2246,6 +2314,7 @@ function msg(text) {
 }
 
 document.getElementById('start-btn').onclick = () => {
+  ensurePhoneAudio();
   document.getElementById('intro').style.display = 'none';
   document.getElementById('ui').style.display = 'flex';
   init3D();
