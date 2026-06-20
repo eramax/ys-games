@@ -89,17 +89,7 @@ public class MainActivity extends Activity {
     }
 
     private void loadUpdatingPage() {
-        String html = "<!DOCTYPE html><html lang='ar' dir='rtl'><head><meta charset='UTF-8'>" +
-                "<meta name='viewport' content='width=device-width,initial-scale=1'>" +
-                "<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;" +
-                "background:#090d16;color:#fff;font-family:sans-serif;text-align:center;padding:24px}" +
-                ".p{width:80%;max-width:320px;height:8px;background:#1f2937;border-radius:8px;overflow:hidden;margin:16px auto}" +
-                ".p div{height:100%;width:0;background:#3b82f6;transition:width .2s}</style></head><body>" +
-                "<h2>جاري تحميل الألعاب...</h2><p id='st'>يرجى الانتظار</p>" +
-                "<div class='p'><div id='bar'></div></div>" +
-                "<script>function onGamesUpdateProgress(p,m){document.getElementById('bar').style.width=p+'%';" +
-                "if(m)document.getElementById('st').textContent=m;}</script></body></html>";
-        mWebView.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null);
+        mWebView.loadUrl("file:///android_asset/www/apk-shell/loading.html");
     }
 
     private void runJs(String js) {

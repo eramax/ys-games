@@ -337,9 +337,11 @@
 
   <div id="update-overlay">
     <div class="update-card">
+      <div style="font-size:2.2rem;margin-bottom:6px;">🎮</div>
       <h2 style="margin-bottom:8px;color:#60a5fa;">تحديث الألعاب</h2>
       <p id="update-msg" style="color:#9ca3af;font-size:0.9rem;">جاري التحميل...</p>
       <div class="update-bar"><div id="update-bar-fill"></div></div>
+      <p id="update-pct" style="color:#60a5fa;font-size:0.85rem;font-weight:700;margin-top:6px;">0%</p>
     </div>
   </div>
 
@@ -485,6 +487,8 @@
     YSApp.onUpdateProgress((pct, msg) => {
       showUpdateOverlay(true);
       document.getElementById('update-bar-fill').style.width = pct + '%';
+      const pctEl = document.getElementById('update-pct');
+      if (pctEl) pctEl.textContent = Math.round(pct) + '%';
       if (msg) document.getElementById('update-msg').textContent = msg;
     });
 

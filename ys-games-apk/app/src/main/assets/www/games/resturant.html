@@ -27,7 +27,40 @@
   --tray-content-h: clamp(64px, 13vh, 96px);
   --tray-slot-w: clamp(72px, 17vw, 88px);
   --ui-gap: 4px;
+  --scroll-size: 8px;
+  --scroll-thumb: rgba(245, 200, 66, 0.55);
+  --scroll-track: rgba(255, 255, 255, 0.08);
 }
+@media (pointer: coarse) {
+  :root { --scroll-size: 12px; }
+}
+.section-scroll {
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+}
+.section-scroll::-webkit-scrollbar {
+  width: var(--scroll-size);
+  height: var(--scroll-size);
+}
+.section-scroll::-webkit-scrollbar-track {
+  background: var(--scroll-track);
+  border-radius: 6px;
+  margin: 2px;
+}
+.section-scroll::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.section-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(245, 200, 66, 0.75);
+  background-clip: padding-box;
+}
+.section-scroll-x { overflow-x: auto; overflow-y: hidden; }
+.section-scroll-y { overflow-y: auto; overflow-x: hidden; }
 * { margin:0; padding:0; box-sizing:border-box; user-select:none; -webkit-tap-highlight-color:transparent; }
 body { font-family:'Cairo',system-ui,sans-serif; overflow:hidden; background:#0a1628; color:#fff; height:100dvh; width:100vw; touch-action:manipulation; }
 body.dragging, body.dragging * { touch-action:none !important; }
@@ -73,12 +106,10 @@ body.dragging, body.dragging * { touch-action:none !important; }
 #row-orders { min-height:0; overflow:hidden; }
 #order-tabs-wrap {
   display:flex; align-items:flex-start; gap:6px; padding:4px 8px 0;
-  overflow-x:auto; overflow-y:hidden; flex-shrink:0;
+  flex-shrink:0;
   -webkit-overflow-scrolling:touch; touch-action:manipulation;
-  scrollbar-width:thin;
 }
-#order-tabs-wrap::-webkit-scrollbar { height: 5px; }
-#order-tabs-wrap::-webkit-scrollbar-thumb { background: rgba(245,200,66,0.35); border-radius: 3px; }
+#order-tabs-wrap.section-scroll { overflow-x:auto; overflow-y:hidden; }
 #order-tabs-wrap .order-tab,
 #order-tabs-wrap .new-chip { touch-action:manipulation; cursor:pointer; }
 #order-tabs { display:flex; gap:5px; flex-wrap:nowrap; min-width:min-content; }
@@ -118,20 +149,21 @@ body.dragging, body.dragging * { touch-action:none !important; }
   flex-direction:column; overflow:hidden;
 }
 #tray-area.show { display:flex; }
+#tray-scroll {
+  flex:1; min-height:0;
+  display:flex; flex-direction:column; gap:4px;
+}
 .tray-hd { flex-shrink:0; display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; font-size:10px; gap:6px; }
 #tray-content {
   flex:1 1 auto; min-height:52px; max-height:var(--tray-content-h);
   height:var(--tray-content-h);
-  overflow-x:auto; overflow-y:hidden;
   -webkit-overflow-scrolling:touch; touch-action:pan-x;
-  scrollbar-width:thin;
 }
-#tray-content .tray-slots,
-#tray-content .tray-slot { touch-action: pan-x; }
-#tray-content::-webkit-scrollbar { height: 6px; }
-#tray-content::-webkit-scrollbar-thumb { background: rgba(245,200,66,0.4); border-radius: 3px; }
+#tray-content.section-scroll { overflow-x:auto; overflow-y:hidden; }
 body.dragging #tray-content,
 body.dragging #order-tabs-wrap { overflow: hidden; touch-action: none; }
+#tray-content .tray-slots,
+#tray-content .tray-slot { touch-action: pan-x; }
 .tray-hd b { color:var(--gold); }
 .tray-slots {
   display: flex; flex-wrap: nowrap; gap: 8px; justify-content: safe center;
@@ -213,15 +245,17 @@ body.dragging #order-tabs-wrap { overflow: hidden; touch-action: none; }
 
 /* MIDDLE: inventory */
 #row-inventory #inventory-grid {
-  overflow-y:auto; flex:1; min-height:0; touch-action:pan-y;
+  flex:1; min-height:0; touch-action:pan-y;
 }
+#row-inventory #inventory-grid.section-scroll { overflow-y:auto; overflow-x:hidden; }
 #inventory-grid,
 #activities-grid {
   display:grid; grid-template-columns:repeat(auto-fill, minmax(var(--tile-cell-min), 1fr));
   grid-auto-rows:var(--tile-cell-min); gap:clamp(4px,1vw,6px); padding:clamp(6px,1.5vw,10px);
   align-content:start; justify-content:start;
 }
-#activities-grid { overflow-y:auto; flex:1; touch-action:pan-y; }
+#activities-grid { flex:1; min-height:0; touch-action:pan-y; }
+#activities-grid.section-scroll { overflow-y:auto; overflow-x:hidden; }
 body.dragging #activities-grid { overflow:hidden; touch-action:none; }
 body.dragging { touch-action:none; }
 .inv-item,
@@ -428,32 +462,34 @@ body.dragging { touch-action:none; }
 
   <div id="row-orders" class="game-row">
     <div class="row-label">📋 الطلبات والصينية</div>
-    <div id="order-tabs-wrap">
+    <div id="order-tabs-wrap" class="section-scroll section-scroll-x">
       <div id="new-customers"></div>
       <div id="order-tabs"></div>
     </div>
     <div id="tray-area">
-      <div class="tray-hd">
-        <span>🪔 <b id="tray-title">الصينية</b></span>
-        <span id="tray-hint" style="font-size:10px;color:#aaa">① طبق/كاس → ② طعام</span>
-      </div>
-      <div id="tray-content"></div>
-      <div id="tray-actions">
-        <button class="tray-deliver" id="tray-deliver-btn">🍽️ قدّم للزبون</button>
-        <button type="button" class="tray-ship-hint" id="tray-ship-btn">📦 انقل للموتوسيكل أو السيارة ↓</button>
-        <button type="button" class="tray-close-order" id="tray-close-btn">✅ إغلاق الطلب</button>
+      <div id="tray-scroll" class="section-scroll section-scroll-y">
+        <div class="tray-hd">
+          <span>🪔 <b id="tray-title">الصينية</b></span>
+          <span id="tray-hint" style="font-size:10px;color:#aaa">① طبق/كاس → ② طعام</span>
+        </div>
+        <div id="tray-content" class="section-scroll section-scroll-x"></div>
+        <div id="tray-actions">
+          <button class="tray-deliver" id="tray-deliver-btn">🍽️ قدّم للزبون</button>
+          <button type="button" class="tray-ship-hint" id="tray-ship-btn">📦 انقل للموتوسيكل أو السيارة ↓</button>
+          <button type="button" class="tray-close-order" id="tray-close-btn">✅ إغلاق الطلب</button>
+        </div>
       </div>
     </div>
   </div>
 
   <div id="row-inventory" class="game-row">
     <div class="row-label">📦 المخزون</div>
-    <div id="inventory-grid"></div>
+    <div id="inventory-grid" class="section-scroll section-scroll-y"></div>
   </div>
 
   <div id="row-activities" class="game-row">
     <div class="row-label">⚙️ الأنشطة</div>
-    <div id="activities-grid"></div>
+    <div id="activities-grid" class="section-scroll section-scroll-y"></div>
   </div>
 </div>
 
@@ -2749,15 +2785,47 @@ function startAutoSave() {
   });
 }
 
+function applyInitialState(withStarterEquip) {
+  S.customers.forEach(c => { if (c.waitIv) clearInterval(c.waitIv); });
+  stopPhoneRingAudio();
+  Object.assign(S, {
+    money: CFG.startMoney, success: 0, fail: 0,
+    cleanDishes: CFG.startDishes, dirtyDishes: 0,
+    cleanCups: CFG.startCups, dirtyCups: 0,
+    paperPlates: CFG.paperPackSize, paperCups: CFG.paperPackSize,
+    rawFish: 0, grilled: 0, fried: 0,
+    rice: 0, salad: 0, tahini: 0, juice: 0, cola: 0,
+    supplyRice: CFG.startSupplyBatches, supplySalad: CFG.startSupplyBatches,
+    supplyTahini: CFG.startSupplyBatches, supplyJuice: CFG.startSupplyBatches,
+    supplyCola: CFG.startSupplyBatches,
+    equip: { phone: 0 },
+    equipUnits: { grill: [], fryer: [], net: [] },
+    vehicles: { moto: [], car: [] },
+    phone: { ringing: false, nextRing: 0, pendingCall: null, soundActive: false, ringStart: 0 },
+    orders: [], activeOrderId: null,
+    customers: [], nextId: 1, nextOrderId: 1, nextVehicleId: 1, nextEquipUnitId: 1,
+    drag: null
+  });
+  ACTS.forEach(a => { S.acts[a.id] = { busy: false, prog: 0, start: 0, queue: 0 }; });
+  orderTabsSig = '';
+  trayTimerMode = null;
+  if (withStarterEquip) {
+    addEquipUnit('grill');
+    addEquipUnit('fryer');
+  }
+}
+
 function startGameSession(resume) {
   ensurePhoneAudio();
   document.getElementById('intro').style.display = 'none';
   document.getElementById('ui').style.display = 'grid';
   initAppEvents();
+  let loaded = false;
   if (resume && typeof YSSave !== 'undefined') {
     const data = YSSave.load(SAVE_ID);
-    if (data) applyGameState(data);
+    if (data) { applyGameState(data); loaded = true; }
   }
+  if (!loaded) applyInitialState(true);
   init3D();
   buildUI();
   renderAll();

@@ -21,7 +21,9 @@ copy games/images/chess.svg
 copy games/images/millionaire.png
 copy games/images/resturant.webp
 cp "$ROOT/apk-shell/offline.html" "$DEST/apk-shell/offline.html"
+cp "$ROOT/apk-shell/loading.html" "$DEST/apk-shell/loading.html"
 mkdir -p "$ROOT/ys-games-apk/app/src/main/assets/www/apk-shell"
 cp "$ROOT/apk-shell/offline.html" "$ROOT/ys-games-apk/app/src/main/assets/www/apk-shell/offline.html"
+cp "$ROOT/apk-shell/loading.html" "$ROOT/ys-games-apk/app/src/main/assets/www/apk-shell/loading.html"
 
 echo "✅ تم النسخ إلى $DEST"
