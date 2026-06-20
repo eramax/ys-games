@@ -462,7 +462,8 @@ const CFG = {
   phoneRingDuration: 10000,
   netFishBatch: 5,
   vehicleCap: { moto: 2, car: 5 },
-  shop: { dishes: 5, rawFish: 8, rice: 10, tahini: 5, salad: 3, juice: 10, cola: 10, cups: 5 },
+  shop: { dishes: 5, rawFish: 8, rice: 10, tahini: 5, salad: 3, juice: 10, cola: 10, cups: 5, paperPlates: 5, paperCups: 5 },
+  paperPackSize: 50,
   equip: { grill: 10, fryer: 10, moto: 10, car: 10, phone: 10, net: 100 }
 };
 
@@ -548,6 +549,8 @@ const ITEMS = {
   juice:      { emoji:'🍊', label:'عصير برتقال', inv:'juice' },
   cola:       { emoji:'🥤', label:'كوكاكولا', inv:'cola' },
   money:      { emoji:'💰', label:'الكاشير', inv:'money' },
+  paperPlate: { emoji:'paperPlate', label:'أطباق ورق', inv:'paperPlates' },
+  paperCup:   { emoji:'paperCup', label:'أكواب ورق', inv:'paperCups' },
   dish:       { emoji:'🍽️', label:'طبق' },
   cup:        { emoji:'cup', label:'كاس' }
 };
@@ -564,6 +567,22 @@ function cupIcon() {
     <path d="M7 10h18l-2.5 24a5 5 0 0 1-5 4H14a5 5 0 0 1-5-4Z" fill="#3498db" stroke="#2980b9" stroke-width="1"/>
     <rect x="9" y="5" width="14" height="6" rx="2" fill="#5dade2"/>
     <path d="M25 14h5" stroke="#5dade2" stroke-width="2.5" stroke-linecap="round"/>
+  </svg>`;
+}
+
+function paperPlateIcon() {
+  return `<svg class="dish-svg paper-plate" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" aria-hidden="true">
+    <ellipse cx="20" cy="24" rx="17" ry="7" fill="#e8dcc8" stroke="#c9b896" stroke-width="1.2"/>
+    <ellipse cx="20" cy="22" rx="13" ry="5" fill="#f5f0e6"/>
+    <ellipse cx="20" cy="21" rx="10" ry="3.5" fill="#faf8f2" opacity="0.9"/>
+  </svg>`;
+}
+
+function paperCupIcon() {
+  return `<svg class="cup-svg paper-cup" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 40" aria-hidden="true">
+    <path d="M8 12h16l-2 22a4 4 0 0 1-4 3.5H14a4 4 0 0 1-4-3.5Z" fill="#f5f0e6" stroke="#c9b896" stroke-width="1"/>
+    <path d="M10 8h12l1 4H9Z" fill="#e8dcc8" stroke="#c9b896" stroke-width="0.8"/>
+    <ellipse cx="16" cy="8" rx="7" ry="2" fill="#faf8f2"/>
   </svg>`;
 }
 
@@ -623,7 +642,9 @@ const SHOP_ITEMS = [
   { k:'salad', inv:'supplySalad', l:'سلطة خام', priceKey:'salad', unit:'يكفي تحضير 5 أطباق', icon:'🥗', perUnit:1 },
   { k:'juice', inv:'supplyJuice', l:'برتقال خام', priceKey:'juice', unit:'يكفي عصر 5 أكواب', icon:'🍊', perUnit:1 },
   { k:'cola', inv:'supplyCola', l:'كوكاكولا خام', priceKey:'cola', unit:'يكفي تعبئة 5 أكواب', icon:'🥤', perUnit:1 },
-  { k:'cups', inv:'cleanCups', l:'كاس', priceKey:'cups', unit:'للواحد', icon:'cup', perUnit:1 }
+  { k:'cups', inv:'cleanCups', l:'كاس', priceKey:'cups', unit:'للواحد', icon:'cup', perUnit:1 },
+  { k:'paperPlates', inv:'paperPlates', l:'أطباق ورق', priceKey:'paperPlates', unit:'50 طبق للتوصيل', icon:'paperPlate', perUnit:50 },
+  { k:'paperCups', inv:'paperCups', l:'أكواب ورق', priceKey:'paperCups', unit:'50 كوب للتوصيل', icon:'paperCup', perUnit:50 }
 ];
 
 const EQUIP_ITEMS = [
@@ -652,6 +673,7 @@ const S = {
   money: CFG.startMoney, success: 0, fail: 0,
   cleanDishes: CFG.startDishes, dirtyDishes: 0,
   cleanCups: CFG.startCups, dirtyCups: 0,
+  paperPlates: CFG.paperPackSize, paperCups: CFG.paperPackSize,
   rawFish: 0, grilled: 0, fried: 0,
   rice: 0, salad: 0, tahini: 0, juice: 0, cola: 0,
   supplyRice: CFG.startSupplyBatches, supplySalad: CFG.startSupplyBatches,
@@ -670,7 +692,7 @@ ACTS.forEach(a => { S.acts[a.id] = { busy: false, prog: 0, start: 0, queue: 0 };
 
 let modalCustomer = null;
 let modalMode = 'order';
-let pendingShop = { dishes:0, rawFish:0, rice:0, tahini:0, salad:0, juice:0, cola:0, cups:0 };
+let pendingShop = { dishes:0, rawFish:0, rice:0, tahini:0, salad:0, juice:0, cola:0, cups:0, paperPlates:0, paperCups:0 };
 let pendingEquip = { grill:0, fryer:0, moto:0, car:0, phone:0, net:0 };
 let spawnIv, tickIv, scene, camera, renderer, seaMesh;
 let prevInvCounts = {};
@@ -763,6 +785,8 @@ function itemHtml(type) {
   const it = ITEMS[type];
   if (!it) return '❓';
   if (it.fish) return fishIcon(it.fish);
+  if (type === 'paperPlate') return paperPlateIcon();
+  if (type === 'paperCup') return paperCupIcon();
   if (it.emoji === 'cup' || type === 'cup') return cupIcon();
   if (it.emoji === 'tahini' || type === 'tahini') return tahiniIcon();
   if (type === 'cleanDish' || type === 'dish' || type === 'dirtyDish') return dishIcon();
@@ -862,6 +886,8 @@ function actIconHtml(a) {
 function shopItemIcon(item) {
   if (item.fish) return fishIcon(item.fish);
   if (item.icon === 'cup') return cupIcon();
+  if (item.icon === 'paperPlate') return paperPlateIcon();
+  if (item.icon === 'paperCup') return paperCupIcon();
   if (item.icon === 'tahini') return tahiniIcon();
   return item.icon;
 }
@@ -873,7 +899,7 @@ function shopItemAmount(item) {
 // ============ BUILD UI ============
 function buildUI() {
   const inv = document.getElementById('inventory-grid');
-  const invKeys = ['cleanDish','dirtyDish','cleanCup','dirtyCup','rawFish','grilled','fried','rice','salad','tahini','juice','cola','money'];
+  const invKeys = ['cleanDish','dirtyDish','cleanCup','dirtyCup','paperPlate','paperCup','rawFish','grilled','fried','rice','salad','tahini','juice','cola','money'];
   const invDropKeys = new Set(['dirtyDish','dirtyCup','money']);
   inv.innerHTML = invKeys.map(k => `
     <div class="inv-item" data-inv="${k}" id="inv-${k}"${invDropKeys.has(k) ? ` data-inv-drop="${k}"` : ''}>
@@ -1066,6 +1092,12 @@ function startDrag(type, extra, e) {
     if (type === 'cup' && S.cleanCups <= 0) { msg('❌ لا كاسات نظيفة!'); return; }
     if (type === 'dish') S.cleanDishes--;
     else S.cleanCups--;
+  } else if (type === 'paperPlate') {
+    if (S.paperPlates <= 0) { msg('❌ لا أطباق ورق! اشترِ من 🛒'); return; }
+    S.paperPlates--;
+  } else if (type === 'paperCup') {
+    if (S.paperCups <= 0) { msg('❌ لا أكواب ورق! اشترِ من 🛒'); return; }
+    S.paperCups--;
   } else if (['rawFish','grilled','fried','rice','salad','tahini','juice','cola'].includes(type)) {
     if (!decInv(type)) { msg('❌ المخزون فارغ!'); return; }
   } else if (type === 'dirtyDish' || type === 'dirtyCup') {
@@ -1079,9 +1111,11 @@ function startDrag(type, extra, e) {
   const g = document.getElementById('drag-ghost');
   if (type === 'package') g.innerHTML = '📦';
   else if (type === 'vehicleMoney') g.innerHTML = '💰';
-  else g.innerHTML = itemHtml(type === 'dish' ? 'cleanDish' : type === 'cup' ? 'cleanCup' : type);
-  g.classList.toggle('drag-cup', type === 'cup' || type === 'dirtyCup');
-  g.classList.toggle('drag-dish', type === 'dish' || type === 'dirtyDish');
+  else g.innerHTML = itemHtml(
+    type === 'dish' ? 'cleanDish' : type === 'cup' ? 'cleanCup' : type
+  );
+  g.classList.toggle('drag-cup', type === 'cup' || type === 'dirtyCup' || type === 'paperCup');
+  g.classList.toggle('drag-dish', type === 'dish' || type === 'dirtyDish' || type === 'paperPlate');
   g.classList.add('show');
   if (e) {
     g.style.left = e.clientX + 'px';
@@ -1106,6 +1140,8 @@ function endDrag(restore) {
     const ex = drag.extra || {};
     if (t === 'dish') S.cleanDishes++;
     else if (t === 'cup') S.cleanCups++;
+    else if (t === 'paperPlate') S.paperPlates++;
+    else if (t === 'paperCup') S.paperCups++;
     else if (['rawFish','grilled','fried','rice','salad','tahini','juice','cola'].includes(t)) incInv(t);
     else if ((t === 'dirtyDish' || t === 'dirtyCup') && ex.orderId != null && ex.slotIdx != null) {
       const order = S.orders.find(o => o.id === ex.orderId);
@@ -1273,11 +1309,15 @@ function handleDrop(drag, target) {
     if (type === 'money' && target.id === 'money') {
       return collectMoney(extra.orderId);
     }
+    if (type === 'vehicleMoney' && target.id === 'money') {
+      return collectVehicleMoney(extra.vtype, extra.vid);
+    }
     return false;
   }
 
-  if (target.kind === 'inv' && type === 'money' && target.id === 'money') {
-    return collectMoney(extra.orderId);
+  if (target.kind === 'inv' && target.id === 'money') {
+    if (type === 'money') return collectMoney(extra.orderId);
+    if (type === 'vehicleMoney') return collectVehicleMoney(extra.vtype, extra.vid);
   }
 
   if (target.kind === 'vehicle' && type === 'package') {
@@ -1319,6 +1359,8 @@ document.getElementById('inventory-grid').addEventListener('pointerdown', e => {
   }
   if (id === 'cleanDish' && S.cleanDishes > 0) startDrag('dish', {}, e);
   else if (id === 'cleanCup' && S.cleanCups > 0) startDrag('cup', {}, e);
+  else if (id === 'paperPlate' && S.paperPlates > 0) startDrag('paperPlate', {}, e);
+  else if (id === 'paperCup' && S.paperCups > 0) startDrag('paperCup', {}, e);
   else if (id === 'dirtyDish' && S.dirtyDishes > 0) {
     S.dirtyDishes--;
     startDrag('dirtyDish', {}, e);
@@ -1527,6 +1569,26 @@ function placeOnSlot(orderId, slotIdx, type, extra) {
 
   const isCup = isCupDrink(slot.need);
 
+  if (order.isDelivery) {
+    if (type === 'paperPlate' && !isCup && !slot.hasBase) {
+      slot.hasBase = true;
+      msg('📄 طبق ورق — اسحب الطعام');
+      renderTray();
+      return true;
+    }
+    if (type === 'paperCup' && isCup && !slot.hasBase) {
+      slot.hasBase = true;
+      msg(slot.need === 'cola' ? '🥤 كوب ورق — اسحب الكوكاكولا' : '🥤 كوب ورق — اسحب العصير');
+      renderTray();
+      return true;
+    }
+    if (!isCup && type === 'dish') { msg('❌ طلب توصيل — استخدم طبق ورق!'); S.cleanDishes++; return false; }
+    if (isCup && type === 'cup') { msg('❌ طلب توصيل — استخدم كوب ورق!'); S.cleanCups++; return false; }
+  } else {
+    if (type === 'paperPlate') { msg('❌ أطباق الورق للتوصيل فقط!'); S.paperPlates++; return false; }
+    if (type === 'paperCup') { msg('❌ أكواب الورق للتوصيل فقط!'); S.paperCups++; return false; }
+  }
+
   if (type === 'dish' && !isCup && !slot.hasBase) {
     slot.hasBase = true;
     msg('🍽️ طبق على الصينية — اسحب الطعام');
@@ -1546,12 +1608,20 @@ function placeOnSlot(orderId, slotIdx, type, extra) {
     else msg(`❌ يحتاج ${ITEMS[slot.need].label}!`);
     if (type === 'dish') S.cleanDishes++;
     else if (type === 'cup') S.cleanCups++;
+    else if (type === 'paperPlate') S.paperPlates++;
+    else if (type === 'paperCup') S.paperCups++;
     else incInv(type);
     return false;
   }
   if (!slot.hasBase) {
-    msg(isCup ? '❌ ضع كاساً أولاً!' : '❌ ضع طبقاً أولاً!');
-    incInv(type);
+    msg(order.isDelivery
+      ? (isCup ? '❌ ضع كوب ورق أولاً!' : '❌ ضع طبق ورق أولاً!')
+      : (isCup ? '❌ ضع كاساً أولاً!' : '❌ ضع طبقاً أولاً!'));
+    if (type === 'dish') S.cleanDishes++;
+    else if (type === 'cup') S.cleanCups++;
+    else if (type === 'paperPlate') S.paperPlates++;
+    else if (type === 'paperCup') S.paperCups++;
+    else incInv(type);
     return false;
   }
 
@@ -1869,7 +1939,7 @@ function openShop() {
   if (S.drag) endDrag(true);
   modalMode = 'shop';
   modalCustomer = null;
-  pendingShop = { dishes:0, rawFish:0, rice:0, tahini:0, salad:0, juice:0, cola:0, cups:0 };
+  pendingShop = { dishes:0, rawFish:0, rice:0, tahini:0, salad:0, juice:0, cola:0, cups:0, paperPlates:0, paperCups:0 };
   document.getElementById('modal-title').textContent = '🛒 شراء مستلزمات';
   document.getElementById('modal-confirm').textContent = '✅ تأكيد الشراء';
   document.getElementById('modal-cancel').textContent = '❌ إلغاء';
@@ -2083,7 +2153,7 @@ function renderHUD() {
 }
 
 function renderInventory() {
-  const keys = ['cleanDish','dirtyDish','cleanCup','dirtyCup','rawFish','grilled','fried','rice','salad','tahini','juice','cola','money'];
+  const keys = ['cleanDish','dirtyDish','cleanCup','dirtyCup','paperPlate','paperCup','rawFish','grilled','fried','rice','salad','tahini','juice','cola','money'];
   keys.forEach(k => {
     const cnt = invCount(k);
     const prev = prevInvCounts[k];
@@ -2265,14 +2335,15 @@ function trayNeedIcon(slot) {
   return itemHtml(slot.need);
 }
 
-function trayBaseIcon(isCup) {
+function trayBaseIcon(order, isCup) {
+  if (order.isDelivery) return isCup ? paperCupIcon() : paperPlateIcon();
   return isCup ? cupIcon() : dishIcon();
 }
 
 function renderTraySlot(slot, i, order) {
   const info = ITEMS[slot.need];
   const isCup = isCupDrink(slot.need);
-  const baseIcon = trayBaseIcon(isCup);
+  const baseIcon = trayBaseIcon(order, isCup);
   const needIcon = trayNeedIcon(slot);
   const attrs = `data-slot="1" data-order-id="${order.id}" data-slot-idx="${i}" data-need="${slot.need}"`;
 
@@ -2287,7 +2358,14 @@ function renderTraySlot(slot, i, order) {
 
   const baseCls = slot.hasBase ? 'active' : 'ghost';
   const needCls = slot.hasBase ? 'slot-need-icon waiting-food' : 'slot-need-icon slot-ghost-icon';
-  const hint = slot.hasBase ? (isCup ? (slot.need === 'cola' ? '+ كوكا؟' : '+ عصير؟') : '+ طعام؟') : (isCup ? 'كاس؟' : 'طبق؟');
+  let hint;
+  if (slot.hasBase) {
+    hint = isCup ? (slot.need === 'cola' ? '+ كوكا؟' : '+ عصير؟') : '+ طعام؟';
+  } else if (order.isDelivery) {
+    hint = isCup ? 'كوب ورق؟' : 'طبق ورق؟';
+  } else {
+    hint = isCup ? 'كاس؟' : 'طبق؟';
+  }
   const cls = slot.hasBase ? 'has-base' : '';
 
   return `<div class="tray-slot ${cls}" ${attrs}>
@@ -2324,6 +2402,9 @@ function renderTray() {
   document.getElementById('tray-title').textContent = order.isDelivery
     ? `توصيل #${order.id}`
     : `صينية ${order.customerName} #${order.id}`;
+  document.getElementById('tray-hint').textContent = order.isDelivery
+    ? '① طبق/كوب ورق → ② طعام'
+    : '① طبق/كاس → ② طعام';
 
   if (order.status === 'eating') {
     trayTimerMode = 'eating';
