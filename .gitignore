@@ -1,1 +1,5 @@
 codedb.snapshot
+ys-games-apk/keystore.properties
+ys-games-apk/*.jks
+ys-games-apk/*.keystore
+ys-games-apk/local.properties
