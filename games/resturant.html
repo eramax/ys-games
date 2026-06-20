@@ -340,6 +340,48 @@ body.dragging { touch-action:none; }
 .modal-btns button { flex:1; padding:10px; border:none; border-radius:8px; font-family:inherit; font-weight:700; cursor:pointer; font-size:14px; }
 .btn-ok { background:var(--ok); color:#fff; }
 .btn-cancel { background:var(--danger); color:#fff; }
+
+#phone-widget {
+  display:none; position:fixed; top:88px; right:12px; z-index:120;
+  width:52px; height:52px; border-radius:50%; cursor:pointer;
+  background:rgba(46,204,113,0.9); border:2px solid #2ecc71;
+  align-items:center; justify-content:center; font-size:26px;
+  box-shadow:0 4px 16px rgba(0,0,0,0.45); touch-action:none;
+}
+#phone-widget.ringing { animation:phoneRing 0.5s ease-in-out infinite; background:rgba(231,76,60,0.95); border-color:#e74c3c; }
+@keyframes phoneRing {
+  0%,100% { transform:rotate(-8deg) scale(1); }
+  50% { transform:rotate(8deg) scale(1.08); }
+}
+
+#row-equipment { flex-shrink:0; }
+#row-equipment.game-row { overflow:visible; }
+#equipment-grid {
+  display:flex; flex-wrap:wrap; gap:8px; padding:10px;
+  align-content:start; justify-content:flex-start;
+}
+.equip-item {
+  background:rgba(255,255,255,0.06); border:2px solid var(--border); border-radius:10px;
+  padding:8px 10px; min-width:100px; max-width:140px; text-align:center;
+  position:relative; display:flex; flex-direction:column; align-items:center; gap:4px;
+}
+.equip-item.delivering { border-color:var(--warn); }
+.equip-item.has-money { border-color:var(--ok); }
+.equip-item.drop-over { border-color:var(--ok); box-shadow:0 0 12px rgba(46,204,113,0.45); }
+.equip-item .eq-icon { font-size:28px; line-height:1; }
+.equip-item .eq-name { font-size:9px; color:#bbb; }
+.equip-item .eq-st { font-size:8px; color:#aaa; line-height:1.3; }
+.equip-item .eq-send {
+  margin-top:4px; width:100%; padding:5px; border:none; border-radius:6px;
+  background:var(--gold); color:#222; font-family:inherit; font-weight:700;
+  font-size:9px; cursor:pointer;
+}
+.equip-item .eq-send:disabled { opacity:0.4; cursor:not-allowed; }
+.equip-item .eq-money {
+  margin-top:4px; padding:6px; border-radius:8px; background:rgba(46,204,113,0.2);
+  border:1px dashed var(--ok); cursor:grab; font-size:11px; font-weight:700; width:100%;
+}
+.equip-owned { font-size:10px; color:var(--gold); padding:8px 12px; }
 </style>
 </head>
 <body>
@@ -362,7 +404,8 @@ body.dragging { touch-action:none; }
     <div class="hud-item">💰 <b id="hud-money">0</b> kr</div>
     <div class="hud-item">📋 طلبات: <b id="hud-orders">0</b></div>
     <div class="hud-item">⭐ نجاح: <b id="hud-success">0</b></div>
-    <button type="button" class="hud-item hud-btn" id="hud-shop-btn">🛒 شراء</button>
+    <button type="button" class="hud-item hud-btn" id="hud-shop-btn">🛒 مواد</button>
+    <button type="button" class="hud-item hud-btn" id="hud-equip-btn">🛠️ أجهزة</button>
   </div>
 
   <div id="row-orders" class="game-row">
@@ -387,6 +430,11 @@ body.dragging { touch-action:none; }
     <div id="inventory-grid"></div>
   </div>
 
+  <div id="row-equipment" class="game-row">
+    <div class="row-label">🛵 المعدات والتوصيل</div>
+    <div id="equipment-grid"></div>
+  </div>
+
   <div id="row-activities" class="game-row">
     <div class="row-label">⚙️ الأنشطة</div>
     <div id="activities-grid"></div>
@@ -394,6 +442,7 @@ body.dragging { touch-action:none; }
 </div>
 
 <div id="msgs"></div>
+<div id="phone-widget" title="تليفون التوصيل">📞</div>
 <div id="drag-ghost"></div>
 
 <div id="modal-bg"></div>
@@ -411,12 +460,18 @@ body.dragging { touch-action:none; }
 const CFG = {
   fishTime: 20000, grillTime: 15000, fryTime: 12000, riceTime: 30000,
   washTime: 10000, eatTimeMs: 20000, waitTime: 180, spawnInterval: 14000,
-  prices: { grilled: 20, fried: 25, rice: 5, juice: 5 },
+  prices: { grilled: 20, fried: 25, rice: 5, juice: 5, cola: 5 },
   startDishes: 20, startCups: 10,
   batchCook: 5,
   startSupplyBatches: 1,
   maxOrders: 4,
-  shop: { dishes: 5, rawFish: 8, rice: 10, tahini: 5, salad: 3, juice: 10, cups: 5 }
+  deliveryTime: 60000,
+  phoneRingMin: 25000,
+  phoneRingMax: 55000,
+  netFishBatch: 5,
+  vehicleCap: { moto: 2, car: 5 },
+  shop: { dishes: 5, rawFish: 8, rice: 10, tahini: 5, salad: 3, juice: 10, cola: 10, cups: 5 },
+  equip: { grill: 100, fryer: 120, moto: 500, car: 1500, phone: 200, net: 100 }
 };
 
 const ORDER_TEMPLATES = [
@@ -432,18 +487,28 @@ const ORDER_TEMPLATES = [
   { grilled: 1, fried: 0, rice: 2, juice: 1, salad: 1, tahini: 1 },
   { grilled: 1, fried: 0, rice: 1, juice: 1, salad: 0, tahini: 1 },
   { grilled: 0, fried: 1, rice: 1, juice: 1, salad: 1, tahini: 0 },
+  { grilled: 1, fried: 0, rice: 1, juice: 0, cola: 1, salad: 1, tahini: 1 },
 ];
 
 function pickCustomerOrder() {
   const t = ORDER_TEMPLATES[Math.floor(Math.random() * ORDER_TEMPLATES.length)];
-  return { grilled: t.grilled, fried: t.fried, rice: t.rice, juice: t.juice, salad: t.salad, tahini: t.tahini };
+  return {
+    grilled: t.grilled, fried: t.fried, rice: t.rice,
+    juice: t.juice || 0, cola: t.cola || 0,
+    salad: t.salad, tahini: t.tahini
+  };
 }
 
 function calcOrderPrice(order) {
   return (order.grilled || 0) * CFG.prices.grilled +
     (order.fried || 0) * CFG.prices.fried +
     (order.rice || 0) * CFG.prices.rice +
-    (order.juice || 0) * CFG.prices.juice;
+    (order.juice || 0) * CFG.prices.juice +
+    (order.cola || 0) * CFG.prices.cola;
+}
+
+function isCupDrink(need) {
+  return need === 'juice' || need === 'cola';
 }
 
 function startCustomerWaitTimer(customer) {
@@ -488,7 +553,8 @@ const ITEMS = {
   rice:       { emoji:'🍚', label:'أرز جاهز', inv:'rice' },
   salad:      { emoji:'🥗', label:'سلطة جاهزة', inv:'salad' },
   tahini:     { emoji:'tahini', label:'طحينة جاهزة', inv:'tahini' },
-  juice:      { emoji:'🍊', label:'عصير جاهز', inv:'juice' },
+  juice:      { emoji:'🍊', label:'عصير برتقال', inv:'juice' },
+  cola:       { emoji:'🥤', label:'كوكاكولا', inv:'cola' },
   money:      { emoji:'💰', label:'الكاشير', inv:'money' },
   dish:       { emoji:'🍽️', label:'طبق' },
   cup:        { emoji:'cup', label:'كاس' }
@@ -545,14 +611,16 @@ function fryIcon() {
 
 const ACTS = [
   { id:'fishing', icon:'🎣', name:'صيد السمك' },
+  { id:'fishNet', icon:'🕸️', name:'شبكة صيد', needsEquip:'net' },
   { id:'washDishes', icon:'🚿', name:'غسيل صحون' },
   { id:'washCups', icon:'💧', name:'غسيل كاسات' },
   { id:'rice', icon:'🍚', name:'طبخ أرز' },
   { id:'juice', icon:'🍊', name:'عصير برتقال' },
+  { id:'cola', icon:'🥤', name:'كوكاكولا' },
   { id:'salad', icon:'🥗', name:'تحضير سلطة' },
   { id:'tahini', icon:'tahini', name:'تحضير طحينة' },
-  { id:'grill', icon:'🔥', name:'شوي سمك' },
-  { id:'fry', icon:'🍳', name:'قلي سمك' }
+  { id:'grill', icon:'🔥', name:'شوي سمك', needsEquip:'grill' },
+  { id:'fry', icon:'🍳', name:'قلي سمك', needsEquip:'fryer' }
 ];
 
 const SHOP_ITEMS = [
@@ -562,10 +630,20 @@ const SHOP_ITEMS = [
   { k:'tahini', inv:'supplyTahini', l:'طحينة خام', priceKey:'tahini', unit:'يكفي تحضير 5 أطباق', icon:'tahini', perUnit:1 },
   { k:'salad', inv:'supplySalad', l:'سلطة خام', priceKey:'salad', unit:'يكفي تحضير 5 أطباق', icon:'🥗', perUnit:1 },
   { k:'juice', inv:'supplyJuice', l:'برتقال خام', priceKey:'juice', unit:'يكفي عصر 5 أكواب', icon:'🍊', perUnit:1 },
+  { k:'cola', inv:'supplyCola', l:'كوكاكولا خام', priceKey:'cola', unit:'يكفي تعبئة 5 أكواب', icon:'🥤', perUnit:1 },
   { k:'cups', inv:'cleanCups', l:'كاس', priceKey:'cups', unit:'للواحد', icon:'cup', perUnit:1 }
 ];
 
-const COOK_SUPPLY = { rice:'supplyRice', juice:'supplyJuice', salad:'supplySalad', tahini:'supplyTahini' };
+const EQUIP_ITEMS = [
+  { k:'grill', l:'شواية', priceKey:'grill', icon:'🔥', unit:'للواحدة' },
+  { k:'fryer', l:'مقلاة', priceKey:'fryer', icon:'🍳', unit:'للواحدة' },
+  { k:'moto', l:'موتوسيكل توصيل', priceKey:'moto', icon:'🛵', unit:'للواحد' },
+  { k:'car', l:'سيارة توصيل', priceKey:'car', icon:'🚗', unit:'للواحدة' },
+  { k:'phone', l:'تليفون', priceKey:'phone', icon:'📞', unit:'للواحد' },
+  { k:'net', l:'شبكة صيد (5 سمكات/20ث)', priceKey:'net', icon:'🕸️', unit:'للواحدة' }
+];
+
+const COOK_SUPPLY = { rice:'supplyRice', juice:'supplyJuice', cola:'supplyCola', salad:'supplySalad', tahini:'supplyTahini' };
 
 const STATE_LABELS = {
   waiting: 'منتظر',
@@ -573,6 +651,8 @@ const STATE_LABELS = {
   eating: 'يأكل',
   cleanup: 'جمع الصحون',
   payable: 'استلم المال',
+  readyToShip: 'للتوصيل',
+  onVehicle: 'على المركبة',
   done: 'تم'
 };
 
@@ -581,12 +661,16 @@ const S = {
   cleanDishes: CFG.startDishes, dirtyDishes: 0,
   cleanCups: CFG.startCups, dirtyCups: 0,
   rawFish: 0, grilled: 0, fried: 0,
-  rice: 0, salad: 0, tahini: 0, juice: 0,
+  rice: 0, salad: 0, tahini: 0, juice: 0, cola: 0,
   supplyRice: CFG.startSupplyBatches, supplySalad: CFG.startSupplyBatches,
   supplyTahini: CFG.startSupplyBatches, supplyJuice: CFG.startSupplyBatches,
+  supplyCola: CFG.startSupplyBatches,
+  equip: { grill: 0, fryer: 0, phone: 0, net: 0 },
+  vehicles: { moto: [], car: [] },
+  phone: { ringing: false, nextRing: 0, pendingCall: null },
   acts: {},
   orders: [], activeOrderId: null,
-  customers: [], nextId: 1, nextOrderId: 1,
+  customers: [], nextId: 1, nextOrderId: 1, nextVehicleId: 1,
   drag: null
 };
 
@@ -594,7 +678,8 @@ ACTS.forEach(a => { S.acts[a.id] = { busy: false, prog: 0, start: 0, queue: 0 };
 
 let modalCustomer = null;
 let modalMode = 'order';
-let pendingShop = { dishes:0, rawFish:0, rice:0, tahini:0, salad:0, juice:0, cups:0 };
+let pendingShop = { dishes:0, rawFish:0, rice:0, tahini:0, salad:0, juice:0, cola:0, cups:0 };
+let pendingEquip = { grill:0, fryer:0, moto:0, car:0, phone:0, net:0 };
 let spawnIv, tickIv, scene, camera, renderer, seaMesh;
 let prevInvCounts = {};
 
@@ -747,7 +832,7 @@ function shopItemAmount(item) {
 // ============ BUILD UI ============
 function buildUI() {
   const inv = document.getElementById('inventory-grid');
-  const invKeys = ['cleanDish','dirtyDish','cleanCup','dirtyCup','rawFish','grilled','fried','rice','salad','tahini','juice','money'];
+  const invKeys = ['cleanDish','dirtyDish','cleanCup','dirtyCup','rawFish','grilled','fried','rice','salad','tahini','juice','cola','money'];
   const invDropKeys = new Set(['dirtyDish','dirtyCup','money']);
   inv.innerHTML = invKeys.map(k => `
     <div class="inv-item" data-inv="${k}" id="inv-${k}"${invDropKeys.has(k) ? ` data-inv-drop="${k}"` : ''}>
@@ -756,14 +841,26 @@ function buildUI() {
       <div class="inv-name">${ITEMS[k].label}</div>
     </div>`).join('');
 
+  rebuildActivities();
+}
+
+function actVisible(a) {
+  if (!a.needsEquip) return true;
+  return (S.equip[a.needsEquip] || 0) > 0;
+}
+
+function rebuildActivities() {
   const acts = document.getElementById('activities-grid');
-  acts.innerHTML = ACTS.map(a => `
+  acts.innerHTML = ACTS.filter(actVisible).map(a => `
     <div class="activity" data-act="${a.id}" id="act-${a.id}">
       <span class="act-icon">${actIconHtml(a)}</span>
       <span class="act-name">${a.name}</span>
       <span class="act-status" id="act-${a.id}-st"></span>
       <div class="act-progress" id="act-${a.id}-prog"><div></div></div>
     </div>`).join('');
+  ACTS.forEach(a => {
+    if (!S.acts[a.id]) S.acts[a.id] = { busy: false, prog: 0, start: 0, queue: 0 };
+  });
 }
 
 // ============ DRAG ============
@@ -841,16 +938,20 @@ function startDrag(type, extra, e) {
     if (type === 'cup' && S.cleanCups <= 0) { msg('❌ لا كاسات نظيفة!'); return; }
     if (type === 'dish') S.cleanDishes--;
     else S.cleanCups--;
-  } else if (['rawFish','grilled','fried','rice','salad','tahini','juice'].includes(type)) {
+  } else if (['rawFish','grilled','fried','rice','salad','tahini','juice','cola'].includes(type)) {
     if (!decInv(type)) { msg('❌ المخزون فارغ!'); return; }
   } else if (type === 'dirtyDish' || type === 'dirtyCup') {
     // already removed from tray slot
   } else if (type === 'money') {
     // from tray
+  } else if (type === 'package' || type === 'vehicleMoney') {
+    // from tray / vehicle
   }
   S.drag = { type, extra: extra || {} };
   const g = document.getElementById('drag-ghost');
-  g.innerHTML = itemHtml(type === 'dish' ? 'cleanDish' : type === 'cup' ? 'cleanCup' : type);
+  if (type === 'package') g.innerHTML = '📦';
+  else if (type === 'vehicleMoney') g.innerHTML = '💰';
+  else g.innerHTML = itemHtml(type === 'dish' ? 'cleanDish' : type === 'cup' ? 'cleanCup' : type);
   g.classList.toggle('drag-cup', type === 'cup' || type === 'dirtyCup');
   g.classList.toggle('drag-dish', type === 'dish' || type === 'dirtyDish');
   g.classList.add('show');
@@ -858,7 +959,7 @@ function startDrag(type, extra, e) {
     g.style.left = e.clientX + 'px';
     g.style.top = e.clientY + 'px';
   }
-  if (type !== 'money') renderInventory();
+  if (type !== 'money' && type !== 'package' && type !== 'vehicleMoney') renderInventory();
   document.body.classList.add('dragging');
   captureDragPointer(e);
 }
@@ -877,7 +978,7 @@ function endDrag(restore) {
     const ex = drag.extra || {};
     if (t === 'dish') S.cleanDishes++;
     else if (t === 'cup') S.cleanCups++;
-    else if (['rawFish','grilled','fried','rice','salad','tahini','juice'].includes(t)) incInv(t);
+    else if (['rawFish','grilled','fried','rice','salad','tahini','juice','cola'].includes(t)) incInv(t);
     else if ((t === 'dirtyDish' || t === 'dirtyCup') && ex.orderId != null && ex.slotIdx != null) {
       const order = S.orders.find(o => o.id === ex.orderId);
       if (order?.slots[ex.slotIdx] && !order.slots[ex.slotIdx].dirty) order.slots[ex.slotIdx].dirty = t;
@@ -886,6 +987,9 @@ function endDrag(restore) {
     else if (t === 'money' && ex.orderId != null) {
       const order = S.orders.find(o => o.id === ex.orderId);
       if (order) order.moneyOnTray = true;
+    } else if (t === 'package' && ex.orderId != null) {
+      const order = S.orders.find(o => o.id === ex.orderId);
+      if (order) { order.packageOnTray = true; order.status = 'readyToShip'; }
     }
   }
   renderAll();
@@ -903,6 +1007,24 @@ function getDropTarget(x, y) {
   const dragType = S.drag?.type;
 
   if (dragType === 'money') {
+    for (const el of els) {
+      const cash = el.closest?.('[data-inv="money"]');
+      if (cash) return { kind: 'invDrop', id: 'money', el: cash };
+    }
+    return null;
+  }
+
+  if (dragType === 'package') {
+    for (const el of els) {
+      const veh = el.closest?.('[data-vehicle-drop]');
+      if (veh) return {
+        kind: 'vehicle', vtype: veh.dataset.vehicleType, vid: +veh.dataset.vehicleId, el: veh
+      };
+    }
+    return null;
+  }
+
+  if (dragType === 'vehicleMoney') {
     for (const el of els) {
       const cash = el.closest?.('[data-inv="money"]');
       if (cash) return { kind: 'invDrop', id: 'money', el: cash };
@@ -936,8 +1058,11 @@ function getDropTarget(x, y) {
 }
 
 function canDropTarget(dragType, target) {
-  if (dragType === 'money') {
+  if (dragType === 'money' || dragType === 'vehicleMoney') {
     return (target.kind === 'invDrop' || target.kind === 'inv') && target.id === 'money';
+  }
+  if (dragType === 'package') {
+    return target.kind === 'vehicle';
   }
   if (dragType === 'dirtyDish') {
     return (target.kind === 'act' && target.id === 'washDishes') ||
@@ -1027,6 +1152,10 @@ function handleDrop(drag, target) {
     return collectMoney(extra.orderId);
   }
 
+  if (target.kind === 'vehicle' && type === 'package') {
+    return loadPackageOnVehicle(extra.orderId, target.vtype, target.vid);
+  }
+
   if (target.kind === 'slot') {
     return placeOnSlot(target.orderId, target.slotIdx, type, extra);
   }
@@ -1035,14 +1164,18 @@ function handleDrop(drag, target) {
 }
 
 document.getElementById('inventory-grid').addEventListener('pointerup', e => {
-  if (S.drag?.type !== 'money') return;
-  const cash = e.target.closest('[data-inv="money"]');
-  if (!cash) return;
-  const handled = collectMoney(S.drag.extra.orderId);
-  if (handled) {
-    endDrag(false);
-    e.preventDefault();
-    e.stopPropagation();
+  if (S.drag?.type === 'money') {
+    const cash = e.target.closest('[data-inv="money"]');
+    if (!cash) return;
+    const handled = collectMoney(S.drag.extra.orderId);
+    if (handled) { endDrag(false); e.preventDefault(); e.stopPropagation(); }
+    return;
+  }
+  if (S.drag?.type === 'vehicleMoney') {
+    const cash = e.target.closest('[data-inv="money"]');
+    if (!cash) return;
+    const handled = collectVehicleMoney(S.drag.extra.vtype, S.drag.extra.vid);
+    if (handled) { endDrag(false); e.preventDefault(); e.stopPropagation(); }
   }
 });
 
@@ -1066,7 +1199,7 @@ document.getElementById('inventory-grid').addEventListener('pointerdown', e => {
     S.dirtyCups--;
     startDrag('dirtyCup', {}, e);
     renderInventory();
-  } else if (['rawFish','grilled','fried','rice','salad','tahini','juice'].includes(id) && invCount(id) > 0) {
+  } else if (['rawFish','grilled','fried','rice','salad','tahini','juice','cola'].includes(id) && invCount(id) > 0) {
     startDrag(id, {}, e);
   }
 });
@@ -1077,8 +1210,10 @@ document.getElementById('activities-grid').addEventListener('pointerdown', e => 
   e.preventDefault();
   const id = el.dataset.act;
   if (id === 'fishing') startFishing();
+  else if (id === 'fishNet') startFishNet();
   else if (id === 'rice') startCook('rice', 'rice');
   else if (id === 'juice') startCook('juice', 'juice');
+  else if (id === 'cola') startCook('cola', 'cola');
   else if (id === 'salad') startCook('salad', 'salad');
   else if (id === 'tahini') startCook('tahini', 'tahini');
   else if (id === 'washDishes') {
@@ -1105,7 +1240,17 @@ function startFishing() {
   renderActivities();
 }
 
+function startFishNet() {
+  if (S.equip.net <= 0) { msg('❌ اشترِ شبكة صيد من 🛠️ أجهزة'); return; }
+  const a = S.acts.fishNet;
+  if (a.busy) { msg('⏳ الشبكة تعمل...'); return; }
+  a.busy = true; a.prog = 0; a.start = Date.now();
+  msg(`🕸️ صيد بالشبكة... 20 ثانية (+${CFG.netFishBatch} سمكات)`);
+  renderActivities();
+}
+
 function startGrill() {
+  if (S.equip.grill <= 0) { msg('❌ اشترِ شواية من 🛠️ أجهزة'); return; }
   const a = S.acts.grill;
   if (!a.busy) {
     a.busy = true; a.prog = 0; a.start = Date.now();
@@ -1119,6 +1264,7 @@ function startGrill() {
 }
 
 function startFry() {
+  if (S.equip.fryer <= 0) { msg('❌ اشترِ مقلاة من 🛠️ أجهزة'); return; }
   const a = S.acts.fry;
   if (!a.busy) {
     a.busy = true; a.prog = 0; a.start = Date.now();
@@ -1142,9 +1288,9 @@ function startCook(actId, give) {
   S[supplyKey]--;
   a.busy = true; a.prog = 0; a.start = Date.now();
   a.give = give;
-  const times = { rice: 30, juice: 8, salad: 5, tahini: 5 };
+  const times = { rice: 30, juice: 8, cola: 8, salad: 5, tahini: 5 };
   const n = CFG.batchCook;
-  const cookMsgs = { rice:'🍚 طبخ الأرز', juice:'🍊 عصر البرتقال', salad:'🥗 تحضير السلطة', tahini:'🥣 تحضير الطحينة' };
+  const cookMsgs = { rice:'🍚 طبخ الأرز', juice:'🍊 عصر البرتقال', cola:'🥤 تعبئة كوكاكولا', salad:'🥗 تحضير السلطة', tahini:'🥣 تحضير الطحينة' };
   msg(`${cookMsgs[actId] || 'جارٍ التحضير'}... ${times[actId]||10}ث (يكفي ${n})`);
   renderActivities();
   renderInventory();
@@ -1169,10 +1315,12 @@ function startWash(actId, kind) {
 function finishAct(id) {
   const a = S.acts[id];
   if (id === 'fishing') { S.rawFish++; msg('✅ سمكة نيئة +1'); }
+  else if (id === 'fishNet') { S.rawFish += CFG.netFishBatch; msg(`✅ شبكة صيد +${CFG.netFishBatch} سمكات`); }
   else if (id === 'grill') { S.grilled++; msg('✅ سمك مشوي +1'); }
   else if (id === 'fry') { S.fried++; msg('✅ سمك مقلي +1'); }
   else if (id === 'rice') { incInv('rice', CFG.batchCook); msg(`✅ أرز جاهز +${CFG.batchCook}`); }
   else if (id === 'juice') { incInv('juice', CFG.batchCook); msg(`✅ عصير جاهز +${CFG.batchCook}`); }
+  else if (id === 'cola') { incInv('cola', CFG.batchCook); msg(`✅ كوكاكولا جاهزة +${CFG.batchCook}`); }
   else if (id === 'salad') { incInv('salad', CFG.batchCook); msg(`✅ سلطة جاهزة +${CFG.batchCook}`); }
   else if (id === 'tahini') { incInv('tahini', CFG.batchCook); msg(`✅ طحينة جاهزة +${CFG.batchCook}`); }
   else if (id === 'washDishes') { S.cleanDishes++; msg('✅ صحن نظيف +1'); }
@@ -1192,8 +1340,8 @@ function finishAct(id) {
 }
 
 function actDuration(id) {
-  const map = { fishing: CFG.fishTime, grill: CFG.grillTime, fry: CFG.fryTime, rice: CFG.riceTime,
-    juice: 8000, salad: 5000, tahini: 5000, washDishes: CFG.washTime, washCups: CFG.washTime };
+  const map = { fishing: CFG.fishTime, fishNet: CFG.fishTime, grill: CFG.grillTime, fry: CFG.fryTime, rice: CFG.riceTime,
+    juice: 8000, cola: 8000, salad: 5000, tahini: 5000, washDishes: CFG.washTime, washCups: CFG.washTime };
   return map[id] || 10000;
 }
 
@@ -1204,6 +1352,7 @@ function buildSlots(order) {
   for (let i = 0; i < (order.fried || 0); i++) slots.push({ need:'fried', hasBase:false, filled:null, dirty:null });
   for (let i = 0; i < (order.rice || 0); i++) slots.push({ need:'rice', hasBase:false, filled:null, dirty:null });
   for (let i = 0; i < (order.juice || 0); i++) slots.push({ need:'juice', hasBase:false, filled:null, dirty:null });
+  for (let i = 0; i < (order.cola || 0); i++) slots.push({ need:'cola', hasBase:false, filled:null, dirty:null });
   for (let i = 0; i < (order.salad || 0); i++) slots.push({ need:'salad', hasBase:false, filled:null, dirty:null });
   for (let i = 0; i < (order.tahini || 0); i++) slots.push({ need:'tahini', hasBase:false, filled:null, dirty:null });
   return slots;
@@ -1218,9 +1367,11 @@ function createOrder(customer) {
     price: customer.price,
     needs: { ...customer.order },
     slots: buildSlots(customer.order),
+    isDelivery: !!customer.isDelivery,
     status: 'waiting',
     complete: false,
-    moneyOnTray: false
+    moneyOnTray: false,
+    packageOnTray: false
   };
   S.orders.push(order);
   S.activeOrderId = order.id;
@@ -1246,24 +1397,24 @@ function placeOnSlot(orderId, slotIdx, type, extra) {
 
   if (order.status === 'waiting') order.status = 'preparing';
 
-  const isJuice = slot.need === 'juice';
+  const isCup = isCupDrink(slot.need);
 
-  if (type === 'dish' && !isJuice && !slot.hasBase) {
+  if (type === 'dish' && !isCup && !slot.hasBase) {
     slot.hasBase = true;
     msg('🍽️ طبق على الصينية — اسحب الطعام');
     renderTray();
     return true;
   }
-  if (type === 'cup' && isJuice && !slot.hasBase) {
+  if (type === 'cup' && isCup && !slot.hasBase) {
     slot.hasBase = true;
-    msg('🥤 كاس على الصينية — اسحب العصير');
+    msg(slot.need === 'cola' ? '🥤 كاس على الصينية — اسحب الكوكاكولا' : '🥤 كاس على الصينية — اسحب العصير');
     renderTray();
     return true;
   }
 
   if (type !== slot.need) {
-    if (!isJuice && !slot.hasBase) msg('❌ ضع طبقاً أولاً!');
-    else if (isJuice && !slot.hasBase) msg('❌ ضع كاساً أولاً!');
+    if (!isCup && !slot.hasBase) msg('❌ ضع طبقاً أولاً!');
+    else if (isCup && !slot.hasBase) msg('❌ ضع كاساً أولاً!');
     else msg(`❌ يحتاج ${ITEMS[slot.need].label}!`);
     if (type === 'dish') S.cleanDishes++;
     else if (type === 'cup') S.cleanCups++;
@@ -1271,7 +1422,7 @@ function placeOnSlot(orderId, slotIdx, type, extra) {
     return false;
   }
   if (!slot.hasBase) {
-    msg(isJuice ? '❌ ضع كاساً أولاً!' : '❌ ضع طبقاً أولاً!');
+    msg(isCup ? '❌ ضع كاساً أولاً!' : '❌ ضع طبقاً أولاً!');
     incInv(type);
     return false;
   }
@@ -1288,6 +1439,15 @@ function deliverOrder(orderId) {
   const order = S.orders.find(o => o.id === orderId);
   const customer = S.customers.find(c => c.id === order?.customerId);
   if (!order || !customer || !order.complete || !['waiting','preparing'].includes(order.status)) return;
+  if (order.isDelivery) {
+    order.status = 'readyToShip';
+    order.packageOnTray = true;
+    clearInterval(customer.waitIv);
+    customer.status = 'packing';
+    msg('📦 اسحب الطلب للموتوسيكل أو السيارة ↓');
+    renderAll();
+    return;
+  }
   order.status = 'eating';
   customer.status = 'eating';
   customer.eatEnd = Date.now() + CFG.eatTimeMs;
@@ -1299,7 +1459,7 @@ function deliverOrder(orderId) {
 function setupCleanup(order) {
   order.slots.forEach(slot => {
     if (!slot.filled) return;
-    if (slot.need === 'juice') slot.dirty = 'dirtyCup';
+    if (slot.need === 'juice' || slot.need === 'cola') slot.dirty = 'dirtyCup';
     else slot.dirty = 'dirtyDish';
     slot.filled = null;
     slot.hasBase = false;
@@ -1359,6 +1519,199 @@ function switchOrder(id) {
   renderOrders();
 }
 
+// ============ EQUIPMENT & DELIVERY ============
+function findVehicle(vtype, vid) {
+  return S.vehicles[vtype]?.find(v => v.id === vid);
+}
+
+function addVehicle(vtype) {
+  S.vehicles[vtype].push({
+    id: S.nextVehicleId++, type: vtype, status: 'idle',
+    orders: [], deliverEnd: 0, payout: 0
+  });
+}
+
+function loadPackageOnVehicle(orderId, vtype, vid) {
+  const order = S.orders.find(o => o.id === orderId);
+  const v = findVehicle(vtype, vid);
+  if (!order || order.status !== 'readyToShip' || !order.packageOnTray || !v) return false;
+  if (v.status === 'delivering') { msg('❌ المركبة في التوصيل!'); return false; }
+  const cap = CFG.vehicleCap[vtype] || 2;
+  if (v.orders.length >= cap) { msg('❌ المركبة ممتلئة!'); return false; }
+  v.orders.push({ orderId: order.id, price: order.price });
+  order.status = 'onVehicle';
+  order.packageOnTray = false;
+  order.vehicleType = vtype;
+  order.vehicleId = v.id;
+  msg(`📦 على ${vtype === 'moto' ? 'الموتوسيكل' : 'السيارة'} (${v.orders.length}/${cap})`);
+  renderAll();
+  return true;
+}
+
+function sendVehicle(vtype, vid) {
+  const v = findVehicle(vtype, vid);
+  if (!v || v.status === 'delivering' || !v.orders.length) return;
+  v.status = 'delivering';
+  v.deliverEnd = Date.now() + CFG.deliveryTime;
+  msg('🛵 التوصيل جارٍ... 60 ثانية');
+  renderEquipment();
+}
+
+function tickVehicles() {
+  const now = Date.now();
+  ['moto', 'car'].forEach(vtype => {
+    S.vehicles[vtype].forEach(v => {
+      if (v.status !== 'delivering' || now < v.deliverEnd) return;
+      v.status = 'idle';
+      v.payout = v.orders.reduce((s, o) => s + o.price, 0);
+      v.orders.forEach(o => {
+        const ord = S.orders.find(x => x.id === o.orderId);
+        if (ord) { ord.status = 'done'; S.success++; }
+      });
+      v.orders = [];
+      msg(`✅ ${vtype === 'moto' ? '🛵' : '🚗'} عاد بالمال — ${v.payout} kr`);
+    });
+  });
+}
+
+function collectVehicleMoney(vtype, vid) {
+  const v = findVehicle(vtype, vid);
+  if (!v || v.payout <= 0) return false;
+  S.money += v.payout;
+  msg(`💰 +${v.payout} kr من التوصيل!`);
+  v.payout = 0;
+  renderAll();
+  return true;
+}
+
+function schedulePhoneRing() {
+  if (S.equip.phone <= 0) return;
+  S.phone.nextRing = Date.now() + CFG.phoneRingMin +
+    Math.random() * (CFG.phoneRingMax - CFG.phoneRingMin);
+}
+
+function tickPhone() {
+  const el = document.getElementById('phone-widget');
+  if (S.equip.phone <= 0) {
+    if (el) el.style.display = 'none';
+    return;
+  }
+  if (el) el.style.display = 'flex';
+  if (S.phone.ringing) {
+    el?.classList.add('ringing');
+    return;
+  }
+  el?.classList.remove('ringing');
+  if (!S.phone.pendingCall && S.phone.nextRing > 0 && Date.now() >= S.phone.nextRing) {
+    const id = S.nextId++;
+    S.phone.ringing = true;
+    const order = pickCustomerOrder();
+    S.phone.pendingCall = {
+      id, name: `توصيل #${id}`, avatar: '🛵', order,
+      price: calcOrderPrice(order), isDelivery: true
+    };
+    msg('📞 التليفون يرن — طلب توصيل!');
+  }
+}
+
+function openPhoneDelivery() {
+  if (!S.phone.ringing || !S.phone.pendingCall) return;
+  modalMode = 'delivery';
+  modalCustomer = S.phone.pendingCall;
+  document.getElementById('modal-title').textContent = '📞 طلب توصيل';
+  document.getElementById('modal-confirm').textContent = '✅ قبول الطلب';
+  document.getElementById('modal-cancel').textContent = '↩️ رجوع';
+  renderModalItems();
+  document.getElementById('modal-bg').style.display = 'block';
+  document.getElementById('order-modal').style.display = 'block';
+}
+
+function equipItemPrice(item) {
+  return CFG.equip[item.priceKey];
+}
+
+function equipTotal() {
+  return EQUIP_ITEMS.reduce((sum, i) => sum + (pendingEquip[i.k] || 0) * equipItemPrice(i), 0);
+}
+
+function openEquipShop() {
+  if (S.drag) endDrag(true);
+  modalMode = 'equip';
+  modalCustomer = null;
+  pendingEquip = { grill:0, fryer:0, moto:0, car:0, phone:0, net:0 };
+  document.getElementById('modal-title').textContent = '🛠️ شراء أجهزة';
+  document.getElementById('modal-confirm').textContent = '✅ تأكيد الشراء';
+  document.getElementById('modal-cancel').textContent = '❌ إلغاء';
+  renderModalItems();
+  document.getElementById('modal-bg').style.display = 'block';
+  document.getElementById('order-modal').style.display = 'block';
+}
+
+function confirmEquip() {
+  const total = equipTotal();
+  const count = EQUIP_ITEMS.reduce((s, i) => s + (pendingEquip[i.k] || 0), 0);
+  if (count === 0) { msg('❌ لم تختر شيئاً!'); return; }
+  if (S.money < total) { msg('❌ رصيد غير كافٍ!'); return; }
+  S.money -= total;
+  EQUIP_ITEMS.forEach(i => {
+    const qty = pendingEquip[i.k] || 0;
+    if (!qty) return;
+    if (i.k === 'moto' || i.k === 'car') {
+      for (let n = 0; n < qty; n++) addVehicle(i.k);
+    } else {
+      S.equip[i.k] = (S.equip[i.k] || 0) + qty;
+    }
+  });
+  if (S.equip.phone > 0 && !S.phone.nextRing) schedulePhoneRing();
+  closeModal();
+  msg(`🛠️ تم شراء الأجهزة — ${total} kr`);
+  rebuildActivities();
+  renderAll();
+}
+
+function renderEquipment() {
+  const el = document.getElementById('equipment-grid');
+  if (!el) return;
+  const owned = [];
+  if (S.equip.grill > 0) owned.push(`🔥 شوايات: ${S.equip.grill}`);
+  if (S.equip.fryer > 0) owned.push(`🍳 مقلاة: ${S.equip.fryer}`);
+  if (S.equip.net > 0) owned.push(`🕸️ شباك: ${S.equip.net}`);
+  if (S.equip.phone > 0) owned.push(`📞 تليفون: ${S.equip.phone}`);
+
+  const vehHtml = ['moto', 'car'].flatMap(vtype => S.vehicles[vtype].map(v => {
+    const cap = CFG.vehicleCap[vtype];
+    const icon = vtype === 'moto' ? '🛵' : '🚗';
+    const name = vtype === 'moto' ? 'موتوسيكل' : 'سيارة';
+    const delivering = v.status === 'delivering';
+    const left = delivering ? Math.max(0, Math.ceil((v.deliverEnd - Date.now()) / 1000)) : 0;
+    const st = delivering ? `يوصّل... ${left}ث` : (v.orders.length ? `${v.orders.length}/${cap} طلب` : 'جاهز');
+    const cls = ['equip-item', delivering ? 'delivering' : '', v.payout > 0 ? 'has-money' : ''].filter(Boolean).join(' ');
+    const moneyHtml = v.payout > 0
+      ? `<div class="eq-money" data-vehicle-money="${vtype}-${v.id}">💰 ${v.payout} kr</div>` : '';
+    const sendBtn = !delivering && v.orders.length
+      ? `<button type="button" class="eq-send" data-send="${vtype}-${v.id}">🚀 إرسال</button>` : '';
+    return `<div class="${cls}" data-vehicle-drop="1" data-vehicle-type="${vtype}" data-vehicle-id="${v.id}">
+      <span class="eq-icon">${icon}</span><span class="eq-name">${name} #${v.id}</span>
+      <span class="eq-st">${st}</span>${sendBtn}${moneyHtml}</div>`;
+  }));
+
+  el.innerHTML =
+    (owned.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px;width:100%;margin-bottom:4px">${owned.map(t => `<span class="equip-owned">${t}</span>`).join('')}</div>` : '') +
+    (vehHtml.length ? vehHtml.join('') : '<span class="equip-owned">اشترِ موتوسيكل أو سيارة من 🛠️ أجهزة</span>');
+
+  el.querySelectorAll('[data-send]').forEach(btn => {
+    btn.onclick = e => { e.stopPropagation(); const [vt, id] = btn.dataset.send.split('-'); sendVehicle(vt, +id); };
+  });
+  el.querySelectorAll('.eq-money').forEach(mn => {
+    mn.onpointerdown = e => {
+      e.preventDefault(); e.stopPropagation();
+      if (S.drag) return;
+      const [vt, id] = mn.dataset.vehicleMoney.split('-');
+      startDrag('vehicleMoney', { vtype: vt, vid: +id }, e);
+    };
+  });
+}
+
 // ============ CUSTOMERS ============
 function orderSlotsUsed() {
   const arrived = S.customers.filter(c => c.status === 'arrived').length;
@@ -1397,7 +1750,7 @@ function openShop() {
   if (S.drag) endDrag(true);
   modalMode = 'shop';
   modalCustomer = null;
-  pendingShop = { dishes:0, rawFish:0, rice:0, tahini:0, salad:0, juice:0, cups:0 };
+  pendingShop = { dishes:0, rawFish:0, rice:0, tahini:0, salad:0, juice:0, cola:0, cups:0 };
   document.getElementById('modal-title').textContent = '🛒 شراء مستلزمات';
   document.getElementById('modal-confirm').textContent = '✅ تأكيد الشراء';
   document.getElementById('modal-cancel').textContent = '❌ إلغاء';
@@ -1438,13 +1791,24 @@ function renderModalItems() {
     updateShopTotal();
     return;
   }
+  if (modalMode === 'equip') {
+    document.getElementById('modal-items').innerHTML = EQUIP_ITEMS.map(i => `
+      <div class="order-row"><span><span class="row-icon">${i.icon}</span>${i.l} — ${equipItemPrice(i)} kr (${i.unit})</span>
+      <div><button class="qty-btn" data-q="${i.k}" data-d="-1">-</button>
+      <span style="min-width:24px;display:inline-block;text-align:center" id="eq-${i.k}">0</span>
+      <button class="qty-btn" data-q="${i.k}" data-d="1">+</button></div></div>`).join('') +
+      `<div class="modal-total" id="modal-total"></div>`;
+    updateEquipTotal();
+    return;
+  }
   const o = modalCustomer?.order;
   if (!o) return;
   const rows = [
     { k:'grilled', l:'سمكة مشوية', p: CFG.prices.grilled, icon: fishIcon('grilled') },
     { k:'fried', l:'سمكة مقلية', p: CFG.prices.fried, icon: fishIcon('fried') },
     { k:'rice', l:'طبق أرز', p: CFG.prices.rice, icon: '🍚' },
-    { k:'juice', l:'عصير', p: CFG.prices.juice, icon: '🍊' },
+    { k:'juice', l:'عصير برتقال', p: CFG.prices.juice, icon: '🍊' },
+    { k:'cola', l:'كوكاكولا', p: CFG.prices.cola, icon: '🥤' },
     { k:'salad', l:'سلطة', p: 0, icon: '🥗', free: true },
     { k:'tahini', l:'طحينة', p: 0, icon: tahiniIcon(), free: true },
   ];
@@ -1461,14 +1825,29 @@ function renderModalItems() {
     `<div class="modal-total">المجموع: <b>${modalCustomer.price}</b> kr</div>`;
 }
 
+function updateEquipTotal() {
+  const el = document.getElementById('modal-total');
+  if (!el) return;
+  const total = equipTotal();
+  el.innerHTML = `المجموع: <b>${total}</b> kr · رصيدك: <b>${S.money}</b> kr` +
+    (total > 0 && S.money < total ? '<br><span style="color:var(--danger);font-size:11px">❌ رصيد غير كافٍ</span>' : '');
+}
+
 document.getElementById('modal-items').addEventListener('click', e => {
-  if (modalMode !== 'shop') return;
   const btn = e.target.closest('.qty-btn');
   if (!btn) return;
   const k = btn.dataset.q, d = +btn.dataset.d;
-  pendingShop[k] = Math.max(0, (pendingShop[k] || 0) + d);
-  document.getElementById('mq-' + k).textContent = pendingShop[k];
-  updateShopTotal();
+  if (modalMode === 'shop') {
+    pendingShop[k] = Math.max(0, (pendingShop[k] || 0) + d);
+    document.getElementById('mq-' + k).textContent = pendingShop[k];
+    updateShopTotal();
+    return;
+  }
+  if (modalMode === 'equip') {
+    pendingEquip[k] = Math.max(0, (pendingEquip[k] || 0) + d);
+    document.getElementById('eq-' + k).textContent = pendingEquip[k];
+    updateEquipTotal();
+  }
 });
 
 function confirmShop() {
@@ -1486,10 +1865,32 @@ function confirmShop() {
   renderAll();
 }
 
+function acceptDeliveryOrder() {
+  const c = modalCustomer;
+  if (!c?.order) return;
+  S.phone.ringing = false;
+  S.phone.pendingCall = null;
+  schedulePhoneRing();
+  S.customers.push({
+    id: c.id, name: c.name, avatar: c.avatar,
+    order: c.order, price: c.price, isDelivery: true,
+    status: 'waiting', timeLeft: CFG.waitTime,
+    waitIv: null, eatEnd: 0, orderId: null
+  });
+  const customer = S.customers[S.customers.length - 1];
+  startCustomerWaitTimer(customer);
+  createOrder(customer);
+  closeModal();
+  msg('✅ طلب توصيل مقبول — جهّزه!');
+  renderAll();
+}
+
 document.getElementById('modal-confirm').onclick = () => {
   if (modalMode === 'shop') { confirmShop(); return; }
-  if (!modalCustomer?.order) return;
-  const customer = modalCustomer;
+  if (modalMode === 'equip') { confirmEquip(); return; }
+  if (modalMode === 'delivery') { acceptDeliveryOrder(); return; }
+  const customer = S.customers.find(x => x.id === modalCustomer?.id);
+  if (!customer?.order) return;
   customer.status = 'waiting';
   customer.timeLeft = CFG.waitTime;
   startCustomerWaitTimer(customer);
@@ -1510,17 +1911,22 @@ function closeModal() {
 document.getElementById('modal-cancel').onclick = closeModal;
 document.getElementById('modal-bg').onclick = closeModal;
 document.getElementById('hud-shop-btn').onclick = openShop;
+document.getElementById('hud-equip-btn').onclick = openEquipShop;
+document.getElementById('phone-widget').onclick = () => openPhoneDelivery();
 
 // ============ TICK ============
 function gameTick() {
   const now = Date.now();
   ACTS.forEach(a => {
     const st = S.acts[a.id];
-    if (!st.busy) return;
+    if (!st?.busy) return;
     const dur = actDuration(a.id);
     st.prog = Math.min((now - st.start) / dur, 1);
     if (st.prog >= 1) finishAct(a.id);
   });
+
+  tickPhone();
+  tickVehicles();
 
   S.customers.forEach(c => {
     if (c.status === 'eating' && c.eatEnd) {
@@ -1533,6 +1939,7 @@ function gameTick() {
   });
 
   renderActivities();
+  renderEquipment();
   renderOrders();
   renderTray();
 }
@@ -1542,6 +1949,7 @@ function renderAll() {
   renderHUD();
   renderInventory();
   renderActivities();
+  renderEquipment();
   renderNewCustomers();
   renderOrders();
   renderTray();
@@ -1554,7 +1962,7 @@ function renderHUD() {
 }
 
 function renderInventory() {
-  const keys = ['cleanDish','dirtyDish','cleanCup','dirtyCup','rawFish','grilled','fried','rice','salad','tahini','juice','money'];
+  const keys = ['cleanDish','dirtyDish','cleanCup','dirtyCup','rawFish','grilled','fried','rice','salad','tahini','juice','cola','money'];
   keys.forEach(k => {
     const cnt = invCount(k);
     const prev = prevInvCounts[k];
@@ -1594,7 +2002,7 @@ function renderActivities() {
       else if (a.id === 'grill' || a.id === 'fry') status.textContent = 'اسحب سمكاً نيئاً';
       else if (a.id === 'washDishes') status.textContent = S.dirtyDishes + ' متسخ';
       else if (a.id === 'washCups') status.textContent = S.dirtyCups + ' متسخ';
-      else if (['rice','juice','salad','tahini'].includes(a.id)) {
+      else if (['rice','juice','cola','salad','tahini'].includes(a.id)) {
         const stock = S[a.id];
         const sup = S[COOK_SUPPLY[a.id]] || 0;
         if (st.busy) status.textContent = Math.floor(st.prog * 100) + '%';
@@ -1626,6 +2034,8 @@ function orderStateLabel(order) {
   const m = c && c.status === 'waiting' ? Math.floor(c.timeLeft / 60) + ':' + String(c.timeLeft % 60).padStart(2, '0') : '';
   if (order.status === 'waiting') return STATE_LABELS.waiting + (m ? ' · ' + m : '');
   if (order.status === 'preparing') return STATE_LABELS.preparing + (m ? ' · ' + m : '');
+  if (order.status === 'readyToShip') return STATE_LABELS.readyToShip;
+  if (order.status === 'onVehicle') return STATE_LABELS.onVehicle;
   if (order.status === 'eating') {
     const left = c?.eatEnd ? Math.max(0, Math.ceil((c.eatEnd - Date.now()) / 1000)) : 0;
     return STATE_LABELS.eating + ' · ' + left + 'ث';
@@ -1641,9 +2051,13 @@ function renderOrders() {
   }
   tabs.innerHTML = S.orders.map(o => {
     const active = o.id === S.activeOrderId ? 'active' : '';
-    const stCls = 'st-' + (o.status === 'waiting' || o.status === 'preparing' ? 'preparing' : o.status);
+    const stCls = 'st-' + (
+      o.status === 'waiting' || o.status === 'preparing' || o.status === 'readyToShip' ? 'preparing' :
+      o.status === 'onVehicle' ? 'payable' : o.status
+    );
+    const prefix = o.isDelivery ? '🛵 ' : '';
     return `<div class="order-tab ${stCls} ${active}" data-oid="${o.id}">
-      <span class="tab-name">${o.avatar} ${o.customerName} #${o.id}</span>
+      <span class="tab-name">${prefix}${o.avatar} ${o.customerName} #${o.id}</span>
       <span class="tab-state">${orderStateLabel(o)}</span></div>`;
   }).join('');
   tabs.querySelectorAll('.order-tab').forEach(t => {
@@ -1655,14 +2069,14 @@ function trayNeedIcon(slot) {
   return itemHtml(slot.need);
 }
 
-function trayBaseIcon(isJuice) {
-  return isJuice ? cupIcon() : dishIcon();
+function trayBaseIcon(isCup) {
+  return isCup ? cupIcon() : dishIcon();
 }
 
 function renderTraySlot(slot, i, order) {
   const info = ITEMS[slot.need];
-  const isJuice = slot.need === 'juice';
-  const baseIcon = trayBaseIcon(isJuice);
+  const isCup = isCupDrink(slot.need);
+  const baseIcon = trayBaseIcon(isCup);
   const needIcon = trayNeedIcon(slot);
   const attrs = `data-slot="1" data-order-id="${order.id}" data-slot-idx="${i}" data-need="${slot.need}"`;
 
@@ -1677,7 +2091,7 @@ function renderTraySlot(slot, i, order) {
 
   const baseCls = slot.hasBase ? 'active' : 'ghost';
   const needCls = slot.hasBase ? 'slot-need-icon waiting-food' : 'slot-need-icon slot-ghost-icon';
-  const hint = slot.hasBase ? (isJuice ? '+ عصير؟' : '+ طعام؟') : (isJuice ? 'كاس؟' : 'طبق؟');
+  const hint = slot.hasBase ? (isCup ? (slot.need === 'cola' ? '+ كوكا؟' : '+ عصير؟') : '+ طعام؟') : (isCup ? 'كاس؟' : 'طبق؟');
   const cls = slot.hasBase ? 'has-base' : '';
 
   return `<div class="tray-slot ${cls}" ${attrs}>
@@ -1704,7 +2118,8 @@ function renderTray() {
   }
 
   area.classList.add('show');
-  document.getElementById('tray-title').textContent = `صينية ${order.customerName} #${order.id}`;
+  const trayLabel = order.isDelivery ? `توصيل ${order.customerName}` : `صينية ${order.customerName}`;
+  document.getElementById('tray-title').textContent = `${trayLabel} #${order.id}`;
 
   if (order.status === 'eating') {
     const c = S.customers.find(x => x.id === order.customerId);
@@ -1716,6 +2131,36 @@ function renderTray() {
   }
 
   const draggingMoney = S.drag?.type === 'money' && S.drag.extra?.orderId === order.id;
+  const draggingPackage = S.drag?.type === 'package' && S.drag.extra?.orderId === order.id;
+
+  if (order.status === 'onVehicle') {
+    content.innerHTML = `<div class="tray-eating">🛵 الطلب على المركبة — اضغط إرسال ↓</div>`;
+    btn.classList.remove('show');
+    closeBtn.classList.remove('show');
+    return;
+  }
+
+  if (order.status === 'readyToShip' && order.packageOnTray) {
+    if (draggingPackage) {
+      content.innerHTML = `<div class="tray-eating">📦 اسحب الطلب للموتوسيكل أو السيارة ↓</div>`;
+    } else {
+      content.innerHTML = `<div class="tray-slots"><div class="tray-slot filled" style="width:120px;cursor:grab"
+        data-slot="1" data-order-id="${order.id}" data-slot-idx="-2" id="tray-package">
+        <span class="slot-emoji">📦</span><span class="slot-label">طلب توصيل</span></div></div>`;
+      const pkgEl = document.getElementById('tray-package');
+      if (pkgEl) {
+        pkgEl.onpointerdown = e => {
+          e.preventDefault(); e.stopPropagation();
+          if (S.drag) return;
+          startDrag('package', { orderId: order.id }, e);
+          renderTray();
+        };
+      }
+    }
+    btn.classList.remove('show');
+    closeBtn.classList.remove('show');
+    return;
+  }
 
   if (order.status === 'payable' && order.moneyOnTray) {
     if (draggingMoney) {
@@ -1782,7 +2227,11 @@ function renderTray() {
   // waiting / preparing
   btn.classList.add('show');
   btn.disabled = !order.complete;
-  btn.textContent = order.complete ? '🍽️ قدّم للزبون' : `⏳ باقي ${order.slots.filter(s => !s.filled).length}`;
+  if (order.isDelivery) {
+    btn.textContent = order.complete ? '📦 جاهز للتوصيل' : `⏳ باقي ${order.slots.filter(s => !s.filled).length}`;
+  } else {
+    btn.textContent = order.complete ? '🍽️ قدّم للزبون' : `⏳ باقي ${order.slots.filter(s => !s.filled).length}`;
+  }
   btn.onclick = () => { if (order.complete) deliverOrder(order.id); };
 
   content.innerHTML = `<div class="tray-slots">${order.slots.map((slot, i) => renderTraySlot(slot, i, order)).join('')}</div>`;
