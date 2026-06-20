@@ -363,15 +363,17 @@ body.dragging { touch-action:none; }
 }
 
 .activity .veh-send {
-  margin-top:3px; width:100%; padding:4px; border:none; border-radius:6px;
+  margin-top:0; width:100%; padding:4px; border:none; border-radius:6px;
   background:var(--gold); color:#222; font-family:inherit; font-weight:700;
   font-size:8px; cursor:pointer;
 }
 .activity .veh-money {
-  margin-top:3px; padding:4px 6px; border-radius:6px; background:rgba(46,204,113,0.2);
+  margin-top:0; padding:4px 6px; border-radius:6px; background:rgba(46,204,113,0.2);
   border:1px dashed var(--ok); cursor:grab; font-size:9px; font-weight:700; width:100%;
 }
-.activity.vehicle-act { cursor:default; }
+.activity .veh-actions { display:flex; flex-direction:column; gap:3px; width:100%; margin-top:3px; }
+.activity.vehicle-act { cursor:default; overflow:visible; }
+.activity.equip-unit-act { cursor:default; }
 .activity.vehicle-act.delivering { border-color:var(--warn); }
 .activity.vehicle-act.has-money { border-color:var(--ok); }
 </style>
@@ -622,16 +624,19 @@ function fryIcon() {
 
 const ACTS = [
   { id:'fishing', icon:'🎣', name:'صيد السمك' },
-  { id:'fishNet', icon:'🕸️', name:'شبكة صيد', needsEquip:'net' },
   { id:'washDishes', icon:'🚿', name:'غسيل صحون' },
   { id:'washCups', icon:'💧', name:'غسيل كاسات' },
   { id:'rice', icon:'🍚', name:'طبخ أرز' },
   { id:'juice', icon:'🍊', name:'عصير برتقال' },
   { id:'cola', icon:'🥤', name:'كوكاكولا' },
   { id:'salad', icon:'🥗', name:'تحضير سلطة' },
-  { id:'tahini', icon:'tahini', name:'تحضير طحينة' },
-  { id:'grill', icon:'🔥', name:'شوي سمك', needsEquip:'grill' },
-  { id:'fry', icon:'🍳', name:'قلي سمك', needsEquip:'fryer' }
+  { id:'tahini', icon:'tahini', name:'تحضير طحينة' }
+];
+
+const EQUIP_UNIT_KINDS = [
+  { kind:'net', name:'شبكة صيد', icon:'🕸️', durationKey:'fishTime', clickable:true },
+  { kind:'grill', name:'شواية', iconFn: grillIcon, durationKey:'grillTime', dropType:'grill' },
+  { kind:'fryer', name:'مقلاة', iconFn: fryIcon, durationKey:'fryTime', dropType:'fry' }
 ];
 
 const SHOP_ITEMS = [
@@ -679,12 +684,13 @@ const S = {
   supplyRice: CFG.startSupplyBatches, supplySalad: CFG.startSupplyBatches,
   supplyTahini: CFG.startSupplyBatches, supplyJuice: CFG.startSupplyBatches,
   supplyCola: CFG.startSupplyBatches,
-  equip: { grill: 0, fryer: 0, phone: 0, net: 0 },
+  equip: { phone: 0 },
+  equipUnits: { grill: [], fryer: [], net: [] },
   vehicles: { moto: [], car: [] },
   phone: { ringing: false, nextRing: 0, pendingCall: null, soundActive: false, ringStart: 0 },
   acts: {},
   orders: [], activeOrderId: null,
-  customers: [], nextId: 1, nextOrderId: 1, nextVehicleId: 1,
+  customers: [], nextId: 1, nextOrderId: 1, nextVehicleId: 1, nextEquipUnitId: 1,
   drag: null
 };
 
@@ -955,8 +961,53 @@ function bindNewCustomerClicks() {
 }
 
 function actVisible(a) {
-  if (!a.needsEquip) return true;
-  return (S.equip[a.needsEquip] || 0) > 0;
+  return true;
+}
+
+function equipUnitActId(kind, uid) {
+  return `eq-${kind}-${uid}`;
+}
+
+function findEquipUnit(kind, uid) {
+  return S.equipUnits[kind]?.find(u => u.id === uid);
+}
+
+function addEquipUnit(kind) {
+  if (!S.equipUnits[kind]) S.equipUnits[kind] = [];
+  S.equipUnits[kind].push({
+    id: S.nextEquipUnitId++, kind,
+    busy: false, prog: 0, start: 0, queue: 0
+  });
+}
+
+function equipUnitDuration(kind) {
+  const def = EQUIP_UNIT_KINDS.find(d => d.kind === kind);
+  return CFG[def?.durationKey] || 10000;
+}
+
+function buildEquipUnitsHtml() {
+  return EQUIP_UNIT_KINDS.flatMap(def =>
+    (S.equipUnits[def.kind] || []).map(u => {
+      const eid = equipUnitActId(def.kind, u.id);
+      const icon = def.iconFn ? def.iconFn() : def.icon;
+      const dropAttr = def.dropType ? ` data-equip-drop="${def.dropType}"` : '';
+      const clickAttr = def.clickable ? ' data-equip-click="1"' : '';
+      return `<div class="activity equip-unit-act" data-equip-unit="1" data-equip-kind="${def.kind}" data-equip-id="${u.id}"${dropAttr}${clickAttr} id="${eid}">
+        <span class="act-icon">${icon}</span>
+        <span class="act-name">${def.name} #${u.id}</span>
+        <span class="act-status" id="${eid}-st"></span>
+        <div class="act-progress" id="${eid}-prog"><div></div></div>
+      </div>`;
+    })
+  ).join('');
+}
+
+function bindEquipUnitEvents() {
+  document.querySelectorAll('#activities-grid [data-equip-click]').forEach(el => {
+    bindTap(el, '[data-equip-click]', target => {
+      startNetUnit(+target.dataset.equipId);
+    });
+  });
 }
 
 function vehicleActId(vtype, vid) {
@@ -972,12 +1023,13 @@ function buildVehicleActivitiesHtml() {
     const sendBtn = `<button type="button" class="veh-send" data-send="${vtype}-${v.id}" style="display:${showSend ? 'block' : 'none'}">🚀 إرسال</button>`;
     const moneyHtml = v.payout > 0
       ? `<div class="veh-money" data-vehicle-money="${vtype}-${v.id}">💰 ${v.payout} kr</div>` : '';
+    const actions = `<div class="veh-actions">${moneyHtml}${sendBtn}</div>`;
     return `<div class="activity vehicle-act" data-vehicle-drop="1" data-vehicle-type="${vtype}" data-vehicle-id="${v.id}" id="${vid}">
       <span class="act-icon">${icon}</span>
       <span class="act-name">${name} #${v.id}</span>
       <span class="act-status" id="${vid}-st"></span>
       <div class="act-progress" id="${vid}-prog"><div></div></div>
-      ${sendBtn}${moneyHtml}
+      ${actions}
     </div>`;
   })).join('');
 }
@@ -1003,14 +1055,15 @@ function bindVehicleActivityEvents() {
 
 function rebuildActivities() {
   const acts = document.getElementById('activities-grid');
-  const actHtml = ACTS.filter(actVisible).map(a => `
+  const actHtml = ACTS.map(a => `
     <div class="activity" data-act="${a.id}" id="act-${a.id}">
       <span class="act-icon">${actIconHtml(a)}</span>
       <span class="act-name">${a.name}</span>
       <span class="act-status" id="act-${a.id}-st"></span>
       <div class="act-progress" id="act-${a.id}-prog"><div></div></div>
     </div>`).join('');
-  acts.innerHTML = actHtml + buildVehicleActivitiesHtml();
+  acts.innerHTML = actHtml + buildEquipUnitsHtml() + buildVehicleActivitiesHtml();
+  bindEquipUnitEvents();
   bindVehicleActivityEvents();
   ACTS.forEach(a => {
     if (!S.acts[a.id]) S.acts[a.id] = { busy: false, prog: 0, start: 0, queue: 0 };
@@ -1160,7 +1213,6 @@ function endDrag(restore) {
 }
 
 function canDropOnAct(actId, dragType) {
-  if (dragType === 'rawFish' && (actId === 'grill' || actId === 'fry')) return true;
   if (dragType === 'dirtyDish' && actId === 'washDishes') return true;
   if (dragType === 'dirtyCup' && actId === 'washCups') return true;
   return false;
@@ -1183,6 +1235,20 @@ function getDropTarget(x, y) {
       const veh = el.closest?.('[data-vehicle-drop]');
       if (veh) return {
         kind: 'vehicle', vtype: veh.dataset.vehicleType, vid: +veh.dataset.vehicleId, el: veh
+      };
+    }
+    return null;
+  }
+
+  if (dragType === 'rawFish') {
+    for (const el of els) {
+      const eq = el.closest?.('[data-equip-drop]');
+      if (eq) return {
+        kind: 'equipUnit',
+        equipKind: eq.dataset.equipKind,
+        equipId: +eq.dataset.equipId,
+        dropType: eq.dataset.equipDrop,
+        el: eq
       };
     }
     return null;
@@ -1228,6 +1294,10 @@ function canDropTarget(dragType, target) {
   if (dragType === 'package') {
     return target.kind === 'vehicle';
   }
+  if (dragType === 'rawFish') {
+    return target.kind === 'equipUnit' &&
+      (target.dropType === 'grill' || target.dropType === 'fry');
+  }
   if (dragType === 'dirtyDish') {
     return (target.kind === 'act' && target.id === 'washDishes') ||
       (target.kind === 'invDrop' && target.id === 'dirtyDish');
@@ -1271,8 +1341,6 @@ function handleDrop(drag, target) {
   const { type, extra } = drag;
 
   if (target.kind === 'act') {
-    if (type === 'rawFish' && target.id === 'grill') return startGrill();
-    if (type === 'rawFish' && target.id === 'fry') return startFry();
     if (type === 'dirtyDish' && target.id === 'washDishes') {
       if (startWash('washDishes', 'dirtyDish')) {
         finishTrayDirtyDrop(extra);
@@ -1318,6 +1386,12 @@ function handleDrop(drag, target) {
   if (target.kind === 'inv' && target.id === 'money') {
     if (type === 'money') return collectMoney(extra.orderId);
     if (type === 'vehicleMoney') return collectVehicleMoney(extra.vtype, extra.vid);
+  }
+
+  if (target.kind === 'equipUnit' && type === 'rawFish') {
+    if (target.dropType === 'grill') return startGrillOnUnit(target.equipId);
+    if (target.dropType === 'fry') return startFryOnUnit(target.equipId);
+    return false;
   }
 
   if (target.kind === 'vehicle' && type === 'package') {
@@ -1380,7 +1454,6 @@ document.getElementById('activities-grid').addEventListener('pointerdown', e => 
   e.preventDefault();
   const id = el.dataset.act;
   if (id === 'fishing') startFishing();
-  else if (id === 'fishNet') startFishNet();
   else if (id === 'rice') startCook('rice', 'rice');
   else if (id === 'juice') startCook('juice', 'juice');
   else if (id === 'cola') startCook('cola', 'cola');
@@ -1402,49 +1475,78 @@ document.getElementById('activities-grid').addEventListener('pointerdown', e => 
 });
 
 // ============ ACTIVITIES ============
+function queueEquipWork(u, kind) {
+  const labels = { grill: '🔥 شواية', fryer: '🍳 مقلاة', net: '🕸️ شبكة' };
+  if (!u.busy) {
+    u.busy = true;
+    u.prog = 0;
+    u.start = Date.now();
+    const secs = Math.round(equipUnitDuration(kind) / 1000);
+    if (kind === 'net') msg(`${labels[kind]} #${u.id}... ${secs}ث (+${CFG.netFishBatch} سمكات)`);
+    else msg(`${labels[kind]} #${u.id}... ${secs}ث`);
+  } else {
+    u.queue++;
+    msg(`${labels[kind]} #${u.id} — طابور (${u.queue})`);
+  }
+  renderActivities();
+  return true;
+}
+
+function startNetUnit(uid) {
+  const u = findEquipUnit('net', uid);
+  if (!u) return;
+  queueEquipWork(u, 'net');
+}
+
+function startGrillOnUnit(uid) {
+  const u = findEquipUnit('grill', uid);
+  if (!u) return false;
+  queueEquipWork(u, 'grill');
+  return true;
+}
+
+function startFryOnUnit(uid) {
+  const u = findEquipUnit('fryer', uid);
+  if (!u) return false;
+  queueEquipWork(u, 'fryer');
+  return true;
+}
+
+function finishEquipUnit(u, kind) {
+  if (kind === 'grill') { S.grilled++; msg(`✅ شواية #${u.id} — سمك مشوي +1`); }
+  else if (kind === 'fryer') { S.fried++; msg(`✅ مقلاة #${u.id} — سمك مقلي +1`); }
+  else if (kind === 'net') { S.rawFish += CFG.netFishBatch; msg(`✅ شبكة #${u.id} — +${CFG.netFishBatch} سمكات`); }
+
+  if (u.queue > 0) {
+    u.queue--;
+    u.prog = 0;
+    u.start = Date.now();
+    renderAll();
+    return;
+  }
+  u.busy = false;
+  u.prog = 0;
+  renderAll();
+}
+
+function tickEquipUnits() {
+  const now = Date.now();
+  EQUIP_UNIT_KINDS.forEach(def => {
+    S.equipUnits[def.kind].forEach(u => {
+      if (!u.busy) return;
+      const dur = equipUnitDuration(def.kind);
+      u.prog = Math.min((now - u.start) / dur, 1);
+      if (u.prog >= 1) finishEquipUnit(u, def.kind);
+    });
+  });
+}
+
 function startFishing() {
   const a = S.acts.fishing;
   if (a.busy) { msg('⏳ الصيد جارٍ...'); return; }
   a.busy = true; a.prog = 0; a.start = Date.now();
   msg('🎣 صيد السمك... 20 ثانية');
   renderActivities();
-}
-
-function startFishNet() {
-  if (S.equip.net <= 0) { msg('❌ اشترِ شبكة صيد من 🛠️ أجهزة'); return; }
-  const a = S.acts.fishNet;
-  if (a.busy) { msg('⏳ الشبكة تعمل...'); return; }
-  a.busy = true; a.prog = 0; a.start = Date.now();
-  msg(`🕸️ صيد بالشبكة... 20 ثانية (+${CFG.netFishBatch} سمكات)`);
-  renderActivities();
-}
-
-function startGrill() {
-  if (S.equip.grill <= 0) { msg('❌ اشترِ شواية من 🛠️ أجهزة'); return; }
-  const a = S.acts.grill;
-  if (!a.busy) {
-    a.busy = true; a.prog = 0; a.start = Date.now();
-    msg('🔥 شوي السمك... 15 ثانية');
-  } else {
-    a.queue++;
-    msg(`🔥 سمكة في طابور الشوي (${a.queue})`);
-  }
-  renderActivities();
-  return true;
-}
-
-function startFry() {
-  if (S.equip.fryer <= 0) { msg('❌ اشترِ مقلاة من 🛠️ أجهزة'); return; }
-  const a = S.acts.fry;
-  if (!a.busy) {
-    a.busy = true; a.prog = 0; a.start = Date.now();
-    msg('🍳 قلي السمك... 12 ثانية');
-  } else {
-    a.queue++;
-    msg(`🍳 سمكة في طابور القلي (${a.queue})`);
-  }
-  renderActivities();
-  return true;
 }
 
 function startCook(actId, give) {
@@ -1485,9 +1587,6 @@ function startWash(actId, kind) {
 function finishAct(id) {
   const a = S.acts[id];
   if (id === 'fishing') { S.rawFish++; msg('✅ سمكة نيئة +1'); }
-  else if (id === 'fishNet') { S.rawFish += CFG.netFishBatch; msg(`✅ شبكة صيد +${CFG.netFishBatch} سمكات`); }
-  else if (id === 'grill') { S.grilled++; msg('✅ سمك مشوي +1'); }
-  else if (id === 'fry') { S.fried++; msg('✅ سمك مقلي +1'); }
   else if (id === 'rice') { incInv('rice', CFG.batchCook); msg(`✅ أرز جاهز +${CFG.batchCook}`); }
   else if (id === 'juice') { incInv('juice', CFG.batchCook); msg(`✅ عصير جاهز +${CFG.batchCook}`); }
   else if (id === 'cola') { incInv('cola', CFG.batchCook); msg(`✅ كوكاكولا جاهزة +${CFG.batchCook}`); }
@@ -1496,7 +1595,7 @@ function finishAct(id) {
   else if (id === 'washDishes') { S.cleanDishes++; msg('✅ صحن نظيف +1'); }
   else if (id === 'washCups') { S.cleanCups++; msg('✅ كاس نظيف +1'); }
 
-  if ((id === 'washDishes' || id === 'washCups' || id === 'grill' || id === 'fry') && a.queue > 0) {
+  if ((id === 'washDishes' || id === 'washCups') && a.queue > 0) {
     a.queue--;
     a.prog = 0;
     a.start = Date.now();
@@ -1510,7 +1609,7 @@ function finishAct(id) {
 }
 
 function actDuration(id) {
-  const map = { fishing: CFG.fishTime, fishNet: CFG.fishTime, grill: CFG.grillTime, fry: CFG.fryTime, rice: CFG.riceTime,
+  const map = { fishing: CFG.fishTime, rice: CFG.riceTime,
     juice: 8000, cola: 8000, salad: 5000, tahini: 5000, washDishes: CFG.washTime, washCups: CFG.washTime };
   return map[id] || 10000;
 }
@@ -1890,8 +1989,10 @@ function confirmEquip() {
     if (!qty) return;
     if (i.k === 'moto' || i.k === 'car') {
       for (let n = 0; n < qty; n++) addVehicle(i.k);
-    } else {
-      S.equip[i.k] = (S.equip[i.k] || 0) + qty;
+    } else if (i.k === 'phone') {
+      S.equip.phone = (S.equip.phone || 0) + qty;
+    } else if (['grill', 'fryer', 'net'].includes(i.k)) {
+      for (let n = 0; n < qty; n++) addEquipUnit(i.k);
     }
   });
   if (S.equip.phone > 0 && !S.phone.nextRing) schedulePhoneRing();
@@ -2118,6 +2219,7 @@ function gameTick() {
 
   tickPhone();
   tickVehicles();
+  tickEquipUnits();
 
   S.customers.forEach(c => {
     if (c.status === 'eating' && c.eatEnd) {
@@ -2186,11 +2288,10 @@ function renderActivities() {
       prog.querySelector('div').style.width = (st.prog * 100) + '%';
     }
     if (status) {
-      if (st.busy && (a.id === 'washDishes' || a.id === 'washCups' || a.id === 'grill' || a.id === 'fry')) {
+      if (st.busy && (a.id === 'washDishes' || a.id === 'washCups')) {
         const q = st.queue ? ` · طابور ${st.queue}` : '';
         status.textContent = Math.floor(st.prog * 100) + '%' + q;
       } else if (st.busy) status.textContent = Math.floor(st.prog * 100) + '%';
-      else if (a.id === 'grill' || a.id === 'fry') status.textContent = 'اسحب سمكاً نيئاً';
       else if (a.id === 'washDishes') status.textContent = S.dirtyDishes + ' متسخ';
       else if (a.id === 'washCups') status.textContent = S.dirtyCups + ' متسخ';
       else if (['rice','juice','cola','salad','tahini'].includes(a.id)) {
@@ -2203,6 +2304,28 @@ function renderActivities() {
       }
       else status.textContent = 'اضغط للبدء';
     }
+  });
+  EQUIP_UNIT_KINDS.forEach(def => {
+    S.equipUnits[def.kind].forEach(u => {
+      const id = equipUnitActId(def.kind, u.id);
+      const el = document.getElementById(id);
+      const status = document.getElementById(id + '-st');
+      const prog = document.getElementById(id + '-prog');
+      if (!el || !status) return;
+      el.classList.toggle('busy', u.busy);
+      if (prog) {
+        prog.classList.toggle('show', u.busy);
+        prog.querySelector('div').style.width = (u.prog * 100) + '%';
+      }
+      if (u.busy) {
+        const q = u.queue ? ` · طابور ${u.queue}` : '';
+        status.textContent = Math.floor(u.prog * 100) + '%' + q;
+      } else if (def.dropType === 'grill' || def.dropType === 'fry') {
+        status.textContent = 'اسحب سمكاً نيئاً';
+      } else {
+        status.textContent = 'اضغط للبدء';
+      }
+    });
   });
   ['moto', 'car'].forEach(vtype => {
     S.vehicles[vtype].forEach(v => {
