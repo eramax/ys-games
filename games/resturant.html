@@ -22,8 +22,8 @@
   --tray-fish-w: 52px;
   --tray-fish-h: 28px;
   --tile-cell-min: 88px;
-  --tray-content-h: 128px;
-  --row-orders-h: calc(var(--tray-content-h) + 168px);
+  --tray-content-h: 112px;
+  --row-orders-h: calc(var(--tray-content-h) + 156px);
 }
 * { margin:0; padding:0; box-sizing:border-box; touch-action:none; user-select:none; }
 body { font-family:'Cairo',sans-serif; overflow:hidden; background:#0a1628; color:#fff; height:100vh; width:100vw; }
@@ -67,15 +67,15 @@ body { font-family:'Cairo',sans-serif; overflow:hidden; background:#0a1628; colo
   min-height: 0;
 }
 #order-tabs-wrap {
-  display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px 0;
-  overflow-x: auto; overflow-y: hidden; flex-shrink: 0; max-height: 58px;
+  display: flex; align-items: flex-start; gap: 8px; padding: 6px 10px 0;
+  overflow-x: auto; overflow-y: hidden; flex-shrink: 0; max-height: 48px;
   -webkit-overflow-scrolling: touch; touch-action: pan-x;
   scrollbar-width: thin;
 }
-#order-tabs-wrap .order-tab,
-#order-tabs-wrap .new-chip { touch-action: pan-x; }
 #order-tabs-wrap::-webkit-scrollbar { height: 5px; }
 #order-tabs-wrap::-webkit-scrollbar-thumb { background: rgba(245,200,66,0.35); border-radius: 3px; }
+#order-tabs-wrap .order-tab,
+#order-tabs-wrap .new-chip { touch-action: manipulation; }
 #order-tabs { display:flex; gap:6px; flex-wrap:nowrap; min-width:min-content; }
 .order-tab {
   flex-shrink:0; padding:6px 12px; border-radius:10px 10px 0 0; font-size:11px; cursor:pointer;
@@ -94,13 +94,13 @@ body { font-family:'Cairo',sans-serif; overflow:hidden; background:#0a1628; colo
 .tab-close { display:none; }
 .tray-close-order {
   flex-shrink: 0;
-  margin-top:8px; width:100%; padding:9px; border:none; border-radius:10px;
+  margin-top:0; width:100%; padding:9px; border:none; border-radius:10px;
   background:var(--gold); color:#222; font-family:inherit; font-weight:700;
   font-size:12px; cursor:pointer; display:none;
 }
 .tray-close-order.show { display:block; }
 
-#new-customers { display:flex; gap:6px; flex-wrap:wrap; padding-bottom:8px; flex-shrink:0; }
+#new-customers { display:flex; gap:6px; flex-wrap:nowrap; flex-shrink:0; }
 .new-chip {
   padding:6px 12px; border-radius:20px; background:rgba(41,128,185,0.35);
   border:2px dashed #5dade2; font-size:11px; font-weight:700; cursor:pointer; white-space:nowrap;
@@ -189,14 +189,22 @@ body.dragging #order-tabs-wrap { overflow: hidden; touch-action: none; }
 .tray-slot .dish-svg { width:40px; height:40px; }
 .tray-slot .slot-ghost-icon { font-size:var(--tray-icon); opacity:0.35; line-height:1; }
 .tray-slot .slot-ghost-icon .fish-svg { width:var(--tray-fish-w); height:var(--tray-fish-h); }
-.tray-deliver {
+.tray-deliver,
+.tray-ship-hint {
   flex-shrink: 0;
-  margin-top:8px; width:100%; padding:9px; border:none; border-radius:10px;
-  background:linear-gradient(135deg,#27ae60,#2ecc71); color:#fff; font-family:inherit;
-  font-weight:700; font-size:12px; cursor:pointer; display:none;
+  margin-top:0; width:100%; padding:9px; border:none; border-radius:10px;
+  font-family:inherit; font-weight:700; font-size:12px; cursor:pointer; display:none;
+}
+.tray-deliver {
+  background:linear-gradient(135deg,#27ae60,#2ecc71); color:#fff;
 }
 .tray-deliver.show { display:block; }
 .tray-deliver:disabled { opacity:0.4; cursor:not-allowed; }
+.tray-ship-hint {
+  background:linear-gradient(135deg,#d68910,#f39c12); color:#fff;
+}
+.tray-ship-hint.show { display:block; }
+#tray-actions { flex-shrink:0; display:flex; flex-direction:column; gap:6px; padding-top:6px; }
 .tray-eating { text-align:center; padding:16px; font-size:14px; color:#3498db; font-weight:700; min-width:100%; }
 
 /* MIDDLE: inventory */
@@ -404,8 +412,11 @@ body.dragging { touch-action:none; }
         <span id="tray-hint" style="font-size:10px;color:#aaa">① طبق/كاس → ② طعام</span>
       </div>
       <div id="tray-content"></div>
-      <button class="tray-deliver" id="tray-deliver-btn">🍽️ قدّم للزبون</button>
-      <button type="button" class="tray-close-order" id="tray-close-btn">✅ إغلاق الطلب</button>
+      <div id="tray-actions">
+        <button class="tray-deliver" id="tray-deliver-btn">🍽️ قدّم للزبون</button>
+        <button type="button" class="tray-ship-hint" id="tray-ship-btn">📦 انقل للموتوسيكل أو السيارة ↓</button>
+        <button type="button" class="tray-close-order" id="tray-close-btn">✅ إغلاق الطلب</button>
+      </div>
     </div>
   </div>
 
@@ -448,6 +459,7 @@ const CFG = {
   deliveryTime: 60000,
   phoneRingMin: 25000,
   phoneRingMax: 55000,
+  phoneRingDuration: 10000,
   netFishBatch: 5,
   vehicleCap: { moto: 2, car: 5 },
   shop: { dishes: 5, rawFish: 8, rice: 10, tahini: 5, salad: 3, juice: 10, cola: 10, cups: 5 },
@@ -647,7 +659,7 @@ const S = {
   supplyCola: CFG.startSupplyBatches,
   equip: { grill: 0, fryer: 0, phone: 0, net: 0 },
   vehicles: { moto: [], car: [] },
-  phone: { ringing: false, nextRing: 0, pendingCall: null, soundActive: false },
+  phone: { ringing: false, nextRing: 0, pendingCall: null, soundActive: false, ringStart: 0 },
   acts: {},
   orders: [], activeOrderId: null,
   customers: [], nextId: 1, nextOrderId: 1, nextVehicleId: 1,
@@ -662,6 +674,8 @@ let pendingShop = { dishes:0, rawFish:0, rice:0, tahini:0, salad:0, juice:0, col
 let pendingEquip = { grill:0, fryer:0, moto:0, car:0, phone:0, net:0 };
 let spawnIv, tickIv, scene, camera, renderer, seaMesh;
 let prevInvCounts = {};
+let orderTabsSig = '';
+let trayTimerMode = null;
 let phoneAudioCtx = null;
 let phoneRingIv = null;
 
@@ -869,6 +883,49 @@ function buildUI() {
     </div>`).join('');
 
   rebuildActivities();
+  bindOrderTabClicks();
+  bindNewCustomerClicks();
+}
+
+function bindTap(el, selector, onTap) {
+  el.addEventListener('pointerdown', e => {
+    const target = e.target.closest(selector);
+    if (!target) return;
+    const sx = e.clientX, sy = e.clientY, pid = e.pointerId;
+    let moved = false;
+    const onMove = ev => {
+      if (ev.pointerId !== pid) return;
+      if (Math.hypot(ev.clientX - sx, ev.clientY - sy) > 8) moved = true;
+    };
+    const onUp = ev => {
+      if (ev.pointerId !== pid) return;
+      if (!moved) {
+        e.preventDefault();
+        onTap(target, e);
+      }
+      cleanup();
+    };
+    const cleanup = () => {
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      document.removeEventListener('pointercancel', onUp);
+    };
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+    document.addEventListener('pointercancel', onUp);
+  });
+}
+
+function bindOrderTabClicks() {
+  bindTap(document.getElementById('order-tabs-wrap'), '.order-tab', tab => {
+    switchOrder(+tab.dataset.oid);
+  });
+}
+
+function bindNewCustomerClicks() {
+  bindTap(document.getElementById('new-customers'), '.new-chip', chip => {
+    openModal(+chip.dataset.cid);
+  });
 }
 
 function actVisible(a) {
@@ -1537,6 +1594,8 @@ function setupCleanup(order) {
   });
   order.status = 'cleanup';
   msg('🍽️ اجمع الصحون المتسخة — واحداً تلو الآخر');
+  renderOrders();
+  renderTray();
 }
 
 function checkCleanupDone(orderId) {
@@ -1584,10 +1643,13 @@ function closeOrder(orderId) {
 }
 
 function switchOrder(id) {
+  if (!S.orders.find(o => o.id === id)) return;
   if (S.drag) endDrag(true);
   S.activeOrderId = id;
+  syncOrderTabActive();
+  document.querySelector(`#order-tabs .order-tab[data-oid="${id}"]`)
+    ?.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' });
   renderTray();
-  renderOrders();
 }
 
 // ============ EQUIPMENT & DELIVERY ============
@@ -1669,6 +1731,17 @@ function schedulePhoneRing() {
     Math.random() * (CFG.phoneRingMax - CFG.phoneRingMin);
 }
 
+function missPhoneCall() {
+  stopPhoneRingAudio();
+  S.phone.ringing = false;
+  S.phone.pendingCall = null;
+  S.phone.ringStart = 0;
+  document.getElementById('phone-widget')?.classList.remove('ringing');
+  if (modalMode === 'delivery') closeModal();
+  schedulePhoneRing();
+  msg('📞 لم ترد — سيتصل مرة أخرى لاحقاً');
+}
+
 function tickPhone() {
   const el = document.getElementById('phone-widget');
   if (S.equip.phone <= 0) {
@@ -1678,6 +1751,10 @@ function tickPhone() {
   }
   if (el) el.style.display = 'flex';
   if (S.phone.ringing) {
+    if (S.phone.ringStart && Date.now() - S.phone.ringStart >= CFG.phoneRingDuration) {
+      missPhoneCall();
+      return;
+    }
     el?.classList.add('ringing');
     startPhoneRingAudio();
     return;
@@ -1687,9 +1764,10 @@ function tickPhone() {
   if (!S.phone.pendingCall && S.phone.nextRing > 0 && Date.now() >= S.phone.nextRing) {
     const id = S.nextId++;
     S.phone.ringing = true;
+    S.phone.ringStart = Date.now();
     const order = pickCustomerOrder();
     S.phone.pendingCall = {
-      id, name: `توصيل #${id}`, avatar: '🛵', order,
+      id, name: 'توصيل', avatar: '🛵', order,
       price: calcOrderPrice(order), isDelivery: true
     };
     msg('📞 التليفون يرن — طلب توصيل!');
@@ -1699,6 +1777,7 @@ function tickPhone() {
 
 function openPhoneDelivery() {
   if (!S.phone.ringing || !S.phone.pendingCall) return;
+  stopPhoneRingAudio();
   modalMode = 'delivery';
   modalCustomer = S.phone.pendingCall;
   document.getElementById('modal-title').textContent = '📞 طلب توصيل';
@@ -1910,6 +1989,7 @@ function acceptDeliveryOrder() {
   if (!c?.order) return;
   S.phone.ringing = false;
   S.phone.pendingCall = null;
+  S.phone.ringStart = 0;
   stopPhoneRingAudio();
   schedulePhoneRing();
   S.customers.push({
@@ -1980,8 +2060,10 @@ function gameTick() {
   });
 
   renderActivities();
+  const prevSig = orderTabsSig;
   renderOrders();
-  renderTray();
+  if (orderTabsSig !== prevSig) renderTray();
+  else refreshTrayTimer();
 }
 
 // ============ RENDER ============
@@ -2089,12 +2171,61 @@ function renderNewCustomers() {
   el.innerHTML = arrived.map(c =>
     `<div class="new-chip" data-cid="${c.id}">📋 زبون جديد — ${c.avatar} ${c.name}</div>`
   ).join('');
-  el.querySelectorAll('.new-chip').forEach(chip => {
-    chip.onclick = e => {
-      e.stopPropagation();
-      openModal(+chip.dataset.cid);
-    };
+}
+
+function orderTabsSignature() {
+  return S.orders.map(o =>
+    `${o.id}:${o.status}:${o.complete ? 1 : 0}:${o.packageOnTray ? 1 : 0}`
+  ).join('|');
+}
+
+function orderTabStatusClass(o) {
+  return 'st-' + (
+    o.status === 'waiting' || o.status === 'preparing' || o.status === 'readyToShip' ? 'preparing' :
+    o.status === 'onVehicle' ? 'payable' : o.status
+  );
+}
+
+function orderTabDisplayName(o) {
+  if (o.isDelivery) return `توصيل #${o.id}`;
+  return `${o.avatar} ${o.customerName} #${o.id}`;
+}
+
+function orderTabHtml(o) {
+  const active = o.id === S.activeOrderId ? 'active' : '';
+  return `<div class="order-tab ${orderTabStatusClass(o)} ${active}" data-oid="${o.id}">
+    <span class="tab-name">${orderTabDisplayName(o)}</span>
+    <span class="tab-state">${orderStateLabel(o)}</span></div>`;
+}
+
+function syncOrderTabActive() {
+  document.querySelectorAll('#order-tabs .order-tab').forEach(t => {
+    t.classList.toggle('active', +t.dataset.oid === S.activeOrderId);
   });
+}
+
+function refreshOrderTabLabels() {
+  S.orders.forEach(o => {
+    const tab = document.querySelector(`#order-tabs .order-tab[data-oid="${o.id}"]`);
+    if (!tab) return;
+    const stateEl = tab.querySelector('.tab-state');
+    if (stateEl) stateEl.textContent = orderStateLabel(o);
+    tab.className = `order-tab ${orderTabStatusClass(o)}${o.id === S.activeOrderId ? ' active' : ''}`;
+  });
+}
+
+function refreshTrayTimer() {
+  if (trayTimerMode !== 'eating') return;
+  const order = S.orders.find(o => o.id === S.activeOrderId);
+  if (!order || order.status !== 'eating') {
+    trayTimerMode = null;
+    return;
+  }
+  const el = document.getElementById('tray-content')?.querySelector('.tray-eating');
+  if (!el) return;
+  const c = S.customers.find(x => x.id === order.customerId);
+  const left = c?.eatEnd ? Math.max(0, Math.ceil((c.eatEnd - Date.now()) / 1000)) : 0;
+  el.textContent = `🍽️ ${order.customerName} يأكل... ${left} ثانية`;
 }
 
 function orderStateLabel(order) {
@@ -2114,23 +2245,20 @@ function orderStateLabel(order) {
 function renderOrders() {
   const tabs = document.getElementById('order-tabs');
   if (!S.orders.length) {
-    tabs.innerHTML = '<span style="padding:6px;font-size:10px;color:#888">لا طلبات نشطة</span>';
+    if (!tabs.querySelector('.order-tabs-empty')) {
+      tabs.innerHTML = '<span class="order-tabs-empty" style="padding:6px;font-size:10px;color:#888">لا طلبات نشطة</span>';
+    }
+    orderTabsSig = '';
     return;
   }
-  tabs.innerHTML = S.orders.map(o => {
-    const active = o.id === S.activeOrderId ? 'active' : '';
-    const stCls = 'st-' + (
-      o.status === 'waiting' || o.status === 'preparing' || o.status === 'readyToShip' ? 'preparing' :
-      o.status === 'onVehicle' ? 'payable' : o.status
-    );
-    const prefix = o.isDelivery ? '🛵 ' : '';
-    return `<div class="order-tab ${stCls} ${active}" data-oid="${o.id}">
-      <span class="tab-name">${prefix}${o.avatar} ${o.customerName} #${o.id}</span>
-      <span class="tab-state">${orderStateLabel(o)}</span></div>`;
-  }).join('');
-  tabs.querySelectorAll('.order-tab').forEach(t => {
-    t.onclick = () => switchOrder(+t.dataset.oid);
-  });
+  const sig = orderTabsSignature();
+  if (sig !== orderTabsSig) {
+    orderTabsSig = sig;
+    tabs.innerHTML = S.orders.map(orderTabHtml).join('');
+  } else {
+    refreshOrderTabLabels();
+  }
+  syncOrderTabActive();
 }
 
 function trayNeedIcon(slot) {
@@ -2175,36 +2303,48 @@ function renderTray() {
   const area = document.getElementById('tray-area');
   const content = document.getElementById('tray-content');
   const btn = document.getElementById('tray-deliver-btn');
+  const shipBtn = document.getElementById('tray-ship-btn');
   const closeBtn = document.getElementById('tray-close-btn');
   const order = S.orders.find(o => o.id === S.activeOrderId);
 
+  const hideActions = () => {
+    btn.classList.remove('show');
+    shipBtn.classList.remove('show');
+    closeBtn.classList.remove('show');
+  };
+
   if (!order) {
     area.classList.remove('show');
-    btn.classList.remove('show');
-    closeBtn.classList.remove('show');
+    hideActions();
+    trayTimerMode = null;
     return;
   }
 
   area.classList.add('show');
-  const trayLabel = order.isDelivery ? `توصيل ${order.customerName}` : `صينية ${order.customerName}`;
-  document.getElementById('tray-title').textContent = `${trayLabel} #${order.id}`;
+  document.getElementById('tray-title').textContent = order.isDelivery
+    ? `توصيل #${order.id}`
+    : `صينية ${order.customerName} #${order.id}`;
 
   if (order.status === 'eating') {
+    trayTimerMode = 'eating';
     const c = S.customers.find(x => x.id === order.customerId);
     const left = c?.eatEnd ? Math.max(0, Math.ceil((c.eatEnd - Date.now()) / 1000)) : 0;
     content.innerHTML = `<div class="tray-eating">🍽️ ${order.customerName} يأكل... ${left} ثانية</div>`;
-    btn.classList.remove('show');
-    closeBtn.classList.remove('show');
+    hideActions();
     return;
   }
+  trayTimerMode = null;
 
   const draggingMoney = S.drag?.type === 'money' && S.drag.extra?.orderId === order.id;
   const draggingPackage = S.drag?.type === 'package' && S.drag.extra?.orderId === order.id;
 
   if (order.status === 'onVehicle') {
     content.innerHTML = `<div class="tray-eating">🛵 الطلب على المركبة — اضغط إرسال ↓</div>`;
-    btn.classList.remove('show');
-    closeBtn.classList.remove('show');
+    hideActions();
+    shipBtn.classList.add('show');
+    shipBtn.textContent = '🚀 اذهب للمركبة واضغط إرسال ↓';
+    shipBtn.onclick = () => document.getElementById('row-activities')
+      ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     return;
   }
 
@@ -2227,6 +2367,10 @@ function renderTray() {
     }
     btn.classList.remove('show');
     closeBtn.classList.remove('show');
+    shipBtn.classList.add('show');
+    shipBtn.textContent = '📦 انقل للموتوسيكل أو السيارة ↓';
+    shipBtn.onclick = () => document.getElementById('row-activities')
+      ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     return;
   }
 
@@ -2247,6 +2391,7 @@ function renderTray() {
       }
     }
     btn.classList.remove('show');
+    shipBtn.classList.remove('show');
     closeBtn.classList.remove('show');
     return;
   }
@@ -2254,11 +2399,13 @@ function renderTray() {
   if (order.status === 'done') {
     content.innerHTML = `<div class="tray-eating">✅ تم الطلب بنجاح</div>`;
     btn.classList.remove('show');
+    shipBtn.classList.remove('show');
     closeBtn.classList.add('show');
     closeBtn.onclick = () => closeOrder(order.id);
     return;
   }
 
+  shipBtn.classList.remove('show');
   closeBtn.classList.remove('show');
 
   if (order.status === 'cleanup') {
@@ -2293,6 +2440,7 @@ function renderTray() {
   }
 
   // waiting / preparing
+  shipBtn.classList.remove('show');
   btn.classList.add('show');
   btn.disabled = !order.complete;
   if (order.isDelivery) {
