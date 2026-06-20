@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "baseUrl": "https://ys-games.vercel.app/",
+  "files": [
+    "index.html",
+    "games.json",
+    "version.json",
+    "js/ys-platform.js",
+    "games/car-game.html",
+    "games/chess.html",
+    "games/millionaire.html",
+    "games/millionaire-questions.json",
+    "games/resturant.html",
+    "games/vendor/three.min.js",
+    "games/images/chess.svg",
+    "games/images/millionaire.png",
+    "games/images/resturant.webp"
+  ]
+}
