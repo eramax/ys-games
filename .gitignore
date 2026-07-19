@@ -5,3 +5,4 @@ ys-games-apk/*.keystore
 ys-games-apk/local.properties
 
 .superpowers/
+.worktrees/
