@@ -50,19 +50,21 @@ Fits existing YS Games pattern: self-contained web game, listed in `games.json`,
 | Taxi | Yellow | All | Short hops; most common edges |
 | Bus | Green | All | Medium hops |
 | Metro | Red | All | Long hops between hubs |
-| River / black | Black | Mr X only | Nile edges; needs black ticket |
+| River / black | Black | Mr X only | **Universal disguise + river:** black ticket may be used as taxi, bus, metro, **or** river at the current station (same as classic black ticket). River edges require black. |
 
 ### Tickets (starting)
-**Each detective:** 10 taxi, 6 bus, 3 metro. Tickets are **not** shared between detectives. Used tickets go to Mr X’s pool (visible log for detectives is type-only; destination secret).
+**Each detective:** 10 taxi, 6 bus, 3 metro. Tickets are **not** shared between detectives.
 
 **Mr X:** **unlimited** taxi/bus/metro for streamlining; finite **5 black** + **2 double-move**. Detectives still have finite tickets; stranded detective skips moves.
 
 Rationale: reduces bookkeeping for mobile; detectives’ scarcity drives pressure; black/double remain the skill toys.
 
-**Ticket transfer:** Detectives’ spent tickets are **logged only** (type shown in travel log). They do **not** refill Mr X’s pool (unnecessary with unlimited normal tickets).
+**Ticket log (no pool transfer):** When a detective spends a ticket, only the **type** is appended to Mr X’s public travel log for that detective’s move is **not** needed for X log — only **Mr X’s** moves appear on the travel log (type always; position only when revealed). Detective spends reduce their own counters only. Nothing is transferred into a Mr X ticket inventory.
 
-### Reveal rounds
+### Reveal rounds & last-known position
 Mr X’s **position** is shown to all after his move on rounds **3, 8, 13**. Round **14** is final. Between reveals, detectives see only **ticket type** in the travel log.
+
+**Last-known (classic UX):** After a reveal, detectives keep a **ghost token** on that station as “آخر ظهور” until the next reveal updates it (or capture). The ghost is **not** Mr X’s live position. Only the Mr X player (and host process internals) sees the true live token every turn.
 
 ### Round counter & double move
 - One **round** = one full Mr X action (which may be a single move **or** a double move of two legs) + all four detectives’ moves.
@@ -133,19 +135,26 @@ Map data file: `games/scotland-yard/cairo-map.json` (separate JSON for maintaina
 ### Roles in session
 | Device | Responsibility |
 |--------|----------------|
-| Host | Rules engine, AI, RNG starts, broadcast public state, receive move intents, validate |
-| Guest | Render role-filtered view, send `{type:'move', ...}` intents, receive state snapshots |
+| Host | Rules engine, AI, RNG starts, broadcast **role-projected** state, receive move intents, validate |
+| Guest | Render received projection, send `{type:'move', ...}` intents |
+
+**Fog of war on host UI:** Even though the host process stores full engine state, the **renderer always uses `projectPublicState(state, localViewerRole)`**. If the host player is a detective, their screen must **not** show live Mr X position (only last-known ghost + ticket log). Full state is never painted for the wrong role.
 
 ### Protocol (minimal)
 ```
-host → all: { type: 'state', version, publicState, privateFor?: { playerId, payload } }
-guest → host: { type: 'join', name, preferredRole }
+host → peer: { type: 'state', version, view }   // view already projected for that peer’s role
+guest → host: { type: 'join', name, preferredRole: 'x'|'blue'|'red'|'green'|'purple'|null }
 host → all: { type: 'lobby', players, seats }
-guest → host: { type: 'move', detectiveId?| 'x', ticket, to, doubleSecond? }
+guest → host: { type: 'move', actor: 'x'|color, ticket, to }
+              | { type: 'double', legs: [{ ticket, to }, { ticket, to }] }
 host → all: { type: 'event', kind: 'reveal'|'capture'|'win'|... }
 ```
 
-Private payload for Mr X includes true position and remaining black/double. Detectives never receive true position except on reveal flags in public state.
+**Double move on wire:** single message `{ type:'double', legs:[leg1, leg2] }` — host validates both legs before applying. Not two separate turn messages.
+
+**Seat claims:** First player to claim a free seat gets it (host included). Conflict → host rejects with seat taken; client must pick another. Host may force-assign empty seats before start. `preferredRole: null` = any free detective seat.
+
+Private projection for Mr X viewer includes true position and black/double counts. Detective projections include `lastKnownPos` (or null before first reveal), never live `mrX.pos` off-reveal.
 
 ### Lobby
 - Host creates room, picks preferred role (X or a detective seat).
@@ -308,6 +317,11 @@ Public projection strips `mrX.pos` and log `pos` fields unless revealed or viewe
 | Lobby start | Host anytime; empty seats AI (including AI Mr X) |
 | Rematch | Out of v1; end screen → menu only |
 | PeerJS | Vendored `games/vendor/peerjs.min.js` + public broker |
+| Black ticket | Any transport including river (classic disguise) |
+| Last-known | Ghost token stays until next reveal |
+| Host fog | Host UI uses same projection as guests for local role |
+| Double wire | One `double` message with two legs |
+| Seat claim | First-claim wins; host can assign |
 
 ---
 
