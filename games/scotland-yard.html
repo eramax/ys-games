@@ -354,10 +354,38 @@ button:disabled{opacity:.4;cursor:not-allowed}
   min-width:0;min-height:0;
   position:relative;
   background:
-    radial-gradient(ellipse at 50% 40%,#142038 0%,#0b1220 70%);
+    radial-gradient(ellipse at 50% 35%,#1a2a48 0%,#0b1220 72%);
   overflow:hidden;
 }
+#map-canvas{
+  position:absolute;inset:0;
+  width:100%;height:100%;
+  z-index:1;
+}
 .sy-map-host,.sy-map-svg{width:100%;height:100%}
+.sy-hl-pulse{animation:syPulse 1.2s ease-in-out infinite}
+@keyframes syPulse{
+  0%,100%{opacity:.35;stroke-width:2}
+  50%{opacity:.85;stroke-width:3}
+}
+.map-legend{
+  position:absolute;bottom:10px;right:10px;z-index:3;
+  display:flex;flex-wrap:wrap;gap:6px;
+  background:rgba(10,16,28,.78);
+  border:1px solid rgba(212,175,55,.22);
+  border-radius:10px;
+  padding:6px 8px;
+  font-size:.65rem;font-weight:700;color:var(--text-muted);
+  pointer-events:none;
+}
+.map-legend span{display:inline-flex;align-items:center;gap:4px}
+.map-legend i{
+  width:12px;height:3px;border-radius:2px;display:inline-block;
+}
+.map-legend .l-taxi{background:var(--taxi)}
+.map-legend .l-bus{background:var(--bus)}
+.map-legend .l-metro{background:var(--metro)}
+.map-legend .l-river{background:#3d7ea6;height:0;border-top:2px dashed #3d7ea6;width:14px}
 
 .side-panel{
   display:none;
@@ -607,14 +635,14 @@ button:disabled{opacity:.4;cursor:not-allowed}
 <!-- MENU -->
 <section class="screen active" id="screen-menu" aria-label="القائمة">
   <div class="menu-card">
-    <div class="menu-badge">ليل القاهرة</div>
+    <div class="menu-badge">خريطة القاهرة</div>
     <div class="menu-icon" aria-hidden="true">🕵️</div>
     <h1 class="menu-title">اسكتلاند يارد · القاهرة</h1>
-    <p class="menu-sub">طارد السيد X في شوارع القاهرة ليلاً</p>
+    <p class="menu-sub">مطاردة بوليسيّة عبر النيل ووسط البلد — اضغط المحطات المضيئة للتنقل</p>
     <div class="menu-actions">
-      <button type="button" class="btn-main btn-panel" id="btn-practice-x">تدريب: أنا السيد X</button>
+      <button type="button" class="btn-main btn-gold" id="btn-practice-x">تدريب: أنا السيد X</button>
       <button type="button" class="btn-main btn-panel" id="btn-practice-det">تدريب: أنا محقق</button>
-      <button type="button" class="btn-main btn-gold" id="btn-multi">لعب جماعي</button>
+      <button type="button" class="btn-main btn-panel" id="btn-multi">لعب جماعي · رابط مشاركة</button>
       <div class="btn-row">
         <button type="button" class="btn-main btn-ghost" id="btn-help">كيف تلعب</button>
         <button type="button" class="btn-main btn-ghost" id="btn-back-portal">رجوع</button>
@@ -698,6 +726,13 @@ button:disabled{opacity:.4;cursor:not-allowed}
       </div>
     </aside>
     <div id="map-host">
+      <div id="map-canvas" aria-label="لوحة الخريطة"></div>
+      <div class="map-legend" aria-hidden="true">
+        <span><i class="l-taxi"></i>تاكسي</span>
+        <span><i class="l-bus"></i>أتوبيس</span>
+        <span><i class="l-metro"></i>مترو</span>
+        <span><i class="l-river"></i>نهر (X)</span>
+      </div>
       <div class="ai-badge" id="ai-badge">ذكاء اصطناعي يفكر…</div>
     </div>
   </div>
@@ -706,7 +741,7 @@ button:disabled{opacity:.4;cursor:not-allowed}
       <span class="log-label">السجل</span>
       <span class="log-empty" id="log-empty">لا حركات بعد</span>
     </div>
-    <div class="status-hint" id="status-hint">اختر تذكرة ثم اضغط محطة</div>
+    <div class="status-hint" id="status-hint">اضغط محطة مضيئة للتنقل (أو اختر تذكرة أولاً)</div>
     <div class="double-leg-pill" id="double-leg-pill"></div>
     <div class="ticket-bar" id="ticket-bar"></div>
   </footer>
@@ -718,7 +753,7 @@ button:disabled{opacity:.4;cursor:not-allowed}
     <h2 id="help-title">كيف تلعب</h2>
     <ul>
       <li><strong style="color:var(--gold)">الهدف:</strong> ٤ محققين يطاردون السيد X عبر ١٤ جولة. المحققون يفوزون بالقبض أو حصار السيد X؛ وهو يفوز إن نجا حتى نهاية الجولة ١٤.</li>
-      <li><strong style="color:var(--gold)">التذاكر:</strong> تاكسي (أصفر) · أتوبيس (أخضر) · مترو (أحمر). اختر نوع التذكرة ثم اضغط محطة مضيئة. المحققون لا يتشاركون نفس المحطة.</li>
+      <li><strong style="color:var(--gold)">التذاكر:</strong> تاكسي (أصفر) · أتوبيس (أخضر) · مترو (أحمر). اضغط مباشرة على محطة مضيئة — تُختار التذكرة المناسبة تلقائياً (أو اختر التذكرة يدوياً). المحققون لا يتشاركون نفس المحطة.</li>
       <li><strong style="color:var(--gold)">الكشف:</strong> يظهر موقع السيد X بعد جولاته <strong style="color:var(--gold-soft)">٣ و ٨ و ١٣</strong> فقط. بين ذلك يرى المحققون نوع التذكرة المستخدمة دون الموقع.</li>
       <li><strong style="color:var(--gold)">السوداء والمزدوجة:</strong> للسيد X تذاكر سوداء (نهر أو أي وسيلة مع إخفاء النوع) وحركتان مزدوجتان (حركتان في جولة واحدة، ما عدا الجولة ١٤).</li>
       <li><strong style="color:var(--gold)">القبض:</strong> إذا هبط محقق على محطة السيد X — فاز المحققون. إن حُوصر بلا حركة قانونية — فازوا أيضاً.</li>
@@ -874,10 +909,20 @@ async function bootGame() {
 }
 
 // ---------- Session ----------
+function elOrNull(id) {
+  return document.getElementById(id);
+}
+
+function setAiBadge(show) {
+  const b = elOrNull('ai-badge');
+  if (!b) return;
+  b.classList.toggle('show', !!show);
+}
+
 function stopAiLoop() {
   clearTimeout(aiTimer);
   busy = false;
-  $('ai-badge').classList.remove('show');
+  setAiBadge(false);
 }
 
 function destroyNet() {
@@ -952,24 +997,30 @@ function startPracticeDetective(color, allHuman) {
   enterGame();
 }
 
+function mountMapView() {
+  const canvas = elOrNull('map-canvas') || $('map-host');
+  if (mapView) {
+    try {
+      mapView.destroy();
+    } catch (_) {
+      /* ignore */
+    }
+    mapView = null;
+  }
+  mapView = createMapView(canvas, map);
+  mapView.setOnStationClick(onStationTap);
+  return mapView;
+}
+
 function enterGame() {
   selectedTicket = null;
   doubleMode = false;
   doubleLeg1 = null;
   stopAiLoop();
   showScreen('game');
-  const host = $('map-host');
-  // keep ai-badge
-  const badge = $('ai-badge');
-  host.innerHTML = '';
-  host.appendChild(badge);
-  mapView = createMapView(host, map);
-  // re-append badge on top
-  host.appendChild(badge);
-  mapView.setOnStationClick(onStationTap);
+  mountMapView();
   renderAll();
   scheduleAiOrWait();
-  // Focus human token / ghost
   requestAnimationFrame(() => {
     mapView?.fitToHost();
     const view = projectPublicState(state, localRole);
@@ -1044,14 +1095,49 @@ function currentActorTickets() {
   return null;
 }
 
-function legalForSelected() {
-  if (!state || !selectedTicket) return [];
-  const actor = state.turn === 'x' ? 'x' : state.turn;
-  // For double leg2, use mid state (pos + tickets after leg1 spend)
-  if (state.turn === 'x' && doubleMode && doubleLeg1) {
-    return legalMoves(midStateForDouble(), map, 'x', selectedTicket);
+function currentActorId() {
+  if (!state) return null;
+  return state.turn === 'x' ? 'x' : state.turn;
+}
+
+function probeStateForMoves() {
+  if (state?.turn === 'x' && doubleMode && doubleLeg1) return midStateForDouble();
+  return state;
+}
+
+function ticketOrderForActor(actor) {
+  if (actor === 'x') return ['taxi', 'bus', 'metro', 'black'];
+  return ['taxi', 'bus', 'metro'];
+}
+
+/** All legal destination ids for current actor (any usable ticket). */
+function allLegalDestinations() {
+  if (!state || state.phase !== 'playing') return [];
+  const actor = currentActorId();
+  const st = probeStateForMoves();
+  const set = new Set();
+  for (const t of ticketOrderForActor(actor)) {
+    for (const d of legalMoves(st, map, actor, t)) set.add(d);
   }
-  return legalMoves(state, map, actor, selectedTicket);
+  return [...set];
+}
+
+/** Prefer cheapest ticket that reaches `to`. */
+function bestTicketTo(to) {
+  if (!state) return null;
+  const actor = currentActorId();
+  const st = probeStateForMoves();
+  for (const t of ticketOrderForActor(actor)) {
+    if (legalMoves(st, map, actor, t).includes(to)) return t;
+  }
+  return null;
+}
+
+function legalForSelected() {
+  if (!state) return [];
+  if (!selectedTicket) return allLegalDestinations();
+  const actor = currentActorId();
+  return legalMoves(probeStateForMoves(), map, actor, selectedTicket);
 }
 
 // ---------- Render ----------
@@ -1063,7 +1149,8 @@ function renderAll() {
   if (localRole === 'x' && doubleMode && doubleLeg1 && view.mrX) {
     view.mrX = { ...view.mrX, pos: doubleLeg1.to };
   }
-  const highlights = isHumanTurn() && selectedTicket && !netBusy ? legalForSelected() : [];
+  // Highlight all legal destinations on your turn (even before picking a ticket)
+  const highlights = isHumanTurn() && !netBusy && !busy ? legalForSelected() : [];
   mapView.render({ view, highlights });
 
   // HUD
@@ -1290,12 +1377,12 @@ function renderStatusHint() {
   el.classList.add('hot');
   if (state.turn === 'x' && doubleMode) {
     el.textContent = doubleLeg1
-      ? 'اختر تذكرة ثم محطة للرجل الثانية'
-      : 'اختر تذكرة ثم محطة للرجل الأولى';
+      ? 'اضغط محطة مضيئة للرجل الثانية'
+      : 'اضغط محطة مضيئة للرجل الأولى';
   } else if (selectedTicket) {
-    el.textContent = `اضغط محطة للتنقل بـ${TICKET_AR[selectedTicket]}`;
+    el.textContent = `المحطات المضيئة · تذكرة ${TICKET_AR[selectedTicket]} (أو اضغط أي محطة مسموحة)`;
   } else {
-    el.textContent = 'اختر تذكرة ثم اضغط محطة مضيئة';
+    el.textContent = 'اضغط محطة مضيئة للتنقل — تُختار التذكرة تلقائياً';
   }
 }
 
@@ -1324,13 +1411,18 @@ function onStationTap(id) {
     toast('ليس دورك الآن');
     return;
   }
-  if (!selectedTicket) {
-    toast('اختر تذكرة أولاً');
-    return;
+  // Auto-pick ticket if none selected (or selected ticket can't reach this station)
+  if (!selectedTicket || !legalForSelected().includes(id)) {
+    const auto = bestTicketTo(id);
+    if (!auto) {
+      toast(selectedTicket ? 'محطة غير مسموحة بهذه التذكرة' : 'لا يمكن الوصول لهذه المحطة');
+      return;
+    }
+    selectedTicket = auto;
   }
   const legal = legalForSelected();
   if (!legal.includes(id)) {
-    toast('محطة غير مسموحة بهذه التذكرة');
+    toast('محطة غير مسموحة');
     return;
   }
 
@@ -1428,19 +1520,15 @@ function scheduleAiOrWait() {
   clearTimeout(aiTimer);
   if (multiMode) {
     // Host AI is inside netSession; guest never runs AI
-    if (multiMode === 'guest' || !isHumanTurn()) {
-      $('ai-badge').classList.toggle('show', !isHumanTurn() && state?.phase === 'playing');
-    } else {
-      $('ai-badge').classList.remove('show');
-    }
+    setAiBadge(!isHumanTurn() && state?.phase === 'playing');
     return;
   }
   if (!state || state.phase !== 'playing') {
-    $('ai-badge').classList.remove('show');
+    setAiBadge(false);
     return;
   }
   if (isHumanTurn()) {
-    $('ai-badge').classList.remove('show');
+    setAiBadge(false);
     // Auto-skip stranded human detective? Engine usually skips after previous moves;
     // but if somehow stranded on human turn:
     if (state.turn !== 'x' && !hasAnyLegalMove(state, map, state.turn)) {
@@ -1453,7 +1541,7 @@ function scheduleAiOrWait() {
     return;
   }
 
-  $('ai-badge').classList.add('show');
+  setAiBadge(true);
   busy = true;
   aiTimer = setTimeout(() => {
     try {
@@ -1709,17 +1797,7 @@ function enterMultiGame() {
   }
   stopAiLoop();
   showScreen('game');
-  const hostEl = $('map-host');
-  const badge = $('ai-badge');
-  hostEl.innerHTML = '';
-  hostEl.appendChild(badge);
-  if (mapView) {
-    mapView.destroy();
-    mapView = null;
-  }
-  mapView = createMapView(hostEl, map);
-  hostEl.appendChild(badge);
-  mapView.setOnStationClick(onStationTap);
+  mountMapView();
   renderAll();
   scheduleAiOrWait();
   requestAnimationFrame(() => {
