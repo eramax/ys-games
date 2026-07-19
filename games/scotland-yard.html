@@ -875,38 +875,52 @@ function isHumanTurn() {
   return false;
 }
 
+/**
+ * Tickets shown in the bar for the local player.
+ * Never exposes Mr X black/double inventory to detectives (fog).
+ * During double mid-leg, uses post-leg1 special ticket counts for Mr X.
+ */
 function currentActorTickets() {
   if (!state) return null;
-  if (state.turn === 'x') {
+
+  // Mr X viewer: surface tickets are unlimited; black/double private to X
+  if (localRole === 'x') {
+    const src =
+      state.turn === 'x' && doubleMode && doubleLeg1
+        ? midStateForDouble()
+        : state;
     return {
       taxi: Infinity,
       bus: Infinity,
       metro: Infinity,
-      black: state.mrX.tickets.black || 0,
+      black: src.mrX.tickets.black || 0,
       double: state.mrX.tickets.double || 0,
     };
   }
-  const d = state.detectives[state.turn];
-  return d ? { ...d.tickets } : null;
+
+  // Detective (or other): show the acting human detective when it's their turn,
+  // otherwise the local detective's own tickets — never AI Mr X inventory.
+  if (DETECTIVE_COLORS.includes(localRole)) {
+    if (
+      isHumanTurn() &&
+      DETECTIVE_COLORS.includes(state.turn) &&
+      state.detectives[state.turn]
+    ) {
+      return { ...state.detectives[state.turn].tickets };
+    }
+    const d = state.detectives[localRole];
+    return d ? { ...d.tickets } : null;
+  }
+
+  return null;
 }
 
 function legalForSelected() {
   if (!state || !selectedTicket) return [];
   const actor = state.turn === 'x' ? 'x' : state.turn;
-  // For double leg2, use mid state
+  // For double leg2, use mid state (pos + tickets after leg1 spend)
   if (state.turn === 'x' && doubleMode && doubleLeg1) {
-    const mid = {
-      ...state,
-      mrX: {
-        ...state.mrX,
-        pos: doubleLeg1.to,
-        tickets: { ...state.mrX.tickets },
-      },
-    };
-    if (doubleLeg1.ticket === 'black') {
-      mid.mrX.tickets.black = (mid.mrX.tickets.black || 0) - 1;
-    }
-    return legalMoves(mid, map, 'x', selectedTicket);
+    return legalMoves(midStateForDouble(), map, 'x', selectedTicket);
   }
   return legalMoves(state, map, actor, selectedTicket);
 }
@@ -915,6 +929,10 @@ function legalForSelected() {
 function renderAll() {
   if (!state || !mapView) return;
   const view = projectPublicState(state, localRole);
+  // Mid-double: show Mr X token at leg1 destination (render-only override)
+  if (localRole === 'x' && doubleMode && doubleLeg1 && view.mrX) {
+    view.mrX = { ...view.mrX, pos: doubleLeg1.to };
+  }
   const highlights = isHumanTurn() && selectedTicket ? legalForSelected() : [];
   mapView.render({ view, highlights });
 
@@ -988,11 +1006,21 @@ function renderTickets() {
   bar.innerHTML = '';
   const human = isHumanTurn() && !busy;
   const tickets = currentActorTickets();
-  const isX = state?.turn === 'x';
-  const probeState = isX && doubleMode && doubleLeg1 ? midStateForDouble() : state;
-  const actor = isX ? 'x' : state?.turn;
+  // Black/double UI only for local Mr X — never leak to detectives
+  const showXSpecials = localRole === 'x';
+  const actingAsX = state?.turn === 'x' && showXSpecials;
+  const probeState =
+    actingAsX && doubleMode && doubleLeg1 ? midStateForDouble() : state;
+  // Legal probe only when it's the local human's turn
+  const actor = human
+    ? state?.turn === 'x'
+      ? 'x'
+      : state?.turn
+    : null;
 
-  const kinds = isX ? ['taxi', 'bus', 'metro', 'black'] : ['taxi', 'bus', 'metro'];
+  const kinds = showXSpecials
+    ? ['taxi', 'bus', 'metro', 'black']
+    : ['taxi', 'bus', 'metro'];
   for (const k of kinds) {
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -1019,8 +1047,8 @@ function renderTickets() {
     bar.appendChild(btn);
   }
 
-  // Double button for Mr X
-  if (isX && isHumanTurn()) {
+  // Double button only for local Mr X on their turn
+  if (showXSpecials && state?.turn === 'x' && isHumanTurn()) {
     const dbl = document.createElement('button');
     dbl.type = 'button';
     dbl.className = `double-btn${doubleMode ? ' on' : ''}`;
@@ -1030,6 +1058,14 @@ function renderTickets() {
     dbl.disabled = busy || (!allow && !doubleMode);
     dbl.addEventListener('click', () => {
       if (busy) return;
+      // Mid-leg: second tap clears leg1 (stay in double mode to re-pick)
+      if (doubleMode && doubleLeg1) {
+        doubleLeg1 = null;
+        selectedTicket = null;
+        renderAll();
+        toast('أُلغيت الرجل الأولى — اختر من جديد');
+        return;
+      }
       if (!canDouble(state) && !doubleMode) {
         toast(state.round >= MAX_ROUND ? 'المزدوجة ممنوعة في الجولة الأخيرة' : 'لا رموز مزدوجة');
         return;
@@ -1044,10 +1080,10 @@ function renderTickets() {
   }
 
   const pill = $('double-leg-pill');
-  if (doubleMode && doubleLeg1) {
+  if (showXSpecials && doubleMode && doubleLeg1) {
     pill.classList.add('show');
     pill.textContent = `الرجل ١: ${TICKET_AR[doubleLeg1.ticket]} → ${doubleLeg1.to} · اختر الرجل ٢`;
-  } else if (doubleMode) {
+  } else if (showXSpecials && doubleMode) {
     pill.classList.add('show');
     pill.textContent = 'المزدوجة: اختر تذكرة ووجهة للرجل الأولى';
   } else {
