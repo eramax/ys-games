@@ -55,24 +55,37 @@ Fits existing YS Games pattern: self-contained web game, listed in `games.json`,
 ### Tickets (starting)
 **Each detective:** 10 taxi, 6 bus, 3 metro. Tickets are **not** shared between detectives. Used tickets go to Mr X’s pool (visible log for detectives is type-only; destination secret).
 
-**Mr X:** starts with a large pool of taxi/bus/metro (or unlimited normal tickets for streamlining — **decision: unlimited yellow/green/red for Mr X**, finite **5 black** + **2 double-move**). Detectives still have finite tickets; stranded detective skips moves.
+**Mr X:** **unlimited** taxi/bus/metro for streamlining; finite **5 black** + **2 double-move**. Detectives still have finite tickets; stranded detective skips moves.
 
 Rationale: reduces bookkeeping for mobile; detectives’ scarcity drives pressure; black/double remain the skill toys.
 
-### Reveal rounds
-Mr X’s **position** is shown to all after moves on rounds **3, 8, 13**. Round **14** is final (no need for extra reveal if already caught or win by survival). Between reveals, detectives see only **ticket type** in the travel log.
+**Ticket transfer:** Detectives’ spent tickets are **logged only** (type shown in travel log). They do **not** refill Mr X’s pool (unnecessary with unlimited normal tickets).
 
-### Double move
-Consumes one double-move token + one transport ticket per half-move. Both legs logged. If first leg is a reveal round, position shows briefly then hides for second leg (classic behavior).
+### Reveal rounds
+Mr X’s **position** is shown to all after his move on rounds **3, 8, 13**. Round **14** is final. Between reveals, detectives see only **ticket type** in the travel log.
+
+### Round counter & double move
+- One **round** = one full Mr X action (which may be a single move **or** a double move of two legs) + all four detectives’ moves.
+- A **double move** consumes **1 double token** + **one transport ticket per leg**. Both legs are separate log entries with the **same** `round` number.
+- Reveal applies to the **round number**, not the leg: if `round ∈ {3,8,13}`, Mr X’s position after the **entire** double action (final station of the second leg) is revealed. Intermediate leg position is not shown to detectives.
+- Double move is **illegal** on round 14 (only a single move allowed on the last round). On rounds 1–13, double is allowed if tokens remain.
+- After Mr X finishes (single or double), `round` does not increment until all detectives have acted; then `round += 1`. Mr X wins when detectives finish acting on round 14 without capture.
+
+### Occupancy & capture
+- **Detectives may not occupy the same station** as each other. A detective cannot move onto a station occupied by another detective.
+- **Mr X may not move onto a station occupied by a detective** — such destinations are illegal. If Mr X has zero legal destinations, detectives win immediately (trapped).
+- **Capture:** after a detective completes a move onto Mr X’s **current** station, detectives win. (Mr X is never “on” a detective because that move is illegal for him.)
+- Bypassing: bus/metro edges go station-to-station; there is no intermediate “pass through” occupancy on this streamlined graph (only endpoints matter).
 
 ### Turn order
-1. Mr X moves (and logs ticket; reveal if applicable).  
+1. Mr X moves (single or double; logs ticket(s); reveal if applicable).  
 2. Detectives move in fixed color order: blue → red → green → purple.  
 3. AI detectives move automatically on host with short delay for UX.  
-4. Capture check after each detective move.
+4. Capture check after each detective move.  
+5. If round was 14 and no capture → Mr X wins; else round += 1 and return to step 1.
 
 ### Setup
-- Draw start positions from two pools: Mr X starts, detectives starts (predefined lists on map data, mutually well-spaced).
+- Draw start positions from two pools: Mr X starts, detectives starts (predefined lists on map data, mutually well-spaced, **disjoint**).
 - Mr X start hidden; detectives place tokens visibly.
 
 ---
@@ -88,12 +101,20 @@ Consumes one double-move token + one transport ticket per half-move. Both legs l
 ### Districts (names in Arabic on board)
 وسط البلد، الزمالك، المهندسين، الدقي، مدينة نصر، مصر الجديدة، العباسية، المعادي، الجيزة، الأهرام، شبرا، روض الفرج، الخليفة، مصر القديمة، المقطم، بولاق، جاردن سيتي، كورنيش النيل (محاور).
 
+### Graph invariants (map authoring)
+- Station count target: 60–80 (ship ~70).
+- Graph is **connected** via taxi∪bus∪metro (ignoring river).
+- **Taxi** edges cover most stations (degree ≥ 1 taxi for ≥ 90% of nodes).
+- **Bus** and **metro** form sparser overlays on hubs.
+- **River** edges form a linear/path-like Nile band (Mr X only); ≥ 4 river stations.
+- Start pools: `startsMrX` (≥ 8 ids), `startsDetectives` (≥ 12 ids), **disjoint** sets, pairwise graph distance preferably ≥ 3 between any detective start and Mr X start for drawn combinations (enforced at deal time by resampling).
+
 ### UX
 - Pinch-zoom + pan; tap station to select when legal.
 - Legal destinations highlighted by selected ticket type.
 - Nile band as background art; stations as numbered gold-rimmed discs at night.
 
-Map data file: `games/scotland-yard/cairo-map.json` (or embedded in HTML if prefer single-file — **prefer separate JSON** for maintainability, listed in `version.json`).
+Map data file: `games/scotland-yard/cairo-map.json` (separate JSON for maintainability, listed in `version.json`).
 
 ---
 
@@ -127,18 +148,21 @@ host → all: { type: 'event', kind: 'reveal'|'capture'|'win'|... }
 Private payload for Mr X includes true position and remaining black/double. Detectives never receive true position except on reveal flags in public state.
 
 ### Lobby
-- Host creates room, picks preferred role (X or detective seat).
-- Up to 5 humans (1 X + 4 detectives). Start allowed when host presses start.
-- Unfilled detective seats → AI on start.
-- Mr X seat: if empty at start → only valid in **practice** flows, not public multiplayer (multiplayer requires human X **or** explicitly “train as detectives vs AI X” from solo menu).
+- Host creates room, picks preferred role (X or a detective seat).
+- Up to 5 humans (1 X + 4 detectives).
 
-**Multiplayer start rules:**
-- At least 2 human connections **or** 1 human + any AI fill is OK if host chose “play with friends” and X is human.
-- Simpler rule: **Host may start anytime.** Empty seats AI. If no human X, AI is Mr X (useful when host is a detective and friends join as detectives only).
+**Multiplayer start rules (authoritative):**
+- **Host may press «ابدأ» anytime** while in lobby.
+- Empty seats (including Mr X) → filled by **AI** on start.
+- Valid sessions include: all-human, mixed, or host alone with full AI (same as practice but via multiplayer entry).
 
 ### Disconnect
 - Guest disconnect: seat becomes AI mid-game (host continues); rejoin by same link may reclaim seat if peer id/name matches (best-effort).
 - Host disconnect: game ends for all with Arabic message «انقطع المضيف».
+
+### PeerJS packaging
+- Vendor **peerjs** min bundle under `games/vendor/peerjs.min.js` (same pattern as `three.min.js`) so APK/offline static hosting does not depend on a live npm CDN.
+- Default cloud broker: PeerJS public server (`0.peerjs.com`) unless overridden later; document that multiplayer needs internet for signaling even though game state is P2P.
 
 ---
 
@@ -164,7 +188,7 @@ No network. Same rules engine.
 1. **Menu** — title, multiplayer, practice, rules help, back to portal.
 2. **Lobby** — seats, names, AI badges, share link, start.
 3. **Game** — map (main), bottom sheet: tickets + turn status + travel log; detective tokens on map; Mr X token only when revealed or for X player.
-4. **End** — win banner + rematch / menu.
+4. **End** — win banner + **القائمة** (return to game menu). **No rematch-same-room in v1** (players create a new room or re-enter practice).
 
 ### Device layout
 - Mobile: map full area, collapsible log, large ticket buttons.
@@ -277,7 +301,13 @@ Public projection strips `mrX.pos` and log `pos` fields unless revealed or viewe
 | Visual | Noir gold |
 | Architecture | Approach 1 single game + host engine |
 | Mr X normal tickets | Unlimited taxi/bus/metro; finite black/double |
+| Ticket transfer | Log type only; no pool transfer to Mr X |
 | Rounds | 14; reveals 3, 8, 13 |
+| Double move | One action / one round; two legs; reveal final pos if round is reveal; illegal on round 14 |
+| Occupancy | Detectives unique stations; Mr X cannot enter detective station; capture = detective lands on X |
+| Lobby start | Host anytime; empty seats AI (including AI Mr X) |
+| Rematch | Out of v1; end screen → menu only |
+| PeerJS | Vendored `games/vendor/peerjs.min.js` + public broker |
 
 ---
 
