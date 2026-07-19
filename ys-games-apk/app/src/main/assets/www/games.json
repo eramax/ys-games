@@ -4,7 +4,7 @@
     "title": "Retro City Racing",
     "description": "قم بقيادة سيارتك الكلاسيكية في شوارع المدينة العشوائية اللانهائية، وتجنب الشرطة والمشاة والسيارات الأخرى!",
     "url": "games/car-game.html",
-    "image": "games/images/car-game.png"
+    "image": "games/images/car-game.webp"
   },
   {
     "id": "chess",
@@ -26,5 +26,12 @@
     "description": "لعبة مطعم سمك ثلاثية الأبعاد على الشاطئ! اصطد السمك، اشوِه أو اقليه، جهّز الأرز والسلطة والطحينة وعصير البرتقال، وقدّم الوجبات للزبائن قبل انتهاء الوقت. اعمل بمفردك عبر السحب والإفلات: من الصيد إلى الطهي ثم التقديم وجمع الفلوس.",
     "url": "games/resturant.html",
     "image": "games/images/resturant.webp"
+  },
+  {
+    "id": "scotland-yard",
+    "title": "اسكتلاند يارد · القاهرة",
+    "description": "طارد السيد X في شوارع القاهرة! لعب جماعي عبر الأجهزة (رابط مشاركة) أو تدريب منفرد. ٤ محققين، تذاكر تاكسي وأتوبيس ومترو، وجو بوليسي ذهبي.",
+    "url": "games/scotland-yard.html",
+    "image": "games/images/scotland-yard.svg"
   }
 ]

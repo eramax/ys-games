@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "baseUrl": "https://ys-games.vercel.app/",
   "files": [
     "index.html",
@@ -11,11 +11,19 @@
     "games/millionaire.html",
     "games/millionaire-questions.json",
     "games/resturant.html",
+    "games/scotland-yard.html",
+    "games/scotland-yard/cairo-map.json",
+    "games/scotland-yard/engine.js",
+    "games/scotland-yard/ai.js",
+    "games/scotland-yard/net.js",
+    "games/scotland-yard/ui-map.js",
     "games/vendor/three.min.js",
+    "games/vendor/peerjs.min.js",
     "games/images/chess.svg",
     "games/images/millionaire.png",
     "games/images/resturant.webp",
     "games/images/car-game.webp",
-    "games/images/car-game-thumb.png"
+    "games/images/car-game-thumb.png",
+    "games/images/scotland-yard.svg"
   ]
 }

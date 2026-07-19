@@ -1,0 +1,196 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="640" height="360" role="img" aria-label="اسكتلاند يارد · القاهرة">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#050a14"/>
+      <stop offset="55%" stop-color="#0b1220"/>
+      <stop offset="100%" stop-color="#121c30"/>
+    </linearGradient>
+    <linearGradient id="goldGlow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#d4af37" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#d4af37" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="moonGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%" stop-color="#e8d48b" stop-opacity="0.9"/>
+      <stop offset="45%" stop-color="#d4af37" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#d4af37" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="nile" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#1a3a5c" stop-opacity="0"/>
+      <stop offset="25%" stop-color="#2a5a8a" stop-opacity="0.55"/>
+      <stop offset="50%" stop-color="#3b82b6" stop-opacity="0.35"/>
+      <stop offset="75%" stop-color="#2a5a8a" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#1a3a5c" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="silGold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f0e0a0"/>
+      <stop offset="40%" stop-color="#d4af37"/>
+      <stop offset="100%" stop-color="#8a6b1f"/>
+    </linearGradient>
+    <linearGradient id="silDark" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a2438"/>
+      <stop offset="100%" stop-color="#060a12"/>
+    </linearGradient>
+    <filter id="softGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="4" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Night sky -->
+  <rect width="640" height="360" fill="url(#sky)"/>
+
+  <!-- Subtle gold vignette -->
+  <ellipse cx="320" cy="200" rx="300" ry="180" fill="url(#goldGlow)" opacity="0.35"/>
+
+  <!-- Stars -->
+  <g fill="#e8d48b" opacity="0.75">
+    <circle cx="48" cy="36" r="1.2"/>
+    <circle cx="92" cy="62" r="0.9"/>
+    <circle cx="140" cy="28" r="1.1"/>
+    <circle cx="210" cy="48" r="0.8"/>
+    <circle cx="280" cy="22" r="1"/>
+    <circle cx="360" cy="40" r="0.9"/>
+    <circle cx="420" cy="18" r="1.2"/>
+    <circle cx="480" cy="52" r="0.8"/>
+    <circle cx="540" cy="30" r="1"/>
+    <circle cx="590" cy="58" r="0.9"/>
+    <circle cx="70" cy="95" r="0.7"/>
+    <circle cx="500" cy="88" r="0.7"/>
+    <circle cx="310" cy="70" r="0.6"/>
+  </g>
+
+  <!-- Crescent moon -->
+  <g transform="translate(520,70)">
+    <circle cx="0" cy="0" r="38" fill="url(#moonGlow)" opacity="0.55"/>
+    <circle cx="0" cy="0" r="16" fill="#e8d48b"/>
+    <circle cx="7" cy="-3" r="13" fill="#0b1220"/>
+  </g>
+
+  <!-- Distant pyramids (Cairo night) -->
+  <g opacity="0.55">
+    <polygon points="70,250 130,140 190,250" fill="#0e1628" stroke="#d4af37" stroke-width="1.2" stroke-opacity="0.35"/>
+    <polygon points="150,250 210,155 270,250" fill="#101a2e" stroke="#d4af37" stroke-width="1" stroke-opacity="0.28"/>
+    <polygon points="40,250 85,185 130,250" fill="#0c1424" stroke="#d4af37" stroke-width="0.8" stroke-opacity="0.22"/>
+  </g>
+
+  <!-- City skyline -->
+  <g fill="#0a101c" stroke="#d4af37" stroke-width="0.6" stroke-opacity="0.25">
+    <rect x="300" y="175" width="28" height="75"/>
+    <rect x="332" y="155" width="22" height="95"/>
+    <rect x="358" y="168" width="36" height="82"/>
+    <rect x="398" y="145" width="24" height="105"/>
+    <rect x="426" y="160" width="30" height="90"/>
+    <rect x="460" y="180" width="20" height="70"/>
+    <rect x="484" y="150" width="26" height="100"/>
+    <rect x="514" y="170" width="34" height="80"/>
+    <rect x="552" y="185" width="22" height="65"/>
+    <rect x="578" y="160" width="28" height="90"/>
+    <!-- minaret -->
+    <rect x="445" y="120" width="8" height="40" fill="#0a101c"/>
+    <polygon points="445,120 449,105 453,120" fill="#0a101c"/>
+  </g>
+
+  <!-- Window lights -->
+  <g fill="#d4af37" opacity="0.55">
+    <rect x="306" y="185" width="4" height="5" rx="0.5"/>
+    <rect x="316" y="200" width="4" height="5" rx="0.5"/>
+    <rect x="308" y="218" width="4" height="5" rx="0.5"/>
+    <rect x="338" y="168" width="4" height="5" rx="0.5"/>
+    <rect x="346" y="190" width="4" height="5" rx="0.5"/>
+    <rect x="366" y="180" width="4" height="5" rx="0.5"/>
+    <rect x="378" y="200" width="4" height="5" rx="0.5"/>
+    <rect x="404" y="160" width="4" height="5" rx="0.5"/>
+    <rect x="412" y="185" width="4" height="5" rx="0.5"/>
+    <rect x="432" y="175" width="4" height="5" rx="0.5"/>
+    <rect x="440" y="200" width="4" height="5" rx="0.5"/>
+    <rect x="490" y="165" width="4" height="5" rx="0.5"/>
+    <rect x="500" y="190" width="4" height="5" rx="0.5"/>
+    <rect x="520" y="185" width="4" height="5" rx="0.5"/>
+    <rect x="560" y="200" width="4" height="5" rx="0.5"/>
+    <rect x="586" y="175" width="4" height="5" rx="0.5"/>
+  </g>
+
+  <!-- Nile band -->
+  <path d="M0,252 C80,245 160,258 240,250 C320,242 400,255 480,248 C540,243 600,252 640,250 L640,270 C580,276 500,265 420,272 C320,280 220,268 120,275 C60,278 20,270 0,272 Z" fill="url(#nile)"/>
+  <path d="M0,258 C100,252 200,262 320,255 C440,248 540,262 640,256" fill="none" stroke="#d4af37" stroke-width="0.8" stroke-opacity="0.2"/>
+
+  <!-- Street / ground -->
+  <rect x="0" y="250" width="640" height="110" fill="#080e18"/>
+  <path d="M0,250 L640,250" stroke="#d4af37" stroke-width="1" stroke-opacity="0.15"/>
+
+  <!-- Map route network (schematic) -->
+  <g fill="none" stroke-linecap="round" opacity="0.7">
+    <path d="M80,300 L160,280 L240,295 L320,270 L400,290 L480,275 L560,295" stroke="#e6c84a" stroke-width="2"/>
+    <path d="M100,320 L180,305 L260,315 L340,300 L420,318 L500,305" stroke="#2fa86a" stroke-width="2"/>
+    <path d="M140,270 L200,250 L280,265 L360,245 L440,260" stroke="#d64545" stroke-width="1.8"/>
+  </g>
+  <g fill="#d4af37">
+    <circle cx="160" cy="280" r="4"/>
+    <circle cx="240" cy="295" r="3.5"/>
+    <circle cx="320" cy="270" r="4.5"/>
+    <circle cx="400" cy="290" r="3.5"/>
+    <circle cx="480" cy="275" r="4"/>
+    <circle cx="200" cy="250" r="3"/>
+    <circle cx="360" cy="245" r="3"/>
+  </g>
+
+  <!-- Mister X silhouette (hat + coat) gold -->
+  <g transform="translate(200,95)" filter="url(#softGlow)">
+    <!-- coat body -->
+    <path d="M48,95
+             C30,88 18,100 14,130
+             L10,200 L86,200 L82,130
+             C78,100 66,88 48,95 Z" fill="url(#silGold)" opacity="0.95"/>
+    <!-- collar -->
+    <path d="M28,100 L48,118 L68,100 L60,95 L48,108 L36,95 Z" fill="#8a6b1f"/>
+    <!-- head -->
+    <ellipse cx="48" cy="72" rx="18" ry="20" fill="url(#silGold)"/>
+    <!-- fedora -->
+    <ellipse cx="48" cy="58" rx="32" ry="8" fill="#c9a227"/>
+    <path d="M22,58 Q48,28 74,58 L70,62 Q48,40 26,62 Z" fill="#e8d48b"/>
+    <ellipse cx="48" cy="56" rx="16" ry="5" fill="#a8892a"/>
+    <!-- face shadow (noir) -->
+    <ellipse cx="48" cy="78" rx="14" ry="12" fill="#0a101c" opacity="0.55"/>
+    <!-- eyes glint -->
+    <circle cx="42" cy="76" r="1.6" fill="#e8d48b"/>
+    <circle cx="54" cy="76" r="1.6" fill="#e8d48b"/>
+  </g>
+
+  <!-- Detective silhouette (left, dark with gold outline) -->
+  <g transform="translate(95,130)" opacity="0.92">
+    <path d="M40,70
+             C28,65 18,72 14,95
+             L10,150 L70,150 L66,95
+             C62,72 52,65 40,70 Z" fill="url(#silDark)" stroke="#d4af37" stroke-width="1.2"/>
+    <circle cx="40" cy="52" r="14" fill="#0e1628" stroke="#d4af37" stroke-width="1.2"/>
+    <!-- police cap -->
+    <path d="M22,48 L58,48 L56,40 Q40,32 24,40 Z" fill="#1a2438" stroke="#d4af37" stroke-width="1"/>
+    <rect x="36" y="36" width="8" height="6" rx="1" fill="#d4af37"/>
+    <!-- badge -->
+    <circle cx="40" cy="100" r="5" fill="none" stroke="#d4af37" stroke-width="1.2"/>
+  </g>
+
+  <!-- Second detective (right) -->
+  <g transform="translate(430,140)" opacity="0.85">
+    <path d="M36,65
+             C24,60 14,68 12,90
+             L8,140 L64,140 L60,90
+             C58,68 48,60 36,65 Z" fill="url(#silDark)" stroke="#d4af37" stroke-width="1.1"/>
+    <circle cx="36" cy="48" r="12" fill="#0e1628" stroke="#d4af37" stroke-width="1.1"/>
+    <path d="M20,44 L52,44 L50,37 Q36,30 22,37 Z" fill="#1a2438" stroke="#d4af37" stroke-width="1"/>
+    <rect x="32" y="33" width="8" height="5" rx="1" fill="#d4af37"/>
+  </g>
+
+  <!-- Gold frame accent -->
+  <rect x="12" y="12" width="616" height="336" fill="none" stroke="#d4af37" stroke-width="1.5" stroke-opacity="0.35" rx="8"/>
+  <rect x="18" y="18" width="604" height="324" fill="none" stroke="#d4af37" stroke-width="0.6" stroke-opacity="0.18" rx="6"/>
+
+  <!-- Title ribbon -->
+  <g transform="translate(320,318)">
+    <rect x="-150" y="-16" width="300" height="32" rx="16" fill="#0b1220" stroke="#d4af37" stroke-width="1.4" opacity="0.92"/>
+    <text x="0" y="5" text-anchor="middle" font-family="Cairo, Tahoma, sans-serif" font-size="15" font-weight="800" fill="#d4af37" letter-spacing="0.5">اسكتلاند يارد · القاهرة</text>
+  </g>
+</svg>

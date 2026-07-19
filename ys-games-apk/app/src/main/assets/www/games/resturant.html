@@ -64,6 +64,14 @@
 * { margin:0; padding:0; box-sizing:border-box; user-select:none; -webkit-tap-highlight-color:transparent; }
 body { font-family:'Cairo',system-ui,sans-serif; overflow:hidden; background:#0a1628; color:#fff; height:100dvh; width:100vw; touch-action:manipulation; }
 body.dragging, body.dragging * { touch-action:none !important; }
+body.drag-pending .section-scroll {
+  overflow:hidden !important;
+  touch-action:none !important;
+}
+body.dragging .section-scroll {
+  overflow:hidden !important;
+  touch-action:none !important;
+}
 
 #canvas-wrap { position:fixed; inset:0; z-index:0; }
 #canvas-wrap canvas { display:block; width:100%; height:100%; }
@@ -248,6 +256,8 @@ body.dragging #order-tabs-wrap { overflow: hidden; touch-action: none; }
   flex:1; min-height:0; touch-action:pan-y;
 }
 #row-inventory #inventory-grid.section-scroll { overflow-y:auto; overflow-x:hidden; }
+body.drag-pending #inventory-grid,
+body.dragging #inventory-grid { overflow:hidden; touch-action:none; }
 #inventory-grid,
 #activities-grid {
   display:grid; grid-template-columns:repeat(auto-fill, minmax(var(--tile-cell-min), 1fr));
@@ -256,7 +266,8 @@ body.dragging #order-tabs-wrap { overflow: hidden; touch-action: none; }
 }
 #activities-grid { flex:1; min-height:0; touch-action:pan-y; }
 #activities-grid.section-scroll { overflow-y:auto; overflow-x:hidden; }
-body.dragging #activities-grid { overflow:hidden; touch-action:none; }
+body.dragging #activities-grid,
+body.drag-pending #activities-grid { overflow:hidden; touch-action:none; }
 body.dragging { touch-action:none; }
 .inv-item,
 .activity {
@@ -411,6 +422,7 @@ body.dragging { touch-action:none; }
 .activity .veh-money {
   margin-top:0; padding:4px 6px; border-radius:6px; background:rgba(46,204,113,0.2);
   border:1px dashed var(--ok); cursor:grab; font-size:9px; font-weight:700; width:100%;
+  touch-action:none;
 }
 .activity .veh-actions { display:flex; flex-direction:column; gap:3px; width:100%; margin-top:3px; }
 .activity.vehicle-act { cursor:default; overflow:visible; }
@@ -1078,11 +1090,9 @@ function bindVehicleActivityEvents() {
   });
   document.querySelectorAll('#activities-grid .veh-money').forEach(mn => {
     mn.onpointerdown = e => {
-      e.preventDefault();
-      e.stopPropagation();
       if (S.drag) return;
       const [vt, id] = mn.dataset.vehicleMoney.split('-');
-      startDrag('vehicleMoney', { vtype: vt, vid: +id }, e);
+      beginPointerDrag(e, ev => startDrag('vehicleMoney', { vtype: vt, vid: +id }, ev), { axis: 'any' });
     };
   });
 }
@@ -1139,36 +1149,41 @@ function finishTrayDirtyDrop(extra) {
   if (order?.slots[extra.slotIdx]) order.slots[extra.slotIdx].dirty = null;
 }
 
-/** يميّز بين التمرير الأفقي (صينية/تبويبات) وبين بدء السحب على التابلت */
-function bindPointerDrag(el, startFn) {
-  el.addEventListener('pointerdown', e => {
-    if (S.drag) return;
-    const sx = e.clientX, sy = e.clientY, pid = e.pointerId;
-    let started = false;
-    const onMove = ev => {
-      if (ev.pointerId !== pid || started) return;
-      if (S.drag) { cleanup(); return; }
-      const dx = ev.clientX - sx, dy = ev.clientY - sy;
-      if (Math.hypot(dx, dy) < 10) return;
-      if (Math.abs(dx) > Math.abs(dy) + 4) { cleanup(); return; }
-      started = true;
-      cleanup();
-      ev.preventDefault();
-      startFn(e);
-    };
-    const onUp = ev => {
-      if (ev.pointerId !== pid || started) return;
-      cleanup();
-    };
-    const cleanup = () => {
-      document.removeEventListener('pointermove', onMove);
-      document.removeEventListener('pointerup', onUp);
-      document.removeEventListener('pointercancel', onUp);
-    };
-    document.addEventListener('pointermove', onMove);
-    document.addEventListener('pointerup', onUp);
-    document.addEventListener('pointercancel', onUp);
-  });
+/** يقفل التمرير فور اللمس ثم يبدأ السحب بعد تحريك الإصبع — يحل تعارض السحب مع scroll */
+function beginPointerDrag(e, startFn, opts = {}) {
+  if (S.drag) return false;
+  const sx = e.clientX, sy = e.clientY, pid = e.pointerId;
+  const prefer = opts.axis || 'any';
+  e.preventDefault();
+  e.stopPropagation();
+  document.body.classList.add('drag-pending');
+  let started = false;
+  const onMove = ev => {
+    if (ev.pointerId !== pid || started) return;
+    const dx = ev.clientX - sx, dy = ev.clientY - sy;
+    if (Math.hypot(dx, dy) < 10) return;
+    if (prefer === 'vertical' && Math.abs(dx) > Math.abs(dy) + 4) return;
+    if (prefer === 'horizontal' && Math.abs(dx) > Math.abs(dy) + 4) return;
+    started = true;
+    document.body.classList.remove('drag-pending');
+    ev.preventDefault();
+    startFn(ev);
+  };
+  const onEnd = ev => {
+    if (ev.pointerId !== pid) return;
+    if (!started && opts.onTap) opts.onTap();
+    document.body.classList.remove('drag-pending');
+    cleanup();
+  };
+  const cleanup = () => {
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onEnd);
+    document.removeEventListener('pointercancel', onEnd);
+  };
+  document.addEventListener('pointermove', onMove);
+  document.addEventListener('pointerup', onEnd);
+  document.addEventListener('pointercancel', onEnd);
+  return true;
 }
 
 function startDrag(type, extra, e) {
@@ -1458,26 +1473,31 @@ document.getElementById('inventory-grid').addEventListener('pointerdown', e => {
   const el = e.target.closest('[data-inv]');
   if (!el || S.drag) return;
   const id = el.dataset.inv;
-  e.preventDefault();
   if (id === 'money') {
     const order = S.orders.find(o => o.id === S.activeOrderId && o.status === 'payable' && o.moneyOnTray);
-    if (order) collectMoney(order.id);
+    if (order) {
+      beginPointerDrag(e, () => {}, {
+        onTap: () => collectMoney(order.id)
+      });
+    }
     return;
   }
-  if (id === 'cleanDish' && S.cleanDishes > 0) startDrag('dish', {}, e);
-  else if (id === 'cleanCup' && S.cleanCups > 0) startDrag('cup', {}, e);
-  else if (id === 'paperPlate' && S.paperPlates > 0) startDrag('paperPlate', {}, e);
-  else if (id === 'paperCup' && S.paperCups > 0) startDrag('paperCup', {}, e);
+  const tryDrag = (type, extra, before) => {
+    beginPointerDrag(e, ev => {
+      if (before) before();
+      startDrag(type, extra || {}, ev);
+    }, { axis: 'any' });
+  };
+  if (id === 'cleanDish' && S.cleanDishes > 0) tryDrag('dish');
+  else if (id === 'cleanCup' && S.cleanCups > 0) tryDrag('cup');
+  else if (id === 'paperPlate' && S.paperPlates > 0) tryDrag('paperPlate');
+  else if (id === 'paperCup' && S.paperCups > 0) tryDrag('paperCup');
   else if (id === 'dirtyDish' && S.dirtyDishes > 0) {
-    S.dirtyDishes--;
-    startDrag('dirtyDish', {}, e);
-    renderInventory();
+    tryDrag('dirtyDish', {}, () => { S.dirtyDishes--; renderInventory(); });
   } else if (id === 'dirtyCup' && S.dirtyCups > 0) {
-    S.dirtyCups--;
-    startDrag('dirtyCup', {}, e);
-    renderInventory();
+    tryDrag('dirtyCup', {}, () => { S.dirtyCups--; renderInventory(); });
   } else if (['rawFish','grilled','fried','rice','salad','tahini','juice','cola'].includes(id) && invCount(id) > 0) {
-    startDrag(id, {}, e);
+    tryDrag(id);
   }
 });
 
@@ -2601,10 +2621,11 @@ function renderTray() {
       const pkgEl = document.getElementById('tray-package');
       if (pkgEl) {
         pkgEl.onpointerdown = e => {
-          e.preventDefault(); e.stopPropagation();
           if (S.drag) return;
-          startDrag('package', { orderId: order.id }, e);
-          renderTray();
+          beginPointerDrag(e, ev => {
+            startDrag('package', { orderId: order.id }, ev);
+            renderTray();
+          }, { axis: 'horizontal' });
         };
       }
     }
@@ -2626,11 +2647,13 @@ function renderTray() {
         <span class="slot-emoji">💰</span><span class="slot-label">${order.price} kr</span></div></div>`;
       const moneyEl = document.getElementById('tray-money');
       if (moneyEl) {
-        bindPointerDrag(moneyEl, e => {
+        moneyEl.onpointerdown = e => {
           if (S.drag) return;
-          startDrag('money', { orderId: order.id }, e);
-          renderTray();
-        });
+          beginPointerDrag(e, ev => {
+            startDrag('money', { orderId: order.id }, ev);
+            renderTray();
+          }, { axis: 'any' });
+        };
       }
     }
     btn.classList.remove('show');
@@ -2669,14 +2692,14 @@ function renderTray() {
     btn.classList.remove('show');
     content.querySelectorAll('.tray-slot.dirty').forEach(el => {
       el.onpointerdown = e => {
-        e.preventDefault();
-        e.stopPropagation();
         if (S.drag) return;
         const idx = +el.dataset.slotIdx;
         const slot = order.slots[idx];
         if (!slot?.dirty) return;
-        startDrag(slot.dirty, { orderId: order.id, slotIdx: idx }, e);
-        renderTray();
+        beginPointerDrag(e, ev => {
+          startDrag(slot.dirty, { orderId: order.id, slotIdx: idx }, ev);
+          renderTray();
+        }, { axis: 'any' });
       };
     });
     return;
