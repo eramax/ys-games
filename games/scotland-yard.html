@@ -1,0 +1,1324 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0b1220">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>اسكتلاند يارد · القاهرة</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0b1220;
+  --bg-2:#101a2e;
+  --panel:rgba(16,24,40,.88);
+  --panel-solid:#121c30;
+  --border:rgba(212,175,55,.18);
+  --border-strong:rgba(212,175,55,.38);
+  --gold:#d4af37;
+  --gold-soft:#e8d48b;
+  --text:#f3f0e6;
+  --text-muted:#9aa3b5;
+  --danger:#ef4444;
+  --ok:#22c55e;
+  --taxi:#e6c84a;
+  --bus:#2fa86a;
+  --metro:#d64545;
+  --black-t:#1a1a22;
+  --blue:#3b82f6;
+  --red:#ef4444;
+  --green:#22c55e;
+  --purple:#a855f7;
+  --font:'Cairo',system-ui,sans-serif;
+  --safe-b:env(safe-area-inset-bottom,0px);
+  --safe-t:env(safe-area-inset-top,0px);
+  --hud-h:auto;
+  --footer-h:auto;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{
+  width:100%;height:100%;
+  overflow:hidden;
+  font-family:var(--font);
+  color:var(--text);
+  background:var(--bg);
+  -webkit-tap-highlight-color:transparent;
+  user-select:none;-webkit-user-select:none;
+}
+body{
+  background-image:
+    radial-gradient(ellipse at 20% 0%,rgba(212,175,55,.07) 0,transparent 50%),
+    radial-gradient(ellipse at 90% 100%,rgba(59,100,180,.08) 0,transparent 45%),
+    linear-gradient(180deg,#0b1220 0%,#0a101c 100%);
+}
+button{font-family:inherit;border:none;cursor:pointer;color:inherit;background:none}
+button:disabled{opacity:.4;cursor:not-allowed}
+
+/* ===== Screens ===== */
+.screen{
+  position:fixed;inset:0;
+  display:none;
+  flex-direction:column;
+  overflow:hidden;
+  padding-top:var(--safe-t);
+  padding-bottom:var(--safe-b);
+}
+.screen.active{display:flex}
+
+/* ===== Menu ===== */
+#screen-menu{
+  align-items:center;
+  justify-content:center;
+  padding:20px 18px;
+  overflow-y:auto;
+}
+.menu-card{
+  width:100%;
+  max-width:420px;
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:20px;
+  padding:28px 22px 22px;
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+  box-shadow:0 20px 60px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.04);
+  position:relative;
+}
+.menu-badge{
+  position:absolute;top:14px;left:14px;
+  font-size:.65rem;font-weight:700;
+  color:var(--gold);
+  border:1px solid var(--border);
+  padding:3px 8px;border-radius:999px;
+  letter-spacing:.5px;
+  opacity:.85;
+}
+.menu-icon{
+  width:72px;height:72px;margin:0 auto 12px;
+  border-radius:50%;
+  background:radial-gradient(circle at 40% 30%,#2a3348,#0c1220);
+  border:2px solid var(--gold);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 24px rgba(212,175,55,.25);
+  font-size:2rem;
+}
+.menu-title{
+  text-align:center;
+  font-size:1.45rem;
+  font-weight:900;
+  background:linear-gradient(135deg,var(--gold-soft),var(--gold),#a8892a);
+  -webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;
+  line-height:1.3;
+  margin-bottom:4px;
+}
+.menu-sub{
+  text-align:center;
+  color:var(--text-muted);
+  font-size:.82rem;
+  font-weight:600;
+  margin-bottom:22px;
+}
+.menu-actions{display:flex;flex-direction:column;gap:10px}
+.btn-main{
+  min-height:48px;
+  padding:12px 16px;
+  border-radius:12px;
+  font-weight:800;
+  font-size:.95rem;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  transition:transform .15s, background .15s, box-shadow .15s;
+  border:1px solid transparent;
+}
+.btn-main:active{transform:scale(.97)}
+.btn-gold{
+  background:linear-gradient(135deg,#c9a227,#d4af37 40%,#e8d48b);
+  color:#1a1408;
+  box-shadow:0 4px 18px rgba(212,175,55,.28);
+}
+.btn-gold:hover{box-shadow:0 6px 22px rgba(212,175,55,.4)}
+.btn-panel{
+  background:rgba(212,175,55,.08);
+  border-color:var(--border);
+  color:var(--gold-soft);
+}
+.btn-panel:hover{background:rgba(212,175,55,.14)}
+.btn-ghost{
+  background:transparent;
+  border-color:rgba(255,255,255,.1);
+  color:var(--text-muted);
+  min-height:44px;
+  font-size:.88rem;
+}
+.btn-ghost:hover{color:var(--text);border-color:rgba(255,255,255,.2)}
+.btn-row{display:flex;gap:8px}
+.btn-row .btn-main{flex:1}
+
+/* ===== Lobby / picker ===== */
+#screen-lobby, #screen-pick{
+  align-items:center;
+  justify-content:flex-start;
+  padding:16px;
+  overflow-y:auto;
+}
+.panel-card{
+  width:100%;max-width:460px;
+  margin:auto;
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:18px;
+  padding:20px 18px;
+  backdrop-filter:blur(14px);
+}
+.panel-card h2{
+  font-size:1.15rem;font-weight:800;color:var(--gold);
+  margin-bottom:6px;text-align:center;
+}
+.panel-card .hint{
+  text-align:center;color:var(--text-muted);font-size:.8rem;
+  margin-bottom:16px;line-height:1.5;
+}
+.seat-list{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+.seat{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 12px;min-height:48px;
+  border-radius:12px;
+  background:rgba(255,255,255,.03);
+  border:1px solid rgba(255,255,255,.08);
+}
+.seat-dot{
+  width:16px;height:16px;border-radius:50%;
+  flex-shrink:0;
+  border:2px solid rgba(255,255,255,.35);
+}
+.seat-dot.x{background:#0a0a0f;border-color:var(--gold)}
+.seat-dot.blue{background:var(--blue)}
+.seat-dot.red{background:var(--red)}
+.seat-dot.green{background:var(--green)}
+.seat-dot.purple{background:var(--purple)}
+.seat-name{flex:1;font-weight:700;font-size:.9rem}
+.seat-badge{
+  font-size:.68rem;font-weight:700;
+  padding:3px 8px;border-radius:999px;
+  background:rgba(255,255,255,.06);
+  color:var(--text-muted);
+  border:1px solid rgba(255,255,255,.1);
+}
+.seat-badge.ai{color:#93c5fd;border-color:rgba(59,130,246,.35);background:rgba(59,130,246,.1)}
+.seat-badge.you{color:var(--gold);border-color:var(--border-strong);background:rgba(212,175,55,.12)}
+.seat-badge.soon{color:#fbbf24;border-color:rgba(251,191,36,.3)}
+.lobby-actions{display:flex;flex-direction:column;gap:8px}
+.color-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:8px;
+  margin-bottom:14px;
+}
+.color-opt{
+  min-height:52px;
+  border-radius:12px;
+  border:2px solid rgba(255,255,255,.1);
+  background:rgba(255,255,255,.03);
+  font-weight:800;font-size:.9rem;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  transition:border-color .15s, background .15s;
+}
+.color-opt.selected{
+  border-color:var(--gold);
+  background:rgba(212,175,55,.12);
+  box-shadow:0 0 0 1px rgba(212,175,55,.25);
+}
+.color-opt .dot{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.4)}
+.check-row{
+  display:flex;align-items:center;gap:10px;
+  min-height:44px;
+  margin-bottom:14px;
+  font-size:.85rem;color:var(--text-muted);font-weight:600;
+}
+.check-row input{width:20px;height:20px;accent-color:var(--gold)}
+
+/* ===== Game ===== */
+#screen-game{
+  background:var(--bg);
+}
+.game-top{
+  flex:0 0 auto;
+  display:flex;align-items:center;gap:8px;
+  padding:8px 10px;
+  background:var(--panel);
+  border-bottom:1px solid var(--border);
+  z-index:5;
+  flex-wrap:wrap;
+}
+.game-top .meta{
+  flex:1;min-width:0;
+  display:flex;flex-direction:column;gap:2px;
+}
+.game-top .round-line{
+  font-weight:800;font-size:.95rem;color:var(--gold-soft);
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+}
+.game-top .turn-line{
+  font-size:.75rem;color:var(--text-muted);font-weight:600;
+}
+.reveal-pill{
+  display:inline-flex;align-items:center;
+  font-size:.68rem;font-weight:700;
+  padding:2px 8px;border-radius:999px;
+  background:rgba(212,175,55,.12);
+  border:1px solid var(--border);
+  color:var(--gold);
+}
+.reveal-pill.soon{
+  background:rgba(239,68,68,.12);
+  border-color:rgba(239,68,68,.35);
+  color:#fca5a5;
+}
+.icon-btn{
+  min-width:44px;min-height:44px;
+  border-radius:10px;
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.1);
+  color:var(--text-muted);
+  font-size:.85rem;font-weight:700;
+  display:inline-flex;align-items:center;justify-content:center;
+  padding:0 10px;
+}
+.icon-btn:hover{color:var(--text);background:rgba(255,255,255,.08)}
+
+.game-body{
+  flex:1 1 0;
+  min-height:0;
+  display:flex;
+  position:relative;
+}
+#map-host{
+  flex:1 1 0;
+  min-width:0;min-height:0;
+  position:relative;
+  background:
+    radial-gradient(ellipse at 50% 40%,#142038 0%,#0b1220 70%);
+  overflow:hidden;
+}
+.sy-map-host,.sy-map-svg{width:100%;height:100%}
+
+.side-panel{
+  display:none;
+  width:240px;
+  flex-shrink:0;
+  background:var(--panel-solid);
+  border-right:1px solid var(--border);
+  padding:10px;
+  overflow-y:auto;
+  flex-direction:column;gap:10px;
+}
+@media (min-width:820px){
+  .side-panel{display:flex}
+  .game-body{flex-direction:row-reverse}
+}
+
+.side-section h3{
+  font-size:.72rem;font-weight:800;color:var(--gold);
+  margin-bottom:6px;letter-spacing:.3px;
+}
+.det-list{display:flex;flex-direction:column;gap:6px}
+.det-row{
+  display:flex;align-items:center;gap:8px;
+  font-size:.78rem;font-weight:700;
+  padding:6px 8px;border-radius:8px;
+  background:rgba(255,255,255,.03);
+}
+.det-row .dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+.det-row.active{outline:1px solid var(--border-strong);background:rgba(212,175,55,.08)}
+.det-tickets{font-size:.65rem;color:var(--text-muted);font-weight:600;margin-right:auto}
+
+.game-bottom{
+  flex:0 0 auto;
+  background:var(--panel);
+  border-top:1px solid var(--border);
+  padding:8px 10px calc(8px + var(--safe-b));
+  z-index:5;
+  display:flex;flex-direction:column;gap:8px;
+  max-height:46vh;
+}
+.log-row{
+  display:flex;align-items:center;gap:6px;
+  overflow-x:auto;
+  padding-bottom:2px;
+  scrollbar-width:thin;
+  min-height:28px;
+}
+.log-label{
+  flex-shrink:0;
+  font-size:.7rem;font-weight:800;color:var(--text-muted);
+  margin-left:4px;
+}
+.log-chip{
+  flex-shrink:0;
+  width:26px;height:26px;border-radius:7px;
+  display:inline-flex;align-items:center;justify-content:center;
+  font-size:.65rem;font-weight:900;
+  border:1px solid rgba(0,0,0,.3);
+  position:relative;
+}
+.log-chip.has-pos::after{
+  content:'';
+  position:absolute;bottom:-2px;left:50%;transform:translateX(-50%);
+  width:5px;height:5px;border-radius:50%;background:var(--gold);
+  box-shadow:0 0 4px var(--gold);
+}
+.log-chip.taxi{background:var(--taxi);color:#1a1408}
+.log-chip.bus{background:var(--bus);color:#04140a}
+.log-chip.metro{background:var(--metro);color:#fff}
+.log-chip.black{background:#111;color:var(--gold);border-color:var(--gold)}
+.log-empty{font-size:.72rem;color:var(--text-muted)}
+
+.ticket-bar{
+  display:flex;gap:6px;flex-wrap:wrap;
+  align-items:stretch;
+}
+.tkt-btn{
+  flex:1 1 0;
+  min-width:64px;
+  min-height:48px;
+  border-radius:12px;
+  border:2px solid transparent;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  gap:1px;
+  font-weight:800;
+  transition:transform .12s, box-shadow .12s, border-color .12s;
+  padding:4px;
+}
+.tkt-btn:active:not(:disabled){transform:scale(.96)}
+.tkt-btn .tkt-name{font-size:.72rem}
+.tkt-btn .tkt-count{font-size:.85rem;font-variant-numeric:tabular-nums}
+.tkt-btn.taxi{background:rgba(230,200,74,.18);color:var(--taxi);border-color:rgba(230,200,74,.35)}
+.tkt-btn.bus{background:rgba(47,168,106,.16);color:#5fd49a;border-color:rgba(47,168,106,.4)}
+.tkt-btn.metro{background:rgba(214,69,69,.16);color:#f08080;border-color:rgba(214,69,69,.4)}
+.tkt-btn.black{background:rgba(255,255,255,.06);color:var(--gold-soft);border-color:rgba(212,175,55,.3)}
+.tkt-btn.selected{
+  border-color:#fff3c4 !important;
+  box-shadow:0 0 0 2px rgba(212,175,55,.45), 0 0 16px rgba(212,175,55,.25);
+  transform:translateY(-1px);
+}
+.tkt-btn:disabled{opacity:.35}
+.double-btn{
+  flex:0 0 auto;
+  min-width:72px;
+  min-height:48px;
+  border-radius:12px;
+  border:2px solid rgba(212,175,55,.3);
+  background:rgba(212,175,55,.08);
+  color:var(--gold);
+  font-weight:800;font-size:.72rem;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:1px;padding:4px 8px;
+}
+.double-btn.on{
+  background:rgba(212,175,55,.22);
+  border-color:var(--gold);
+  box-shadow:0 0 12px rgba(212,175,55,.3);
+}
+.double-btn .sub{font-size:.65rem;opacity:.85;font-weight:700}
+.status-hint{
+  font-size:.72rem;color:var(--text-muted);font-weight:600;
+  text-align:center;min-height:1.1em;
+}
+.status-hint.hot{color:var(--gold-soft)}
+.double-leg-pill{
+  display:none;
+  font-size:.72rem;font-weight:700;
+  color:#1a1408;background:var(--gold);
+  padding:4px 10px;border-radius:999px;
+  text-align:center;
+}
+.double-leg-pill.show{display:block}
+
+/* ===== Overlays ===== */
+.modal-backdrop{
+  position:fixed;inset:0;
+  background:rgba(5,8,16,.72);
+  backdrop-filter:blur(6px);
+  z-index:40;
+  display:none;
+  align-items:center;justify-content:center;
+  padding:18px;
+}
+.modal-backdrop.show{display:flex}
+.modal{
+  width:100%;max-width:400px;
+  max-height:min(80vh,560px);
+  overflow-y:auto;
+  background:var(--panel-solid);
+  border:1px solid var(--border-strong);
+  border-radius:18px;
+  padding:20px 18px;
+  box-shadow:0 24px 60px rgba(0,0,0,.55);
+}
+.modal h2{
+  font-size:1.1rem;font-weight:900;color:var(--gold);
+  margin-bottom:12px;text-align:center;
+}
+.modal p,.modal li{
+  font-size:.85rem;line-height:1.65;color:var(--text-muted);font-weight:600;
+}
+.modal ul{padding-right:18px;margin-bottom:12px}
+.modal li{margin-bottom:6px}
+.modal .close-row{margin-top:14px}
+
+#overlay-end{
+  position:fixed;inset:0;
+  z-index:50;
+  display:none;
+  align-items:center;justify-content:center;
+  padding:20px;
+  background:rgba(5,8,16,.78);
+  backdrop-filter:blur(8px);
+}
+#overlay-end.show{display:flex}
+.end-card{
+  width:100%;max-width:360px;
+  text-align:center;
+  background:var(--panel-solid);
+  border:1px solid var(--border-strong);
+  border-radius:20px;
+  padding:28px 22px 22px;
+  box-shadow:0 24px 70px rgba(0,0,0,.55);
+}
+.end-card .emoji{font-size:2.6rem;margin-bottom:8px}
+.end-card h2{
+  font-size:1.35rem;font-weight:900;color:var(--gold);
+  margin-bottom:8px;
+}
+.end-card p{color:var(--text-muted);font-size:.88rem;font-weight:600;margin-bottom:18px;line-height:1.5}
+
+#toast{
+  position:fixed;
+  bottom:calc(18px + var(--safe-b));
+  left:50%;transform:translateX(-50%) translateY(120%);
+  z-index:60;
+  background:rgba(16,24,40,.95);
+  border:1px solid var(--border-strong);
+  color:var(--gold-soft);
+  font-weight:700;font-size:.82rem;
+  padding:10px 16px;border-radius:12px;
+  box-shadow:0 8px 28px rgba(0,0,0,.45);
+  transition:transform .28s ease;
+  max-width:min(92vw,360px);
+  text-align:center;
+  pointer-events:none;
+}
+#toast.show{transform:translateX(-50%) translateY(0)}
+
+.ai-badge{
+  position:absolute;
+  top:10px;left:10px;
+  z-index:4;
+  font-size:.7rem;font-weight:800;
+  background:rgba(16,24,40,.82);
+  border:1px solid var(--border);
+  color:var(--text-muted);
+  padding:4px 10px;border-radius:999px;
+  display:none;
+}
+.ai-badge.show{display:block}
+
+.loading-boot{
+  position:fixed;inset:0;z-index:100;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--bg);
+  flex-direction:column;gap:12px;
+  color:var(--gold);font-weight:800;
+}
+.loading-boot.hidden{display:none}
+.spinner{
+  width:36px;height:36px;border-radius:50%;
+  border:3px solid rgba(212,175,55,.2);
+  border-top-color:var(--gold);
+  animation:spin .8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="loading-boot" id="boot">
+  <div class="spinner"></div>
+  <div>جارٍ التحميل…</div>
+</div>
+
+<!-- MENU -->
+<section class="screen active" id="screen-menu" aria-label="القائمة">
+  <div class="menu-card">
+    <div class="menu-badge">ليل القاهرة</div>
+    <div class="menu-icon" aria-hidden="true">🕵️</div>
+    <h1 class="menu-title">اسكتلاند يارد · القاهرة</h1>
+    <p class="menu-sub">طارد السيد X في شوارع القاهرة ليلاً</p>
+    <div class="menu-actions">
+      <button type="button" class="btn-main btn-panel" id="btn-practice-x">تدريب: أنا السيد X</button>
+      <button type="button" class="btn-main btn-panel" id="btn-practice-det">تدريب: أنا محقق</button>
+      <button type="button" class="btn-main btn-gold" id="btn-multi">لعب جماعي</button>
+      <div class="btn-row">
+        <button type="button" class="btn-main btn-ghost" id="btn-help">كيف تلعب</button>
+        <button type="button" class="btn-main btn-ghost" id="btn-back-portal">رجوع</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DETECTIVE COLOR PICK -->
+<section class="screen" id="screen-pick" aria-label="اختيار المحقق">
+  <div class="panel-card">
+    <h2>اختر لونك</h2>
+    <p class="hint">تحكم بمحقق واحد ضد السيد X والباقي بالذكاء الاصطناعي. أو فعّل التحكم بجميع المقاعد البشرية.</p>
+    <div class="color-grid" id="color-grid">
+      <button type="button" class="color-opt selected" data-color="blue"><span class="dot" style="background:var(--blue)"></span>أزرق</button>
+      <button type="button" class="color-opt" data-color="red"><span class="dot" style="background:var(--red)"></span>أحمر</button>
+      <button type="button" class="color-opt" data-color="green"><span class="dot" style="background:var(--green)"></span>أخضر</button>
+      <button type="button" class="color-opt" data-color="purple"><span class="dot" style="background:var(--purple)"></span>بنفسجي</button>
+    </div>
+    <label class="check-row">
+      <input type="checkbox" id="chk-all-dets">
+      <span>التحكم بجميع المحققين (مقاعد بشرية)</span>
+    </label>
+    <div class="lobby-actions">
+      <button type="button" class="btn-main btn-gold" id="btn-start-det">ابدأ المطاردة</button>
+      <button type="button" class="btn-main btn-ghost" id="btn-pick-back">رجوع</button>
+    </div>
+  </div>
+</section>
+
+<!-- LOBBY STUB -->
+<section class="screen" id="screen-lobby" aria-label="اللوبي">
+  <div class="panel-card">
+    <h2>لعب جماعي</h2>
+    <p class="hint">غرفة متعددة اللاعبين عبر رابط مشاركة. الشبكة ستُفعَّل قريباً — يمكنك استكشاف المقاعد الآن.</p>
+    <div class="seat-list" id="lobby-seats">
+      <div class="seat"><span class="seat-dot x"></span><span class="seat-name">السيد X</span><span class="seat-badge soon">شاغر · ذكاء اصطناعي</span></div>
+      <div class="seat"><span class="seat-dot blue"></span><span class="seat-name">محقق أزرق</span><span class="seat-badge you">أنت (مضيف)</span></div>
+      <div class="seat"><span class="seat-dot red"></span><span class="seat-name">محقق أحمر</span><span class="seat-badge ai">ذكاء اصطناعي</span></div>
+      <div class="seat"><span class="seat-dot green"></span><span class="seat-name">محقق أخضر</span><span class="seat-badge ai">ذكاء اصطناعي</span></div>
+      <div class="seat"><span class="seat-dot purple"></span><span class="seat-name">محقق بنفسجي</span><span class="seat-badge ai">ذكاء اصطناعي</span></div>
+    </div>
+    <div class="lobby-actions">
+      <button type="button" class="btn-main btn-panel" id="btn-lobby-create" disabled>إنشاء غرفة — قريباً</button>
+      <button type="button" class="btn-main btn-panel" id="btn-lobby-join" disabled>انضمام برابط — قريباً</button>
+      <button type="button" class="btn-main btn-ghost" id="btn-lobby-practice">تدريب سريع كمحقق</button>
+      <button type="button" class="btn-main btn-ghost" id="btn-lobby-back">رجوع</button>
+    </div>
+  </div>
+</section>
+
+<!-- GAME -->
+<section class="screen" id="screen-game" aria-label="اللعب">
+  <header class="game-top">
+    <div class="meta">
+      <div class="round-line">
+        <span id="hud-round">الجولة 1 / 14</span>
+        <span class="reveal-pill" id="hud-reveal">الكشف: —</span>
+      </div>
+      <div class="turn-line" id="hud-turn">الدور: —</div>
+    </div>
+    <button type="button" class="icon-btn" id="btn-game-help" title="كيف تلعب">؟</button>
+    <button type="button" class="icon-btn" id="btn-game-menu">قائمة</button>
+  </header>
+  <div class="game-body">
+    <aside class="side-panel" id="side-panel" aria-label="لوحة جانبية">
+      <div class="side-section">
+        <h3>المحققون</h3>
+        <div class="det-list" id="side-dets"></div>
+      </div>
+      <div class="side-section">
+        <h3>سجل السيد X</h3>
+        <div class="log-row" id="side-log" style="flex-wrap:wrap"></div>
+      </div>
+    </aside>
+    <div id="map-host">
+      <div class="ai-badge" id="ai-badge">ذكاء اصطناعي يفكر…</div>
+    </div>
+  </div>
+  <footer class="game-bottom">
+    <div class="log-row" id="travel-log" aria-label="سجل التنقل">
+      <span class="log-label">السجل</span>
+      <span class="log-empty" id="log-empty">لا حركات بعد</span>
+    </div>
+    <div class="status-hint" id="status-hint">اختر تذكرة ثم اضغط محطة</div>
+    <div class="double-leg-pill" id="double-leg-pill"></div>
+    <div class="ticket-bar" id="ticket-bar"></div>
+  </footer>
+</section>
+
+<!-- HELP MODAL -->
+<div class="modal-backdrop" id="modal-help" role="dialog" aria-modal="true" aria-labelledby="help-title">
+  <div class="modal">
+    <h2 id="help-title">كيف تلعب</h2>
+    <ul>
+      <li><strong style="color:var(--gold)">الهدف:</strong> المحققون يمسكون السيد X خلال ١٤ جولة. السيد X يفوز إن نجا حتى النهاية.</li>
+      <li><strong style="color:var(--gold)">التذاكر:</strong> تاكسي (أصفر) · أتوبيس (أخضر) · مترو (أحمر). السيد X لديه أيضاً تذاكر سوداء للنهر والتنكر، وحركتين مزدوجتين.</li>
+      <li><strong style="color:var(--gold)">الكشف:</strong> يظهر موقع السيد X بعد جولاته ٣ و ٨ و ١٣. بين ذلك ترون نوع التذكرة فقط.</li>
+      <li><strong style="color:var(--gold)">الحركة:</strong> اختر تذكرة ثم اضغط محطة مضيئة. المحققون لا يتشاركون نفس المحطة.</li>
+      <li><strong style="color:var(--gold)">القبض:</strong> إذا هبط محقق على محطة السيد X — فاز المحققون. إن حُوصر السيد X بلا حركة قانونية — فازوا أيضاً.</li>
+      <li><strong style="color:var(--gold)">الحركة المزدوجة:</strong> السيد X يمكنه حركتين في نفس الجولة (ما عدا الجولة ١٤).</li>
+    </ul>
+    <p style="text-align:center;font-size:.78rem">الخريطة تخطيطية لليل القاهرة — حرّك واضغط للتكبير.</p>
+    <div class="close-row">
+      <button type="button" class="btn-main btn-gold" id="btn-help-close" style="width:100%">حسناً</button>
+    </div>
+  </div>
+</div>
+
+<!-- END OVERLAY -->
+<div id="overlay-end" role="dialog" aria-modal="true">
+  <div class="end-card">
+    <div class="emoji" id="end-emoji">🕵️</div>
+    <h2 id="end-title">انتهت اللعبة</h2>
+    <p id="end-msg"></p>
+    <button type="button" class="btn-main btn-gold" id="btn-end-menu" style="width:100%">القائمة</button>
+  </div>
+</div>
+
+<div id="toast" role="status"></div>
+
+<script type="module">
+import {
+  createInitialState,
+  legalMoves,
+  applyMrXMove,
+  applyMrXDouble,
+  applyDetectiveMove,
+  skipDetective,
+  projectPublicState,
+  canDouble,
+  hasAnyLegalMove,
+  DETECTIVE_COLORS,
+  MAX_ROUND,
+  isRevealRound,
+  resolveIfMrXTrapped,
+  buildAdjacency,
+  TICKETS,
+} from './scotland-yard/engine.js';
+import { chooseDetectiveMove, chooseMrXMove } from './scotland-yard/ai.js';
+import { createMapView } from './scotland-yard/ui-map.js';
+
+const AI_DELAY_MS = 420;
+const COLOR_AR = Object.freeze({
+  blue: 'الأزرق',
+  red: 'الأحمر',
+  green: 'الأخضر',
+  purple: 'البنفسجي',
+});
+const TICKET_AR = Object.freeze({
+  taxi: 'تاكسي',
+  bus: 'أتوبيس',
+  metro: 'مترو',
+  black: 'أسود',
+});
+const TICKET_SHORT = Object.freeze({
+  taxi: 'ت',
+  bus: 'أ',
+  metro: 'م',
+  black: 'س',
+});
+
+/** @type {object|null} */
+let map = null;
+/** @type {ReturnType<typeof createMapView>|null} */
+let mapView = null;
+/** @type {object|null} full authoritative state */
+let state = null;
+/** @type {'x'|string|null} primary local role for projection */
+let localRole = null;
+/** @type {'human'|'ai'} */
+let mrXController = 'ai';
+/** @type {Set<string>} human detective colors */
+let humanDets = new Set();
+
+let selectedTicket = null;
+let doubleMode = false;
+/** @type {{ticket:string,to:number}|null} */
+let doubleLeg1 = null;
+let busy = false;
+let aiTimer = 0;
+let toastTimer = 0;
+let pickColor = 'blue';
+
+// ---------- DOM ----------
+const $ = (id) => document.getElementById(id);
+const boot = $('boot');
+const screens = {
+  menu: $('screen-menu'),
+  pick: $('screen-pick'),
+  lobby: $('screen-lobby'),
+  game: $('screen-game'),
+};
+
+function showScreen(name) {
+  for (const [k, el] of Object.entries(screens)) {
+    el.classList.toggle('active', k === name);
+  }
+}
+
+function toast(msg, ms = 2200) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), ms);
+}
+
+function openHelp() {
+  $('modal-help').classList.add('show');
+}
+function closeHelp() {
+  $('modal-help').classList.remove('show');
+}
+
+// ---------- Boot ----------
+async function bootGame() {
+  try {
+    map = await fetch('./scotland-yard/cairo-map.json').then((r) => {
+      if (!r.ok) throw new Error('map fetch failed');
+      return r.json();
+    });
+    map._adj = buildAdjacency(map);
+    boot.classList.add('hidden');
+  } catch (err) {
+    console.error(err);
+    boot.innerHTML = '<div style="color:#fca5a5;font-weight:800;text-align:center;padding:20px">تعذّر تحميل الخريطة</div>';
+  }
+}
+
+// ---------- Session ----------
+function stopAiLoop() {
+  clearTimeout(aiTimer);
+  busy = false;
+  $('ai-badge').classList.remove('show');
+}
+
+function leaveGame() {
+  stopAiLoop();
+  state = null;
+  localRole = null;
+  humanDets = new Set();
+  selectedTicket = null;
+  doubleMode = false;
+  doubleLeg1 = null;
+  if (mapView) {
+    mapView.destroy();
+    mapView = null;
+  }
+  $('overlay-end').classList.remove('show');
+  showScreen('menu');
+}
+
+function startPracticeX() {
+  if (!map) return;
+  const controllers = Object.fromEntries(DETECTIVE_COLORS.map((c) => [c, 'ai']));
+  state = createInitialState(map, Math.random, { controllers });
+  localRole = 'x';
+  mrXController = 'human';
+  humanDets = new Set();
+  enterGame();
+}
+
+function startPracticeDetective(color, allHuman) {
+  if (!map) return;
+  const controllers = {};
+  humanDets = new Set();
+  for (const c of DETECTIVE_COLORS) {
+    if (allHuman || c === color) {
+      controllers[c] = 'human';
+      humanDets.add(c);
+    } else {
+      controllers[c] = 'ai';
+    }
+  }
+  state = createInitialState(map, Math.random, { controllers });
+  localRole = color;
+  mrXController = 'ai';
+  enterGame();
+}
+
+function enterGame() {
+  selectedTicket = null;
+  doubleMode = false;
+  doubleLeg1 = null;
+  stopAiLoop();
+  showScreen('game');
+  const host = $('map-host');
+  // keep ai-badge
+  const badge = $('ai-badge');
+  host.innerHTML = '';
+  host.appendChild(badge);
+  mapView = createMapView(host, map);
+  // re-append badge on top
+  host.appendChild(badge);
+  mapView.setOnStationClick(onStationTap);
+  renderAll();
+  scheduleAiOrWait();
+  // Focus human token / ghost
+  requestAnimationFrame(() => {
+    mapView?.fitToHost();
+    const view = projectPublicState(state, localRole);
+    if (localRole === 'x' && view.mrX?.pos != null) mapView.focusStation(view.mrX.pos, false);
+    else if (DETECTIVE_COLORS.includes(localRole)) {
+      const p = view.detectives?.[localRole]?.pos;
+      if (p != null) mapView.focusStation(p, false);
+    }
+  });
+}
+
+function isHumanTurn() {
+  if (!state || state.phase !== 'playing') return false;
+  if (state.turn === 'x') return mrXController === 'human';
+  if (DETECTIVE_COLORS.includes(state.turn)) {
+    return state.detectives[state.turn]?.controller === 'human';
+  }
+  return false;
+}
+
+function currentActorTickets() {
+  if (!state) return null;
+  if (state.turn === 'x') {
+    return {
+      taxi: Infinity,
+      bus: Infinity,
+      metro: Infinity,
+      black: state.mrX.tickets.black || 0,
+      double: state.mrX.tickets.double || 0,
+    };
+  }
+  const d = state.detectives[state.turn];
+  return d ? { ...d.tickets } : null;
+}
+
+function legalForSelected() {
+  if (!state || !selectedTicket) return [];
+  const actor = state.turn === 'x' ? 'x' : state.turn;
+  // For double leg2, use mid state
+  if (state.turn === 'x' && doubleMode && doubleLeg1) {
+    const mid = {
+      ...state,
+      mrX: {
+        ...state.mrX,
+        pos: doubleLeg1.to,
+        tickets: { ...state.mrX.tickets },
+      },
+    };
+    if (doubleLeg1.ticket === 'black') {
+      mid.mrX.tickets.black = (mid.mrX.tickets.black || 0) - 1;
+    }
+    return legalMoves(mid, map, 'x', selectedTicket);
+  }
+  return legalMoves(state, map, actor, selectedTicket);
+}
+
+// ---------- Render ----------
+function renderAll() {
+  if (!state || !mapView) return;
+  const view = projectPublicState(state, localRole);
+  const highlights = isHumanTurn() && selectedTicket ? legalForSelected() : [];
+  mapView.render({ view, highlights });
+
+  // HUD
+  $('hud-round').textContent = `الجولة ${state.round} / ${MAX_ROUND}`;
+  const revealEl = $('hud-reveal');
+  const nextReveal = (state.revealRounds || [3, 8, 13]).find((r) => r >= state.round);
+  if (state.phase === 'ended') {
+    revealEl.textContent = 'انتهت';
+    revealEl.classList.remove('soon');
+  } else if (isRevealRound(state.round)) {
+    revealEl.textContent = 'جولة كشف!';
+    revealEl.classList.add('soon');
+  } else if (nextReveal != null) {
+    const left = nextReveal - state.round;
+    revealEl.textContent = left === 0 ? 'جولة كشف!' : `الكشف بعد ${left} جولة`;
+    revealEl.classList.toggle('soon', left <= 1);
+  } else {
+    revealEl.textContent = 'لا كشف متبقٍ';
+    revealEl.classList.remove('soon');
+  }
+
+  $('hud-turn').textContent = turnLabel();
+
+  renderTravelLog(view);
+  renderTickets();
+  renderSide(view);
+  renderStatusHint();
+  renderEndIfNeeded();
+}
+
+function turnLabel() {
+  if (!state) return '—';
+  if (state.phase === 'ended') {
+    return state.winner === 'x' ? 'فوز السيد X' : 'فوز المحققين';
+  }
+  if (state.turn === 'x') {
+    const who = mrXController === 'human' ? 'أنت' : 'الذكاء الاصطناعي';
+    return `دور السيد X · ${who}`;
+  }
+  const ar = COLOR_AR[state.turn] || state.turn;
+  const human = state.detectives[state.turn]?.controller === 'human';
+  return `دور المحقق ${ar} · ${human ? 'أنت' : 'ذكاء اصطناعي'}`;
+}
+
+function renderTravelLog(view) {
+  const log = view.mrX?.log || [];
+  const row = $('travel-log');
+  const side = $('side-log');
+  const empty = $('log-empty');
+  // rebuild chips
+  row.querySelectorAll('.log-chip').forEach((n) => n.remove());
+  if (side) side.innerHTML = '';
+  if (!log.length) {
+    if (empty) empty.style.display = '';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  for (const e of log) {
+    const chip = document.createElement('span');
+    chip.className = `log-chip ${e.ticket}${e.pos != null ? ' has-pos' : ''}`;
+    chip.title = e.pos != null ? `${TICKET_AR[e.ticket]} · محطة ${e.pos}` : TICKET_AR[e.ticket] || e.ticket;
+    chip.textContent = TICKET_SHORT[e.ticket] || '?';
+    row.appendChild(chip);
+    if (side) side.appendChild(chip.cloneNode(true));
+  }
+}
+
+function renderTickets() {
+  const bar = $('ticket-bar');
+  bar.innerHTML = '';
+  const human = isHumanTurn() && !busy;
+  const tickets = currentActorTickets();
+  const isX = state?.turn === 'x';
+  const probeState = isX && doubleMode && doubleLeg1 ? midStateForDouble() : state;
+  const actor = isX ? 'x' : state?.turn;
+
+  const kinds = isX ? ['taxi', 'bus', 'metro', 'black'] : ['taxi', 'bus', 'metro'];
+  for (const k of kinds) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `tkt-btn ${k}${selectedTicket === k ? ' selected' : ''}`;
+    const count = tickets ? tickets[k] : 0;
+    const countLabel = count === Infinity ? '∞' : String(count ?? 0);
+    btn.innerHTML = `<span class="tkt-name">${TICKET_AR[k]}</span><span class="tkt-count">${countLabel}</span>`;
+    const hasCount = count === Infinity || count > 0;
+    const hasMoves =
+      human && hasCount && actor
+        ? legalMoves(probeState, map, actor, k).length > 0
+        : false;
+    btn.disabled = !human || !hasCount;
+    if (human && hasCount) {
+      btn.addEventListener('click', () => {
+        if (!hasMoves) {
+          toast('لا وجهات متاحة بهذه التذكرة');
+          return;
+        }
+        selectedTicket = selectedTicket === k ? null : k;
+        renderAll();
+      });
+    }
+    bar.appendChild(btn);
+  }
+
+  // Double button for Mr X
+  if (isX && isHumanTurn()) {
+    const dbl = document.createElement('button');
+    dbl.type = 'button';
+    dbl.className = `double-btn${doubleMode ? ' on' : ''}`;
+    const left = tickets?.double ?? 0;
+    dbl.innerHTML = `<span>مزدوجة</span><span class="sub">${left} متبقية</span>`;
+    const allow = canDouble(state) && left > 0;
+    dbl.disabled = busy || (!allow && !doubleMode);
+    dbl.addEventListener('click', () => {
+      if (busy) return;
+      if (!canDouble(state) && !doubleMode) {
+        toast(state.round >= MAX_ROUND ? 'المزدوجة ممنوعة في الجولة الأخيرة' : 'لا رموز مزدوجة');
+        return;
+      }
+      doubleMode = !doubleMode;
+      doubleLeg1 = null;
+      selectedTicket = null;
+      renderAll();
+      if (doubleMode) toast('وضع الحركة المزدوجة — اختر وجهتين');
+    });
+    bar.appendChild(dbl);
+  }
+
+  const pill = $('double-leg-pill');
+  if (doubleMode && doubleLeg1) {
+    pill.classList.add('show');
+    pill.textContent = `الرجل ١: ${TICKET_AR[doubleLeg1.ticket]} → ${doubleLeg1.to} · اختر الرجل ٢`;
+  } else if (doubleMode) {
+    pill.classList.add('show');
+    pill.textContent = 'المزدوجة: اختر تذكرة ووجهة للرجل الأولى';
+  } else {
+    pill.classList.remove('show');
+    pill.textContent = '';
+  }
+}
+
+function midStateForDouble() {
+  if (!doubleLeg1) return state;
+  const mid = {
+    ...state,
+    mrX: {
+      ...state.mrX,
+      pos: doubleLeg1.to,
+      tickets: { ...state.mrX.tickets },
+    },
+  };
+  if (doubleLeg1.ticket === 'black') {
+    mid.mrX.tickets.black = (mid.mrX.tickets.black || 0) - 1;
+  }
+  return mid;
+}
+
+function renderSide(view) {
+  const box = $('side-dets');
+  if (!box) return;
+  box.innerHTML = '';
+  for (const c of DETECTIVE_COLORS) {
+    const d = view.detectives[c];
+    if (!d) continue;
+    const row = document.createElement('div');
+    row.className = `det-row${state.turn === c ? ' active' : ''}`;
+    const ctrl = d.controller === 'human' ? 'أنت' : 'AI';
+    row.innerHTML = `
+      <span class="dot" style="background:var(--${c})"></span>
+      <span>${COLOR_AR[c]}</span>
+      <span class="det-tickets">م${d.pos} · ت${d.tickets.taxi} أ${d.tickets.bus} م${d.tickets.metro} · ${ctrl}</span>
+    `;
+    box.appendChild(row);
+  }
+}
+
+function renderStatusHint() {
+  const el = $('status-hint');
+  if (!state) return;
+  if (state.phase === 'ended') {
+    el.textContent = '';
+    el.classList.remove('hot');
+    return;
+  }
+  if (!isHumanTurn()) {
+    el.textContent = 'انتظر دورك…';
+    el.classList.remove('hot');
+    return;
+  }
+  el.classList.add('hot');
+  if (state.turn === 'x' && doubleMode) {
+    el.textContent = doubleLeg1
+      ? 'اختر تذكرة ثم محطة للرجل الثانية'
+      : 'اختر تذكرة ثم محطة للرجل الأولى';
+  } else if (selectedTicket) {
+    el.textContent = `اضغط محطة للتنقل بـ${TICKET_AR[selectedTicket]}`;
+  } else {
+    el.textContent = 'اختر تذكرة ثم اضغط محطة مضيئة';
+  }
+}
+
+function renderEndIfNeeded() {
+  if (!state || state.phase !== 'ended') {
+    $('overlay-end').classList.remove('show');
+    return;
+  }
+  const ov = $('overlay-end');
+  ov.classList.add('show');
+  if (state.winner === 'x') {
+    $('end-emoji').textContent = '🎩';
+    $('end-title').textContent = 'فوز السيد X!';
+    $('end-msg').textContent = 'نجا السيد X من المطاردة عبر شوارع القاهرة حتى الجولة ١٤.';
+  } else {
+    $('end-emoji').textContent = '🔦';
+    $('end-title').textContent = 'فوز المحققين!';
+    $('end-msg').textContent = 'أُلقي القبض على السيد X — أحسنتم أيها المحققون.';
+  }
+}
+
+// ---------- Input ----------
+function onStationTap(id) {
+  if (!state || state.phase !== 'playing' || busy) return;
+  if (!isHumanTurn()) {
+    toast('ليس دورك الآن');
+    return;
+  }
+  if (!selectedTicket) {
+    toast('اختر تذكرة أولاً');
+    return;
+  }
+  const legal = legalForSelected();
+  if (!legal.includes(id)) {
+    toast('محطة غير مسموحة بهذه التذكرة');
+    return;
+  }
+
+  try {
+    if (state.turn === 'x') {
+      if (doubleMode) {
+        if (!doubleLeg1) {
+          doubleLeg1 = { ticket: selectedTicket, to: id };
+          selectedTicket = null;
+          renderAll();
+          return;
+        }
+        const legs = [doubleLeg1, { ticket: selectedTicket, to: id }];
+        state = applyMrXDouble(state, map, { legs });
+        doubleMode = false;
+        doubleLeg1 = null;
+        selectedTicket = null;
+      } else {
+        state = applyMrXMove(state, map, { ticket: selectedTicket, to: id });
+        selectedTicket = null;
+      }
+    } else {
+      state = applyDetectiveMove(state, map, state.turn, {
+        ticket: selectedTicket,
+        to: id,
+      });
+      selectedTicket = null;
+      doubleMode = false;
+      doubleLeg1 = null;
+    }
+  } catch (err) {
+    console.error(err);
+    toast('حركة غير صالحة');
+    return;
+  }
+  afterMove();
+}
+
+function afterMove() {
+  renderAll();
+  scheduleAiOrWait();
+}
+
+// ---------- AI loop ----------
+function scheduleAiOrWait() {
+  clearTimeout(aiTimer);
+  if (!state || state.phase !== 'playing') {
+    $('ai-badge').classList.remove('show');
+    return;
+  }
+  if (isHumanTurn()) {
+    $('ai-badge').classList.remove('show');
+    // Auto-skip stranded human detective? Engine usually skips after previous moves;
+    // but if somehow stranded on human turn:
+    if (state.turn !== 'x' && !hasAnyLegalMove(state, map, state.turn)) {
+      try {
+        state = skipDetective(state, map, state.turn);
+        renderAll();
+        scheduleAiOrWait();
+      } catch (_) {}
+    }
+    return;
+  }
+
+  $('ai-badge').classList.add('show');
+  busy = true;
+  aiTimer = setTimeout(() => {
+    try {
+      runAiStep();
+    } catch (err) {
+      console.error(err);
+      toast('خطأ في دور الذكاء الاصطناعي');
+    } finally {
+      busy = false;
+      renderAll();
+      scheduleAiOrWait();
+    }
+  }, AI_DELAY_MS);
+}
+
+function runAiStep() {
+  if (!state || state.phase !== 'playing') return;
+
+  if (state.turn === 'x') {
+    state = resolveIfMrXTrapped(state, map);
+    if (state.phase !== 'playing') return;
+    const move = chooseMrXMove(state, map, Math.random);
+    if (!move) {
+      state = resolveIfMrXTrapped(state, map);
+      return;
+    }
+    if (move.type === 'double') {
+      state = applyMrXDouble(state, map, { legs: move.legs });
+    } else {
+      state = applyMrXMove(state, map, { ticket: move.ticket, to: move.to });
+    }
+    return;
+  }
+
+  if (DETECTIVE_COLORS.includes(state.turn)) {
+    if (!hasAnyLegalMove(state, map, state.turn)) {
+      state = skipDetective(state, map, state.turn);
+      return;
+    }
+    const move = chooseDetectiveMove(state, map, state.turn, Math.random);
+    if (!move) {
+      state = skipDetective(state, map, state.turn);
+      return;
+    }
+    state = applyDetectiveMove(state, map, state.turn, move);
+  }
+}
+
+// ---------- Events ----------
+$('btn-practice-x').addEventListener('click', startPracticeX);
+$('btn-practice-det').addEventListener('click', () => {
+  pickColor = 'blue';
+  $('chk-all-dets').checked = false;
+  document.querySelectorAll('.color-opt').forEach((b) => {
+    b.classList.toggle('selected', b.dataset.color === 'blue');
+  });
+  showScreen('pick');
+});
+$('btn-multi').addEventListener('click', () => showScreen('lobby'));
+$('btn-help').addEventListener('click', openHelp);
+$('btn-game-help').addEventListener('click', openHelp);
+$('btn-help-close').addEventListener('click', closeHelp);
+$('modal-help').addEventListener('click', (e) => {
+  if (e.target === $('modal-help')) closeHelp();
+});
+$('btn-back-portal').addEventListener('click', () => {
+  location.href = '../index.html';
+});
+$('btn-pick-back').addEventListener('click', () => showScreen('menu'));
+$('btn-lobby-back').addEventListener('click', () => showScreen('menu'));
+$('btn-lobby-practice').addEventListener('click', () => {
+  pickColor = 'blue';
+  showScreen('pick');
+});
+$('btn-lobby-create').addEventListener('click', () => toast('سيتم تفعيل اللعب الجماعي لاحقاً'));
+$('btn-lobby-join').addEventListener('click', () => toast('سيتم تفعيل اللعب الجماعي لاحقاً'));
+
+document.querySelectorAll('.color-opt').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    pickColor = btn.dataset.color;
+    document.querySelectorAll('.color-opt').forEach((b) => b.classList.remove('selected'));
+    btn.classList.add('selected');
+  });
+});
+
+$('btn-start-det').addEventListener('click', () => {
+  startPracticeDetective(pickColor, $('chk-all-dets').checked);
+});
+
+$('btn-game-menu').addEventListener('click', () => {
+  if (confirm('العودة إلى القائمة؟ ستُفقد الجولة الحالية.')) leaveGame();
+});
+$('btn-end-menu').addEventListener('click', leaveGame);
+
+// Prevent pull-to-refresh annoyances on map
+document.addEventListener(
+  'touchmove',
+  (e) => {
+    if (screens.game.classList.contains('active')) {
+      // allow only if not preventable issues — map handles its own
+    }
+  },
+  { passive: true },
+);
+
+bootGame();
+</script>
+</body>
+</html>
