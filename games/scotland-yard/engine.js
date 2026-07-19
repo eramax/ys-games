@@ -582,11 +582,13 @@ export function projectPublicState(state, viewer) {
     },
   };
 
-  if (isMrX) {
+  if (isMrX || state.phase === 'ended') {
+    // Reveal true position to Mr X always; to everyone once the game is over
+    // so capture/trap endings are unambiguous for detectives and spectators.
     base.mrX.pos = state.mrX.pos;
   } else {
-    // Never expose live pos to detectives/spectators (ghost via lastKnownPos / log).
-    // UI can use winner + detective pos for capture animation.
+    // During play: never expose live pos to detectives/spectators
+    // (ghost via lastKnownPos / log only).
     base.mrX.pos = undefined;
   }
 
@@ -860,6 +862,35 @@ export function runEngineSelfTests() {
     assert(s2.phase === 'ended', 'ended');
     assert(s2.winner === 'detectives', 'detectives win');
     assert(s2.detectives.blue.tickets.taxi === 9, 'ticket spent');
+  });
+
+  test('ended projection reveals mrX.pos to non-X viewers', () => {
+    const s = makeFixtureState(map, {
+      x: 1,
+      detectives: { blue: 2, red: 3, green: 5, purple: 6 },
+      turn: 'blue',
+      round: 5,
+    });
+    const s2 = applyDetectiveMove(s, map, 'blue', { ticket: 'taxi', to: 1 });
+    assert(s2.phase === 'ended' && s2.winner === 'detectives', 'capture ended');
+    assert(s2.mrX.pos === 1, 'authoritative pos 1');
+
+    const detView = projectPublicState(s2, 'blue');
+    assert(detView.mrX.pos === 1, 'detective sees mrX.pos after capture');
+    const spectView = projectPublicState(s2, 'spectator');
+    assert(spectView.mrX.pos === 1, 'spectator sees mrX.pos after capture');
+    const xView = projectPublicState(s2, 'x');
+    assert(xView.mrX.pos === 1, 'x still sees pos when ended');
+
+    // Fog still holds while playing
+    const playing = makeFixtureState(map, {
+      x: 1,
+      detectives: { blue: 2, red: 3, green: 5, purple: 6 },
+      turn: 'blue',
+      round: 5,
+    });
+    assert(playing.phase === 'playing', 'still playing');
+    assert(projectPublicState(playing, 'blue').mrX.pos === undefined, 'fog while playing');
   });
 
   test('round 14 complete without capture Mr X wins', () => {
