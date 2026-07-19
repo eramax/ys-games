@@ -207,7 +207,66 @@ button:disabled{opacity:.4;cursor:not-allowed}
 .seat-badge.ai{color:#93c5fd;border-color:rgba(59,130,246,.35);background:rgba(59,130,246,.1)}
 .seat-badge.you{color:var(--gold);border-color:var(--border-strong);background:rgba(212,175,55,.12)}
 .seat-badge.soon{color:#fbbf24;border-color:rgba(251,191,36,.3)}
+.seat.claimable{cursor:pointer;transition:border-color .15s, background .15s}
+.seat.claimable:hover{border-color:var(--border-strong);background:rgba(212,175,55,.08)}
+.seat.taken-other{opacity:.85}
 .lobby-actions{display:flex;flex-direction:column;gap:8px}
+.lobby-field{
+  display:flex;flex-direction:column;gap:6px;
+  margin-bottom:12px;
+}
+.lobby-field label{
+  font-size:.78rem;font-weight:700;color:var(--text-muted);
+}
+.lobby-field input{
+  min-height:44px;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(0,0,0,.25);
+  color:var(--text);
+  font-family:inherit;
+  font-size:.9rem;font-weight:600;
+  padding:8px 12px;
+  direction:ltr;text-align:left;
+}
+.lobby-field input[type="text"][data-rtl="1"]{
+  direction:rtl;text-align:right;
+}
+.share-box{
+  display:none;
+  flex-direction:column;gap:8px;
+  margin-bottom:14px;
+  padding:10px 12px;
+  border-radius:12px;
+  background:rgba(212,175,55,.08);
+  border:1px solid var(--border);
+}
+.share-box.show{display:flex}
+.share-box .room-code{
+  font-weight:800;color:var(--gold);font-size:.95rem;
+  letter-spacing:.5px;direction:ltr;text-align:center;
+}
+.share-row{display:flex;gap:6px}
+.share-row input{
+  flex:1;min-width:0;min-height:40px;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(0,0,0,.3);
+  color:var(--text-muted);
+  font-size:.68rem;
+  padding:6px 8px;
+  direction:ltr;text-align:left;
+  font-family:ui-monospace,monospace;
+}
+.lobby-status{
+  text-align:center;
+  font-size:.78rem;font-weight:600;
+  color:var(--text-muted);
+  min-height:1.2em;
+  margin-top:4px;
+}
+.lobby-status.err{color:#fca5a5}
+.lobby-status.ok{color:#86efac}
 .color-grid{
   display:grid;grid-template-columns:1fr 1fr;gap:8px;
   margin-bottom:14px;
@@ -586,24 +645,31 @@ button:disabled{opacity:.4;cursor:not-allowed}
   </div>
 </section>
 
-<!-- LOBBY STUB -->
+<!-- LOBBY -->
 <section class="screen" id="screen-lobby" aria-label="اللوبي">
   <div class="panel-card">
     <h2>لعب جماعي</h2>
-    <p class="hint">غرفة متعددة اللاعبين عبر رابط مشاركة. الشبكة ستُفعَّل قريباً — يمكنك استكشاف المقاعد الآن.</p>
-    <div class="seat-list" id="lobby-seats">
-      <div class="seat"><span class="seat-dot x"></span><span class="seat-name">السيد X</span><span class="seat-badge soon">شاغر · ذكاء اصطناعي</span></div>
-      <div class="seat"><span class="seat-dot blue"></span><span class="seat-name">محقق أزرق</span><span class="seat-badge you">أنت (مضيف)</span></div>
-      <div class="seat"><span class="seat-dot red"></span><span class="seat-name">محقق أحمر</span><span class="seat-badge ai">ذكاء اصطناعي</span></div>
-      <div class="seat"><span class="seat-dot green"></span><span class="seat-name">محقق أخضر</span><span class="seat-badge ai">ذكاء اصطناعي</span></div>
-      <div class="seat"><span class="seat-dot purple"></span><span class="seat-name">محقق بنفسجي</span><span class="seat-badge ai">ذكاء اصطناعي</span></div>
+    <p class="hint" id="lobby-hint">أنشئ غرفة وشارك الرابط، أو انضم عبر رابط المضيف. المقاعد الفارغة تُملأ بالذكاء الاصطناعي.</p>
+    <div class="lobby-field">
+      <label for="lobby-name">اسمك</label>
+      <input type="text" id="lobby-name" maxlength="24" placeholder="لاعب" data-rtl="1" autocomplete="nickname">
     </div>
+    <div class="share-box" id="share-box">
+      <div class="room-code" id="lobby-room-code">—</div>
+      <div class="share-row">
+        <input type="text" id="lobby-url" readonly aria-label="رابط المشاركة">
+        <button type="button" class="icon-btn" id="btn-copy-link" title="نسخ" style="flex-shrink:0">نسخ</button>
+      </div>
+    </div>
+    <div class="seat-list" id="lobby-seats"></div>
     <div class="lobby-actions">
-      <button type="button" class="btn-main btn-panel" id="btn-lobby-create" disabled>إنشاء غرفة — قريباً</button>
-      <button type="button" class="btn-main btn-panel" id="btn-lobby-join" disabled>انضمام برابط — قريباً</button>
+      <button type="button" class="btn-main btn-gold" id="btn-lobby-create">إنشاء غرفة</button>
+      <button type="button" class="btn-main btn-panel" id="btn-lobby-join">انضمام بمعرّف المضيف</button>
+      <button type="button" class="btn-main btn-gold" id="btn-lobby-start" hidden>ابدأ المطاردة</button>
       <button type="button" class="btn-main btn-ghost" id="btn-lobby-practice">تدريب سريع كمحقق</button>
       <button type="button" class="btn-main btn-ghost" id="btn-lobby-back">رجوع</button>
     </div>
+    <div class="lobby-status" id="lobby-status" role="status"></div>
   </div>
 </section>
 
@@ -697,6 +763,12 @@ import {
 } from './scotland-yard/engine.js';
 import { chooseDetectiveMove, chooseMrXMove } from './scotland-yard/ai.js';
 import { createMapView } from './scotland-yard/ui-map.js';
+import {
+  createHost,
+  createGuest,
+  parseMultiplayerParams,
+  SEAT_ROLES,
+} from './scotland-yard/net.js';
 
 const AI_DELAY_MS = 420;
 const COLOR_AR = Object.freeze({
@@ -704,6 +776,13 @@ const COLOR_AR = Object.freeze({
   red: 'الأحمر',
   green: 'الأخضر',
   purple: 'البنفسجي',
+});
+const SEAT_AR = Object.freeze({
+  x: 'السيد X',
+  blue: 'محقق أزرق',
+  red: 'محقق أحمر',
+  green: 'محقق أخضر',
+  purple: 'محقق بنفسجي',
 });
 const TICKET_AR = Object.freeze({
   taxi: 'تاكسي',
@@ -722,7 +801,7 @@ const TICKET_SHORT = Object.freeze({
 let map = null;
 /** @type {ReturnType<typeof createMapView>|null} */
 let mapView = null;
-/** @type {object|null} full authoritative state */
+/** @type {object|null} full authoritative state (solo/host) or projected view (guest) */
 let state = null;
 /** @type {'x'|string|null} primary local role for projection */
 let localRole = null;
@@ -730,6 +809,14 @@ let localRole = null;
 let mrXController = 'ai';
 /** @type {Set<string>} human detective colors */
 let humanDets = new Set();
+
+/** @type {null|'host'|'guest'} */
+let multiMode = null;
+/** @type {Awaited<ReturnType<typeof createHost>>|Awaited<ReturnType<typeof createGuest>>|null} */
+let netSession = null;
+/** @type {object|null} last lobby snapshot */
+let lobbySnap = null;
+let netBusy = false;
 
 let selectedTicket = null;
 let doubleMode = false;
@@ -793,11 +880,38 @@ function stopAiLoop() {
   $('ai-badge').classList.remove('show');
 }
 
+function destroyNet() {
+  if (netSession) {
+    try {
+      netSession.destroy();
+    } catch (_) {
+      /* ignore */
+    }
+  }
+  netSession = null;
+  multiMode = null;
+  lobbySnap = null;
+  netBusy = false;
+  // Clear invite params so refresh doesn't rejoin accidentally after leave
+  try {
+    const url = new URL(location.href);
+    if (url.searchParams.has('host') || url.searchParams.has('room')) {
+      url.searchParams.delete('host');
+      url.searchParams.delete('room');
+      history.replaceState(null, '', url.pathname + url.search + url.hash);
+    }
+  } catch (_) {
+    /* ignore */
+  }
+}
+
 function leaveGame() {
   stopAiLoop();
+  destroyNet();
   state = null;
   localRole = null;
   humanDets = new Set();
+  mrXController = 'ai';
   selectedTicket = null;
   doubleMode = false;
   doubleLeg1 = null;
@@ -806,6 +920,7 @@ function leaveGame() {
     mapView = null;
   }
   $('overlay-end').classList.remove('show');
+  resetLobbyUi();
   showScreen('menu');
 }
 
@@ -868,11 +983,25 @@ function enterGame() {
 
 function isHumanTurn() {
   if (!state || state.phase !== 'playing') return false;
+  // Multiplayer: only the local seat may act on this device
+  if (multiMode) {
+    return !!localRole && state.turn === localRole;
+  }
   if (state.turn === 'x') return mrXController === 'human';
   if (DETECTIVE_COLORS.includes(state.turn)) {
     return state.detectives[state.turn]?.controller === 'human';
   }
   return false;
+}
+
+/** View for rendering — always role-projected (fog even on host). */
+function currentView() {
+  if (!state) return null;
+  if (multiMode === 'guest') {
+    // Guest state is already projected by host
+    return state;
+  }
+  return projectPublicState(state, localRole || 'spectator');
 }
 
 /**
@@ -928,12 +1057,13 @@ function legalForSelected() {
 // ---------- Render ----------
 function renderAll() {
   if (!state || !mapView) return;
-  const view = projectPublicState(state, localRole);
+  const view = currentView();
+  if (!view) return;
   // Mid-double: show Mr X token at leg1 destination (render-only override)
   if (localRole === 'x' && doubleMode && doubleLeg1 && view.mrX) {
     view.mrX = { ...view.mrX, pos: doubleLeg1.to };
   }
-  const highlights = isHumanTurn() && selectedTicket ? legalForSelected() : [];
+  const highlights = isHumanTurn() && selectedTicket && !netBusy ? legalForSelected() : [];
   mapView.render({ view, highlights });
 
   // HUD
@@ -970,11 +1100,21 @@ function turnLabel() {
     return state.winner === 'x' ? 'فوز السيد X' : 'فوز المحققين';
   }
   if (state.turn === 'x') {
-    const who = mrXController === 'human' ? 'أنت' : 'الذكاء الاصطناعي';
+    let who;
+    if (multiMode) {
+      who = localRole === 'x' ? 'أنت' : 'لاعب / ذكاء';
+    } else {
+      who = mrXController === 'human' ? 'أنت' : 'الذكاء الاصطناعي';
+    }
     return `دور السيد X · ${who}`;
   }
   const ar = COLOR_AR[state.turn] || state.turn;
-  const human = state.detectives[state.turn]?.controller === 'human';
+  let human;
+  if (multiMode) {
+    human = localRole === state.turn;
+  } else {
+    human = state.detectives[state.turn]?.controller === 'human';
+  }
   return `دور المحقق ${ar} · ${human ? 'أنت' : 'ذكاء اصطناعي'}`;
 }
 
@@ -1004,7 +1144,7 @@ function renderTravelLog(view) {
 function renderTickets() {
   const bar = $('ticket-bar');
   bar.innerHTML = '';
-  const human = isHumanTurn() && !busy;
+  const human = isHumanTurn() && !busy && !netBusy;
   const tickets = currentActorTickets();
   // Black/double UI only for local Mr X — never leak to detectives
   const showXSpecials = localRole === 'x';
@@ -1030,7 +1170,7 @@ function renderTickets() {
     btn.innerHTML = `<span class="tkt-name">${TICKET_AR[k]}</span><span class="tkt-count">${countLabel}</span>`;
     const hasCount = count === Infinity || count > 0;
     const hasMoves =
-      human && hasCount && actor
+      human && hasCount && actor && map
         ? legalMoves(probeState, map, actor, k).length > 0
         : false;
     btn.disabled = !human || !hasCount;
@@ -1048,7 +1188,7 @@ function renderTickets() {
   }
 
   // Double button only for local Mr X on their turn
-  if (showXSpecials && state?.turn === 'x' && isHumanTurn()) {
+  if (showXSpecials && state?.turn === 'x' && isHumanTurn() && !netBusy) {
     const dbl = document.createElement('button');
     dbl.type = 'button';
     dbl.className = `double-btn${doubleMode ? ' on' : ''}`;
@@ -1057,7 +1197,7 @@ function renderTickets() {
     const allow = canDouble(state) && left > 0;
     dbl.disabled = busy || (!allow && !doubleMode);
     dbl.addEventListener('click', () => {
-      if (busy) return;
+      if (busy || netBusy) return;
       // Mid-leg: second tap clears leg1 (stay in double mode to re-pick)
       if (doubleMode && doubleLeg1) {
         doubleLeg1 = null;
@@ -1117,7 +1257,14 @@ function renderSide(view) {
     if (!d) continue;
     const row = document.createElement('div');
     row.className = `det-row${state.turn === c ? ' active' : ''}`;
-    const ctrl = d.controller === 'human' ? 'أنت' : 'AI';
+    const ctrl =
+      d.controller === 'human'
+        ? localRole === c
+          ? 'أنت'
+          : multiMode
+            ? 'لاعب'
+            : 'أنت'
+        : 'AI';
     row.innerHTML = `
       <span class="dot" style="background:var(--${c})"></span>
       <span>${COLOR_AR[c]}</span>
@@ -1172,7 +1319,7 @@ function renderEndIfNeeded() {
 
 // ---------- Input ----------
 function onStationTap(id) {
-  if (!state || state.phase !== 'playing' || busy) return;
+  if (!state || state.phase !== 'playing' || busy || netBusy) return;
   if (!isHumanTurn()) {
     toast('ليس دورك الآن');
     return;
@@ -1184,6 +1331,55 @@ function onStationTap(id) {
   const legal = legalForSelected();
   if (!legal.includes(id)) {
     toast('محطة غير مسموحة بهذه التذكرة');
+    return;
+  }
+
+  // Multiplayer: send intent to host (host validates & broadcasts)
+  if (multiMode && netSession) {
+    if (state.turn === 'x' && doubleMode) {
+      if (!doubleLeg1) {
+        doubleLeg1 = { ticket: selectedTicket, to: id };
+        selectedTicket = null;
+        renderAll();
+        return;
+      }
+      const legs = [doubleLeg1, { ticket: selectedTicket, to: id }];
+      netBusy = true;
+      const res = netSession.sendMove({ type: 'double', legs });
+      doubleMode = false;
+      doubleLeg1 = null;
+      selectedTicket = null;
+      if (!res?.ok) {
+        netBusy = false;
+        toast('حركة غير صالحة');
+        renderAll();
+        return;
+      }
+      // Host applies synchronously and pushes state; guest waits for onState
+      if (multiMode === 'host') netBusy = false;
+      renderAll();
+      return;
+    }
+
+    const actor = state.turn === 'x' ? 'x' : state.turn;
+    netBusy = true;
+    const res = netSession.sendMove({
+      type: 'move',
+      actor,
+      ticket: selectedTicket,
+      to: id,
+    });
+    selectedTicket = null;
+    doubleMode = false;
+    doubleLeg1 = null;
+    if (!res?.ok) {
+      netBusy = false;
+      toast('حركة غير صالحة');
+      renderAll();
+      return;
+    }
+    if (multiMode === 'host') netBusy = false;
+    renderAll();
     return;
   }
 
@@ -1227,9 +1423,18 @@ function afterMove() {
   scheduleAiOrWait();
 }
 
-// ---------- AI loop ----------
+// ---------- AI loop (solo only; multiplayer AI runs on host via net.js) ----------
 function scheduleAiOrWait() {
   clearTimeout(aiTimer);
+  if (multiMode) {
+    // Host AI is inside netSession; guest never runs AI
+    if (multiMode === 'guest' || !isHumanTurn()) {
+      $('ai-badge').classList.toggle('show', !isHumanTurn() && state?.phase === 'playing');
+    } else {
+      $('ai-badge').classList.remove('show');
+    }
+    return;
+  }
   if (!state || state.phase !== 'playing') {
     $('ai-badge').classList.remove('show');
     return;
@@ -1297,6 +1502,300 @@ function runAiStep() {
   }
 }
 
+// ---------- Multiplayer lobby ----------
+function lobbyName() {
+  const v = ($('lobby-name')?.value || '').trim();
+  return v || 'لاعب';
+}
+
+function setLobbyStatus(msg, kind = '') {
+  const el = $('lobby-status');
+  if (!el) return;
+  el.textContent = msg || '';
+  el.classList.remove('err', 'ok');
+  if (kind) el.classList.add(kind);
+}
+
+function resetLobbyUi() {
+  const share = $('share-box');
+  if (share) share.classList.remove('show');
+  const start = $('btn-lobby-start');
+  if (start) {
+    start.hidden = true;
+    start.disabled = false;
+  }
+  const create = $('btn-lobby-create');
+  const join = $('btn-lobby-join');
+  if (create) create.disabled = false;
+  if (join) join.disabled = false;
+  setLobbyStatus('');
+  $('lobby-hint').textContent =
+    'أنشئ غرفة وشارك الرابط، أو انضم عبر رابط المضيف. المقاعد الفارغة تُملأ بالذكاء الاصطناعي.';
+  renderLobbySeats(null);
+}
+
+function renderLobbySeats(lobby) {
+  const box = $('lobby-seats');
+  if (!box) return;
+  box.innerHTML = '';
+  const myPeer = netSession?.getPeerId?.() || null;
+  const canClaim = !!netSession && (lobby?.phase || 'lobby') === 'lobby';
+
+  for (const role of SEAT_ROLES) {
+    const seat = lobby?.seats?.[role];
+    const claimed = !!seat?.claimed;
+    const isYou =
+      claimed &&
+      ((myPeer && seat.peerId === myPeer) ||
+        (multiMode === 'host' && netSession?.getLocalRole?.() === role && seat.peerId === myPeer));
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'seat';
+    if (canClaim && (!claimed || isYou)) row.classList.add('claimable');
+    if (claimed && !isYou) row.classList.add('taken-other');
+
+    let badgeClass = 'ai';
+    let badgeText = 'ذكاء اصطناعي';
+    if (claimed) {
+      if (isYou) {
+        badgeClass = 'you';
+        badgeText = multiMode === 'host' ? 'أنت (مضيف)' : 'أنت';
+      } else {
+        badgeClass = '';
+        badgeText = seat.name || 'لاعب';
+      }
+    } else {
+      badgeText = 'شاغر · ذكاء اصطناعي';
+    }
+
+    row.innerHTML = `
+      <span class="seat-dot ${role}"></span>
+      <span class="seat-name">${SEAT_AR[role] || role}</span>
+      <span class="seat-badge ${badgeClass}">${badgeText}</span>
+    `;
+    if (canClaim) {
+      row.addEventListener('click', () => {
+        if (!netSession) return;
+        const res = netSession.claimSeat(role);
+        if (res && res.ok === false && res.reason === 'taken') {
+          toast('المقعد محجوز');
+        }
+      });
+    } else {
+      row.disabled = true;
+      row.style.cursor = 'default';
+    }
+    box.appendChild(row);
+  }
+}
+
+function onNetLobby(lobby) {
+  lobbySnap = lobby;
+  renderLobbySeats(lobby);
+  if (multiMode === 'host' && lobby.hostPeerId) {
+    const share = $('share-box');
+    share.classList.add('show');
+    $('lobby-room-code').textContent = `الغرفة ${lobby.roomCode || '—'}`;
+    $('lobby-url').value = netSession?.getShareUrl?.() || '';
+    $('btn-lobby-start').hidden = false;
+    $('btn-lobby-create').disabled = true;
+    $('btn-lobby-join').disabled = true;
+    setLobbyStatus('شارك الرابط ثم اضغط «ابدأ» في أي وقت', 'ok');
+  } else if (multiMode === 'guest') {
+    $('btn-lobby-create').disabled = true;
+    $('btn-lobby-join').disabled = true;
+    $('btn-lobby-start').hidden = true;
+    const share = $('share-box');
+    if (lobby.roomCode) {
+      share.classList.add('show');
+      $('lobby-room-code').textContent = `الغرفة ${lobby.roomCode}`;
+      $('lobby-url').value = netSession?.getShareUrl?.() || location.href;
+    }
+    setLobbyStatus('في الانتظار — المضيف يبدأ الجولة', 'ok');
+  }
+
+  // Host started while we were in lobby
+  if (lobby.phase === 'playing' && !screens.game.classList.contains('active')) {
+    // State will arrive via onState and enter multi game
+  }
+}
+
+function onNetState(payload) {
+  netBusy = false;
+  const { view, localRole: role, fullState } = payload;
+  if (role) localRole = role;
+
+  if (multiMode === 'host' && fullState) {
+    state = fullState;
+  } else if (view) {
+    state = view;
+  } else {
+    return;
+  }
+
+  // Sync solo-style controller mirrors for UI labels
+  if (localRole === 'x') mrXController = 'human';
+  else mrXController = 'ai';
+  humanDets = new Set(
+    DETECTIVE_COLORS.filter((c) => state.detectives?.[c]?.controller === 'human'),
+  );
+
+  selectedTicket = null;
+  // Keep double leg only if still our X turn mid-compose (local only)
+  if (!(localRole === 'x' && state.turn === 'x' && doubleMode && doubleLeg1)) {
+    doubleMode = false;
+    doubleLeg1 = null;
+  }
+
+  if (!mapView || !screens.game.classList.contains('active')) {
+    enterMultiGame();
+  } else {
+    renderAll();
+    scheduleAiOrWait();
+  }
+}
+
+function onNetEvent(ev) {
+  if (!ev) return;
+  if (ev.kind === 'host_left') {
+    toast('انقطع المضيف', 4000);
+    setLobbyStatus('انقطع المضيف', 'err');
+    stopAiLoop();
+    if (screens.game.classList.contains('active')) {
+      // Soft leave without destroying mid-message loop races
+      setTimeout(() => {
+        if (multiMode === 'guest') leaveGame();
+      }, 600);
+    } else {
+      destroyNet();
+      resetLobbyUi();
+    }
+    return;
+  }
+  if (ev.kind === 'seat_taken') {
+    toast('المقعد محجوز');
+    return;
+  }
+  if (ev.kind === 'move_rejected') {
+    netBusy = false;
+    toast('الحركة مرفوضة');
+    renderAll();
+    return;
+  }
+  if (ev.kind === 'reveal') {
+    toast('ظهر موقع السيد X!', 2500);
+  }
+  if (ev.kind === 'capture') {
+    toast('قُبض على السيد X!', 2500);
+  }
+}
+
+function onNetError(err) {
+  console.error(err);
+  const msg =
+    err?.message ||
+    (typeof err === 'string' ? err : 'تعذّر الاتصال، تحقق من الإنترنت');
+  setLobbyStatus(msg, 'err');
+  toast(msg, 3200);
+  netBusy = false;
+}
+
+function enterMultiGame() {
+  if (!state || !map) return;
+  selectedTicket = null;
+  if (!(doubleMode && doubleLeg1)) {
+    doubleMode = false;
+    doubleLeg1 = null;
+  }
+  stopAiLoop();
+  showScreen('game');
+  const hostEl = $('map-host');
+  const badge = $('ai-badge');
+  hostEl.innerHTML = '';
+  hostEl.appendChild(badge);
+  if (mapView) {
+    mapView.destroy();
+    mapView = null;
+  }
+  mapView = createMapView(hostEl, map);
+  hostEl.appendChild(badge);
+  mapView.setOnStationClick(onStationTap);
+  renderAll();
+  scheduleAiOrWait();
+  requestAnimationFrame(() => {
+    mapView?.fitToHost();
+    const view = currentView();
+    if (localRole === 'x' && view?.mrX?.pos != null) mapView.focusStation(view.mrX.pos, false);
+    else if (DETECTIVE_COLORS.includes(localRole)) {
+      const p = view?.detectives?.[localRole]?.pos;
+      if (p != null) mapView.focusStation(p, false);
+    }
+  });
+}
+
+async function startHostRoom() {
+  if (!map) {
+    toast('الخريطة غير جاهزة');
+    return;
+  }
+  if (netSession) destroyNet();
+  setLobbyStatus('جارٍ إنشاء الغرفة…');
+  $('btn-lobby-create').disabled = true;
+  $('btn-lobby-join').disabled = true;
+  try {
+    multiMode = 'host';
+    netSession = await createHost({
+      name: lobbyName(),
+      onLobby: onNetLobby,
+      onState: onNetState,
+      onEvent: onNetEvent,
+      onError: onNetError,
+    });
+    // Default host seat: blue detective
+    netSession.claimSeat('blue');
+    $('lobby-hint').textContent = 'اختر مقعدك، انسخ الرابط للأصدقاء، ثم ابدأ عندما تكون جاهزاً.';
+  } catch (err) {
+    console.error(err);
+    destroyNet();
+    resetLobbyUi();
+    onNetError(err);
+  }
+}
+
+async function startGuestRoom(hostPeerId) {
+  if (!map) {
+    toast('الخريطة غير جاهزة');
+    return;
+  }
+  if (!hostPeerId) {
+    toast('معرّف المضيف مفقود');
+    return;
+  }
+  if (netSession) destroyNet();
+  setLobbyStatus('جارٍ الاتصال بالمضيف…');
+  $('btn-lobby-create').disabled = true;
+  $('btn-lobby-join').disabled = true;
+  try {
+    multiMode = 'guest';
+    netSession = await createGuest({
+      hostPeerId: hostPeerId.trim(),
+      name: lobbyName(),
+      preferredRole: null,
+      onLobby: onNetLobby,
+      onState: onNetState,
+      onEvent: onNetEvent,
+      onError: onNetError,
+    });
+    $('lobby-hint').textContent = 'اختر مقعداً شاغراً وانتظر بدء المضيف.';
+    setLobbyStatus('متصل — اختر مقعداً', 'ok');
+  } catch (err) {
+    console.error(err);
+    destroyNet();
+    resetLobbyUi();
+    onNetError(err);
+  }
+}
+
 // ---------- Events ----------
 $('btn-practice-x').addEventListener('click', startPracticeX);
 $('btn-practice-det').addEventListener('click', () => {
@@ -1307,7 +1806,10 @@ $('btn-practice-det').addEventListener('click', () => {
   });
   showScreen('pick');
 });
-$('btn-multi').addEventListener('click', () => showScreen('lobby'));
+$('btn-multi').addEventListener('click', () => {
+  resetLobbyUi();
+  showScreen('lobby');
+});
 $('btn-help').addEventListener('click', openHelp);
 $('btn-game-help').addEventListener('click', openHelp);
 $('btn-help-close').addEventListener('click', closeHelp);
@@ -1318,13 +1820,61 @@ $('btn-back-portal').addEventListener('click', () => {
   location.href = '../index.html';
 });
 $('btn-pick-back').addEventListener('click', () => showScreen('menu'));
-$('btn-lobby-back').addEventListener('click', () => showScreen('menu'));
+$('btn-lobby-back').addEventListener('click', () => {
+  if (netSession) {
+    if (!confirm('مغادرة الغرفة والعودة للقائمة؟')) return;
+    destroyNet();
+  }
+  resetLobbyUi();
+  showScreen('menu');
+});
 $('btn-lobby-practice').addEventListener('click', () => {
+  if (netSession) destroyNet();
   pickColor = 'blue';
   showScreen('pick');
 });
-$('btn-lobby-create').addEventListener('click', () => toast('سيتم تفعيل اللعب الجماعي لاحقاً'));
-$('btn-lobby-join').addEventListener('click', () => toast('سيتم تفعيل اللعب الجماعي لاحقاً'));
+$('btn-lobby-create').addEventListener('click', () => {
+  startHostRoom();
+});
+$('btn-lobby-join').addEventListener('click', () => {
+  const id = prompt('ألصق معرّف المضيف (host) من الرابط:');
+  if (!id) return;
+  startGuestRoom(id.trim());
+});
+$('btn-lobby-start').addEventListener('click', () => {
+  if (multiMode !== 'host' || !netSession || !map) return;
+  if (!netSession.getLocalRole?.()) {
+    toast('اختر مقعداً أولاً');
+    return;
+  }
+  $('btn-lobby-start').disabled = true;
+  setLobbyStatus('بدء الجولة…');
+  const res = netSession.startGame(map);
+  if (!res?.ok) {
+    $('btn-lobby-start').disabled = false;
+    toast('تعذّر بدء الجولة');
+    setLobbyStatus('تعذّر البدء', 'err');
+  }
+});
+$('btn-copy-link').addEventListener('click', async () => {
+  const url = $('lobby-url')?.value || netSession?.getShareUrl?.() || '';
+  if (!url) return;
+  try {
+    await navigator.clipboard.writeText(url);
+    toast('تم نسخ الرابط');
+  } catch {
+    $('lobby-url').select();
+    try {
+      document.execCommand('copy');
+      toast('تم نسخ الرابط');
+    } catch {
+      toast('انسخ الرابط يدوياً');
+    }
+  }
+});
+$('lobby-name').addEventListener('change', () => {
+  if (netSession) netSession.setName(lobbyName());
+});
 
 document.querySelectorAll('.color-opt').forEach((btn) => {
   btn.addEventListener('click', () => {
@@ -1354,7 +1904,21 @@ document.addEventListener(
   { passive: true },
 );
 
-bootGame();
+// Boot + optional auto-join from share URL
+bootGame().then(() => {
+  resetLobbyUi();
+  if (!map) return;
+  const { host, room } = parseMultiplayerParams();
+  if (host) {
+    showScreen('lobby');
+    if (room) {
+      $('lobby-room-code').textContent = `الغرفة ${room}`;
+      $('share-box').classList.add('show');
+    }
+    setLobbyStatus('الانضمام عبر الرابط…');
+    startGuestRoom(host);
+  }
+});
 </script>
 </body>
 </html>
